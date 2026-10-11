@@ -1,0 +1,19 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Miscellaneous
+/static/
+/drizzle/
+
+# Skills tiers gérés par leurs installeurs
+/.agents/skills/
+/.agents/THIRD_PARTY_NOTICES.md
+/.impeccable/
+/skills-lock.json
+
+# Types générés par Wrangler
+/worker-configuration.d.ts
