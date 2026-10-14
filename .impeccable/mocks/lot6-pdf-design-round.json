@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-13",
+  "scope": "PDF export workflow within existing grid-split and luma, no replacement visual world",
+  "seed": "93dcd3fc",
+  "dealt": [
+    3,
+    4,
+    2
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "id": "pdf-direct",
+      "label": "Action dans l’en-tête",
+      "structure": "Téléchargement direct parmi les actions de Notation, avec disponibilité près du contexte."
+    },
+    {
+      "rank": 2,
+      "id": "pdf-sheet",
+      "label": "Aperçu dans un panneau",
+      "structure": "La grille reste derrière un panneau latéral avec aperçu du PDF, disponibilité et téléchargement."
+    },
+    {
+      "rank": 3,
+      "id": "pdf-inline",
+      "label": "Export visible avec la classe",
+      "structure": "Bandeau compact sous les sélecteurs, état de la classe à gauche et téléchargement à droite."
+    },
+    {
+      "rank": 4,
+      "id": "pdf-footer",
+      "label": "Action en bas de grille",
+      "structure": "Barre d’export après la grille, disponibilité et téléchargement réunis ; le bilan étudiant garde sa place."
+    },
+    {
+      "rank": 5,
+      "id": "pdf-menu",
+      "label": "Menu d’actions de la grille",
+      "structure": "Exporter le PDF dans un menu d’actions identifié, avec état de disponibilité dans la grille."
+    },
+    {
+      "rank": 6,
+      "id": "pdf-summary-tab",
+      "label": "Onglet export dans le bilan",
+      "structure": "Le rail du bilan propose Étudiant et Export ; la grille reste au premier plan."
+    },
+    {
+      "rank": 7,
+      "id": "pdf-page",
+      "label": "Page d’aperçu dédiée",
+      "structure": "Un aperçu plein écran du document, puis téléchargement et retour à la notation."
+    }
+  ],
+  "choices": {
+    "optionId": "pdf-inline",
+    "html": ".impeccable/mocks/decision/lot6-pdf-inline.html",
+    "buildPath": "code",
+    "buildPathFlipped": false,
+    "steer": ""
+  },
+  "applicationCodeChanged": true,
+  "constraints": [
+    "Complete module grid only",
+    "Teacher only; no student/pedagogy account",
+    "Full unfiltered class",
+    "No provisional PDF, criterion lines, private comments or undefined annual mean",
+    "Browser generation/download; no PDF service",
+    "Neutral luma and existing grade grid retained",
+    "Annual purge remains the next independent step"
+  ],
+  "status": "Implemented and documented; full review fix resolved (scoped ship)",
+  "board": {
+    "url": "http://127.0.0.1:54371/",
+    "key": "5de298b2"
+  },
+  "brief": ".impeccable/mocks/lot6-pdf-brief.md",
+  "review": ".impeccable/review/lot6-pdf/"
+}

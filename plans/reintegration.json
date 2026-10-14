@@ -1,0 +1,239 @@
+{
+	"sourceCheckout": "/private/tmp/coursely-improve-execution-20261013",
+	"destination": "/Users/leo/Dev/Education/coursely",
+	"backup": "/private/tmp/coursely-reintegration-20261014-meHnuj",
+	"status": "VERIFIED",
+	"files": [
+		{
+			"path": "README.md",
+			"previousSha256": "17b51a61f49d62fc23acc3a528ff37c10a05fe8d2d32488b0678c6f7ae1eb38f",
+			"reviewedSha256": "e3c12374220109fa23c6556e0bfa9693ea765ea735c8219fe179e72f2057776f"
+		},
+		{
+			"path": "package.json",
+			"previousSha256": "4d23758f68fdd1e3e0cd87f34b6589812b4531e1e0c161e7849c2a3341fa4654",
+			"reviewedSha256": "537ce8c8936d33243b997e6ecb9037b29d665381dc9f2fa82b0529a83e2df3d8"
+		},
+		{
+			"path": "pnpm-lock.yaml",
+			"previousSha256": "d254c00d616f0270f8d89ae35db04d08d9661029d37eed9ebc0273ee109a5064",
+			"reviewedSha256": "a720993db75d188d5680cfe9b64a652b6a9b3e1f27a378ee6261478dc871dfea"
+		},
+		{
+			"path": "src/hooks.server.ts",
+			"previousSha256": "fd8be4eca8821c9a79b91ecd8585de65d75be7c1cc9e4ade0a22d406ff43d213",
+			"reviewedSha256": "461c0a29677372666140a7ca0c9fa3e6f446d351389c5b4474856a773fd0934a"
+		},
+		{
+			"path": "src/lib/components/teaching/ModuleDraftEditor.svelte",
+			"previousSha256": "8acfe75501013a53cfd4c7a521da0e964d112b12f324afb99c64e6ee8658a55e",
+			"reviewedSha256": "dc5220b23cf05b71508a526b534bee6600a93a698d26ff237f3f351f2aeb449e"
+		},
+		{
+			"path": "src/lib/domain/contracts.test.ts",
+			"previousSha256": "1f14004cd936776e7e0bb4842e3021258694ef5aeadb784b4f1de353f618d2f8",
+			"reviewedSha256": "a94caebeff1cf80cdd000235eae318f45165f92ec61192e6801c4363b2ac45e3"
+		},
+		{
+			"path": "src/lib/domain/contracts.ts",
+			"previousSha256": "0de0765dec4e1067f8c6ecc298b5a85f62accd2929c2194fd282644e9f150fe0",
+			"reviewedSha256": "437f28f41714b15ac4f2b058340af04a4b05b8fc8b4ae87489e250c286cbbeec"
+		},
+		{
+			"path": "src/lib/domain/grade-calculation.test.ts",
+			"previousSha256": "756545352fa32028dc5ba2aea41339214a9d714490f87ade1af8c7261275486e",
+			"reviewedSha256": "d002f8abd4a3137cf77b34beb9a7be8e8922b627efc0d1043ddef8d99bd1099a"
+		},
+		{
+			"path": "src/lib/domain/grade-calculation.ts",
+			"previousSha256": "b63d71b29b07b6386ebc43f6558d7785593a33027ce0e0ebd92aaca908834c37",
+			"reviewedSha256": "60dbf07a562eccccd553f34c487d778587490193c5bd0c4ea51f165ecf9c94a7"
+		},
+		{
+			"path": "src/lib/domain/grade-export.test.ts",
+			"previousSha256": "d3abe0488ffa2f3395122c2c8fe15aafe8dec5104f6f64f44199cf34c204c094",
+			"reviewedSha256": "b06520f16a3c7b0058c2e4f423d55cf9a62bc9262ee4e55787ff74312cb0976b"
+		},
+		{
+			"path": "src/lib/domain/teaching.ts",
+			"previousSha256": "339625654b59890fd1c29f95b2b19592950fd8ad6b02424b584674bfebbfb6bc",
+			"reviewedSha256": "52069917f0921df69c764f856bb99b20a5b3178fa5d06f3d1a615613616b20ed"
+		},
+		{
+			"path": "src/lib/server/auth/auth.test.ts",
+			"previousSha256": "79ca9b35af9776461898e5aa81896333852ff6e7052a18b87c641b7eb2680886",
+			"reviewedSha256": "ce29667b788670b999718c1e477237ea34877cf4a401525c6e4250ae38d15f45"
+		},
+		{
+			"path": "src/lib/server/auth/rate-limit.ts",
+			"previousSha256": "8083f5ce074452b6d582df35c5b4196739ea02ccfa2bec09d3d164f53c0e906b",
+			"reviewedSha256": "392ad7e36ec9c747ad1c07cdbbf7e0397c3e42edc2556581d41e6f9e57891aa5"
+		},
+		{
+			"path": "src/lib/server/db/schema.ts",
+			"previousSha256": "aee161fd63e7c97124be217befa66e1122a3f9fa9ebc77bdb23b527e03744382",
+			"reviewedSha256": "33babaf650dfc17cc547762e2cc006f5439ec4519e99cb3abae4c486155e9fcb"
+		},
+		{
+			"path": "src/lib/server/teaching/grade-export.test.ts",
+			"previousSha256": "c5da976afb1cd2cd02a807ea11554b38e2bab8616b953d31b60c3529b966f550",
+			"reviewedSha256": "e5e137a3f3ccdeb12d942ddadc2d85d0ba982f66478677e5c107464b1d6f26f9"
+		},
+		{
+			"path": "src/lib/server/teaching/proposals.test.ts",
+			"previousSha256": "ceb27c3d7dec344b5229473b2433c0db6b1355886786ab0d58c86b8083e6e8ca",
+			"reviewedSha256": "214ac667be8e8385f3b60cdd9817da1dcbdedb9a287e0d0c6926aa48783bfff9"
+		},
+		{
+			"path": "src/lib/server/teaching/proposals.ts",
+			"previousSha256": "d507f7d8fd8f4daa6542622a9f9075e059097d51cdb6a67a07f398cfc201181e",
+			"reviewedSha256": "eb72216a03edd9c098e8e8fedc38a16774f227d52cbffb23b003f787c3665923"
+		},
+		{
+			"path": "src/lib/server/teaching/publication-hooks.test.ts",
+			"previousSha256": "eef4465581d6832c3d14e0c0dd96a6896e7d7445b0e45a6f9aa02af3a39278e1",
+			"reviewedSha256": "089aa9f7882a955734d09b22600669f259916e3de7e9316dbcc34a7162c41e4a"
+		},
+		{
+			"path": "src/lib/server/teaching/service.test.ts",
+			"previousSha256": "cae9f9a5189c419cebf826fb03e9e0e181f82f731f520c01adeeaa4273473ede",
+			"reviewedSha256": "a52a8f95e471d64888d0556ac9ba7da51b3266be02faf2e9cc2ab746e74cf8bf"
+		},
+		{
+			"path": "src/lib/teaching/api.ts",
+			"previousSha256": "5f0c0da2b32bdb3d46e14d7f6b3d2bb7d45f5f24cac6677708d975921eec0c53",
+			"reviewedSha256": "30cfdb026dc18b159b0cf1d7f5feae227e153022f099035213b5222fc4af3c1b"
+		},
+		{
+			"path": "src/routes/api/teaching/modules/[moduleId]/+server.ts",
+			"previousSha256": "feadc4bad556e5aa2d7190be6a8c6becf8760372df17e9f0a6c2e782ff684084",
+			"reviewedSha256": "43cf26dfbbb9b8c1ef58e5a37a7a2a053c05a5730b64d82382a9803df66bad24"
+		},
+		{
+			"path": "drizzle/meta/_journal.json",
+			"previousSha256": "144a1163200888a9349c3f979cc05f3c8b0a699b9107983fe9b2f38e98bf7a7e",
+			"reviewedSha256": "967bc7aecc931eacbed60101822b0bfa05c2c5251222f6766dc071610b1c37b3"
+		},
+		{
+			"path": ".github/workflows/ci.yml",
+			"previousSha256": "5211efef2409961e40eaf2cfdccb8740ff0d1a441ed54ac3f727709fb1d04927",
+			"reviewedSha256": "67ad929a2b231014c9c51fb5b9da05bcebfa048d8bf90b3f0ce89247cb5d7f35"
+		},
+		{
+			"path": "src/lib/server/auth/rate-limit.test.ts",
+			"previousSha256": null,
+			"reviewedSha256": "bcb83a2dcdbdaa706080050254ecf60ac3f5766997ca5339cc30db96e5ab8b35"
+		},
+		{
+			"path": "drizzle/0007_true_shadow_king.sql",
+			"previousSha256": null,
+			"reviewedSha256": "da47d6e3ba0c125eff72a35df2e141cee5b4cfa69cb54a602e15c9fce607fbd8"
+		},
+		{
+			"path": "drizzle/meta/0007_snapshot.json",
+			"previousSha256": null,
+			"reviewedSha256": "da1572e29839480aed21e686b7146a137665a9e6c590f105e8c77fc0643e7656"
+		},
+		{
+			"path": "playwright.config.ts",
+			"previousSha256": null,
+			"reviewedSha256": "f462d07013e45529953b495ee1ddb88c10ea44953f406f10f4e6368cc75a729b"
+		},
+		{
+			"path": "scripts/browser-fixture.ts",
+			"previousSha256": null,
+			"reviewedSha256": "415b0203f3f0d993b48f50078c724ea8d0e741022e258dcbb37a767766fda495"
+		},
+		{
+			"path": "tests/browser/fixtures.ts",
+			"previousSha256": null,
+			"reviewedSha256": "40277b1b6a71b08b5d1f232d7bcc5967b488af4753ce7e3e214480b8a8dd0169"
+		},
+		{
+			"path": "tests/browser/auth.spec.ts",
+			"previousSha256": null,
+			"reviewedSha256": "2609e3b1dc0a953dad0598eb353500d6dac8ec98119b74d1151b0d62bdef3501"
+		},
+		{
+			"path": "tests/browser/drafts.spec.ts",
+			"previousSha256": null,
+			"reviewedSha256": "ecda72d35feb8ac3342b789da8f57720b9921b980564c6e03f200d70a0e4c0d7"
+		},
+		{
+			"path": "tests/browser/grading.spec.ts",
+			"previousSha256": null,
+			"reviewedSha256": "eda51edb3ebb3a1e838ba54333e13c3e830a87c33f686211ba78c388e73b1355"
+		},
+		{
+			"path": "tests/browser/pdf.spec.ts",
+			"previousSha256": null,
+			"reviewedSha256": "e7ffc6f8abbe01488acc00cc592cb123f459bbb897307267a42dd485d163ba64"
+		},
+		{
+			"path": "tests/browser/publication.spec.ts",
+			"previousSha256": null,
+			"reviewedSha256": "7be631c0a7cf0fe107aa6e87befbf75826982b98124b1b0a65f07afed96fc5a9"
+		},
+		{
+			"path": "tests/browser/tsconfig.json",
+			"previousSha256": null,
+			"reviewedSha256": "b860220e84f8acc9c1b599e14091cc3dd02e9215d0b8bde77568b7f0f1041c21"
+		},
+		{
+			"path": "tests/browser/support/auth.ts",
+			"previousSha256": null,
+			"reviewedSha256": "50409786c8a7ed3f1ab5482b1f0ed368dc5ee8429997ed02a727f0c4a4f8178e"
+		},
+		{
+			"path": "tests/browser/support/process.ts",
+			"previousSha256": null,
+			"reviewedSha256": "a2a47a44b81e2179d28f7cdfb97d06cdcf80bf22fc5216062dfe4198f7dac761"
+		},
+		{
+			"path": "tests/browser/support/fixture-copy.ts",
+			"previousSha256": null,
+			"reviewedSha256": "16acee9a7dcddbc52cb24d84deb4f41c545ea45bb2c3652cd47aa8100e636869"
+		},
+		{
+			"path": "tests/browser/support/pdf.ts",
+			"previousSha256": null,
+			"reviewedSha256": "5feac5cadb2bad3d23952e7d41420da8264a6d99281c8f7c952d78ffb0910dd7"
+		},
+		{
+			"path": "src/lib/teaching/module-creation.ts",
+			"previousSha256": null,
+			"reviewedSha256": "d57f95abaa7bdf2069a30c47a2be9205d79211298d9ff5a24eb82d8032e3a642"
+		},
+		{
+			"path": "src/lib/teaching/module-creation.test.ts",
+			"previousSha256": null,
+			"reviewedSha256": "5ec9728273a39f19edcfc36fcd7444517d6a45d0c99aa98e88be409905e5b355"
+		},
+		{
+			"path": "src/lib/server/teaching/module-access.test.ts",
+			"previousSha256": null,
+			"reviewedSha256": "f820d846693979673b65acc641da396caac3c76c54457a42bf13bf9491e611c5"
+		},
+		{
+			"path": "src/lib/server/auth/session-hooks.test.ts",
+			"previousSha256": null,
+			"reviewedSha256": "ca7eaea1c23ce60d537e247f96df4e7c02c8d4645b11b3ca61ed1fe225f82308"
+		}
+	],
+	"verificationConfig": "/Users/leo/Dev/Education/coursely/.svelte-kit/reintegration-check-QfbaFo/vitest.config.ts",
+	"verificationEnvDir": "/Users/leo/Dev/Education/coursely/.svelte-kit/reintegration-check-QfbaFo/empty-env",
+	"verificationViteConfig": "/Users/leo/Dev/Education/coursely/.svelte-kit/reintegration-check-QfbaFo/vite.config.ts",
+	"checks": {
+		"reviewedFileHashes": "43 match",
+		"unrelatedSourceFiles": "unchanged",
+		"frozenDependencyInstall": "exit 0; scripts disabled",
+		"lint": "exit 0",
+		"unitTests": "309 passed in 36 files; exit 0; neutral empty envDir",
+		"applicationTypes": "0 errors, 0 warnings; exit 0; neutral empty envDir",
+		"browserTypes": "exit 0",
+		"operatorScriptTypes": "exit 0",
+		"previousBrowserAndBuildReview": "preserved; identical source; not repeated in this transfer"
+	},
+	"initialTestSetupFailure": "Generated Kit tsconfig absent; generated via neutral config, then all tests passed",
+	"verificationScratchRemoved": true
+}

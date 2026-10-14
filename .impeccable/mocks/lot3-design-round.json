@@ -1,0 +1,143 @@
+{
+	"task": "Lot 3 private grading: approved designs implemented and locally verified",
+	"date": "2026-10-12",
+	"mode": "operate",
+	"world": "incumbent Coursely luma",
+	"groups": {
+		"rubric": {
+			"seed": "dfa5571f",
+			"deal": [3, 2, 4],
+			"rankedCandidates": [
+				"Évaluations par onglets : accès direct, lignes et calcul adjacents.",
+				"Table de définition : lignes groupées et calcul adjacent, édition directe.",
+				"Édition et aperçu : lignes à gauche, leur rendu de correction à droite, calcul en bandeau.",
+				"Résultats puis évaluations : règles attendues à gauche, liens et critères à droite.",
+				"Contexte de calcul en bandeau : table de critères pleine largeur et synthèse supérieure."
+			],
+			"optionIds": ["rubric-preview", "rubric-table", "rubric-results"],
+			"status": "implemented",
+			"key": "ec48f1be",
+			"url": "http://127.0.0.1:53416/",
+			"tabId": "18",
+			"previousRound": {
+				"deal": [6, 1, 2],
+				"optionIds": ["rubric-guided", "rubric-outline", "rubric-continuous"]
+			},
+			"reroll": 1,
+			"steer": "Accessibilité, informations à portée, parcours simple, retour direct et réduction des clics.",
+			"choice": "rubric-table",
+			"label": "Table de définition",
+			"chosenSketch": ".impeccable/mocks/decision/lot3-rubric-table.html",
+			"buildPath": "code",
+			"buildPathFlipped": false,
+			"telemetryRecorded": true
+		},
+		"grid": {
+			"seed": "3d147b93",
+			"deal": [6, 1, 5],
+			"rankedCandidates": [
+				"Grille complète : étudiants en lignes, résultats en colonnes, correction depuis une ligne.",
+				"Liste et synthèse : liste d’étudiants à gauche, résultats de la sélection à droite.",
+				"Évaluation par onglet : résultat d’une évaluation pour toute la classe.",
+				"Étudiants par avancement : à traiter, en cours et finalisés.",
+				"Résultats par étudiant : lignes dépliables et résultats sous le nom.",
+				"Grille et fiche : matrice compacte avec fiche de l’étudiant sélectionné à droite.",
+				"Résultats et exceptions : liste centrée sur les résultats et les cas bloquants."
+			],
+			"optionIds": ["grid-split", "grid-matrix", "grid-expandable"],
+			"status": "implemented",
+			"key": "68533be2",
+			"url": "http://127.0.0.1:53426/",
+			"tabId": "19",
+			"choice": "grid-split",
+			"label": "Grille et fiche",
+			"buildPath": "code",
+			"buildPathFlipped": false,
+			"chosenSketch": ".impeccable/mocks/decision/lot3-grid-split.html",
+			"telemetryRecorded": true
+		},
+		"correction": {
+			"seed": "1307eb37",
+			"deal": [4, 2, 5],
+			"rankedCandidates": [
+				"Sections successives : groupes en tables verticales ouvertes avec bandeau et bilan au-dessus.",
+				"Sommaire de groupes : navigation libre à gauche et groupe détaillé à droite sous bandeau et bilan.",
+				"Groupes en colonnes : tous les groupes en parallèle sous le contexte et le bilan.",
+				"Groupe et bilan fixe : groupe actif au centre et bilan persistant au bas de la vue.",
+				"Groupes par onglets : bandeau, bilan compact et liste de critères pleine largeur du groupe actif."
+			],
+			"optionIds": [
+				"correction-bottom-summary",
+				"correction-group-outline",
+				"correction-group-tabs"
+			],
+			"status": "implemented",
+			"key": "1e6d8b25",
+			"url": "http://127.0.0.1:53434/",
+			"tabId": "20",
+			"previousRound": {
+				"deal": [3, 7, 4],
+				"optionIds": ["correction-column", "correction-guided", "correction-criteria"]
+			},
+			"reroll": 2,
+			"steer": "Conserver bandeau, flèches entre étudiants et bilan ; revoir l’organisation des groupes et le layout.",
+			"history": [
+				{
+					"reroll": 1,
+					"deal": [3, 1, 5],
+					"optionIds": ["correction-summary", "correction-context", "correction-strip"],
+					"steer": "Indécis entre colonne et guidage ; privilégier évolution, accessibilité et informations à portée."
+				}
+			],
+			"pinned": ["context strip", "previous/next student", "assessment-summary table"],
+			"choice": "correction-bottom-summary",
+			"label": "Groupe et bilan fixe",
+			"chosenSketch": ".impeccable/mocks/decision/lot3-correction-bottom-summary.html",
+			"buildPath": "code",
+			"buildPathFlipped": false,
+			"telemetryRecorded": true
+		}
+	},
+	"applicationCodeChanged": true,
+	"status": "All three approved designs implemented; local verification passed; scoped final correction verdict ship",
+	"designProofs": {
+		"rubric-table": ".impeccable/review/lot3-design/rubric-table.jpg",
+		"grid-split": ".impeccable/review/lot3-design/grid-split.jpg",
+		"correction-bottom-summary": ".impeccable/review/lot3-design/correction-bottom-summary.jpg",
+		"correction-group-outline": ".impeccable/review/lot3-design/correction-group-outline.jpg",
+		"correction-group-tabs": ".impeccable/review/lot3-design/correction-group-tabs.jpg"
+	},
+	"implementation": {
+		"date": "2026-10-12",
+		"mode": "ordinary extension",
+		"worldChange": false,
+		"systemFilesChanged": false,
+		"routes": [
+			"/enseignant/modules/[moduleId]/bareme",
+			"/enseignant/notation?module=…&contexte=…",
+			"/enseignant/notation/[contextId]/[studentId]"
+		],
+		"verification": ".impeccable/review/lot3/verification.json",
+		"finishReview": ".impeccable/review/lot3/finish-review.md",
+		"tests": {
+			"files": 16,
+			"passed": 105
+		},
+		"finalVerdict": "ship",
+		"finalVerdictScope": "Two correction fixes: desktop summary persistence and criterion maximum association; not a second full-surface or server/domain audit",
+		"runtimeProofs": ".impeccable/review/lot3/{rubric,grid,correction}-{desktop,mobile,user-810}.jpg",
+		"longGroupProofs": [
+			".impeccable/review/lot3/correction-long-group.jpg",
+			".impeccable/review/lot3/correction-long-group-keyboard.jpg"
+		],
+		"initialGeometry": ".impeccable/review/lot3/layout-final.json",
+		"fixGeometry": ".impeccable/review/lot3/fix-layout.json",
+		"notPerformed": [
+			"Cloud migration or deployment",
+			"Real student data",
+			"Real-device or screen-reader acceptance",
+			"Full HTTPS passkey acceptance"
+		],
+		"documentationCheck": "README.md#incumbent-design-documentation-check"
+	}
+}

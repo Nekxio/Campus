@@ -1,0 +1,93 @@
+{
+	"plannedAt": "2026-10-13",
+	"commit": "e0adfff",
+	"includesUncommittedWorkspace": true,
+	"plans": {
+		"001": [
+			"src/lib/domain/grade-calculation.ts",
+			"src/lib/domain/grade-export.ts",
+			"src/lib/domain/grade-calculation.test.ts",
+			"src/lib/domain/grade-export.test.ts",
+			"src/lib/server/teaching/grade-export.test.ts"
+		],
+		"002": [
+			"src/lib/server/auth/rate-limit.ts",
+			"src/lib/server/auth/auth.test.ts",
+			"src/lib/server/db/schema.ts",
+			"src/lib/server/auth.ts",
+			"src/routes/api/activation/+server.ts"
+		],
+		"003": [
+			"src/lib/server/teaching/proposals.ts",
+			"src/lib/server/teaching/proposals.test.ts",
+			"src/lib/server/teaching/grading.ts",
+			"src/lib/server/db/teaching.schema.ts"
+		],
+		"004": [
+			"package.json",
+			"pnpm-lock.yaml",
+			".github/workflows/ci.yml",
+			".gitignore",
+			"scripts/tsconfig.json",
+			"README.md",
+			"vitest.config.ts",
+			"src/lib/server/db/index.ts",
+			"src/lib/server/auth/runtime.ts",
+			"src/lib/server/teaching/public-database.ts",
+			"src/lib/server/db/testing/publication-fixtures.ts"
+		],
+		"005": [
+			"src/lib/components/teaching/ModuleDraftEditor.svelte",
+			"src/lib/components/teaching/ModuleEditor.svelte",
+			"src/lib/teaching/api.ts",
+			"src/lib/domain/teaching.ts",
+			"src/routes/api/teaching/modules/[moduleId]/+server.ts",
+			"src/routes/enseignant/modules/nouveau/+page.server.ts",
+			"src/lib/server/teaching/service.ts",
+			"src/lib/server/teaching/service.test.ts"
+		],
+		"006": [
+			"src/hooks.server.ts",
+			"src/lib/server/auth/auth.test.ts",
+			"src/lib/server/teaching/publication-hooks.test.ts",
+			"src/lib/server/auth.ts"
+		]
+	},
+	"files": {
+		".github/workflows/ci.yml": "5211efef2409961e40eaf2cfdccb8740ff0d1a441ed54ac3f727709fb1d04927",
+		".gitignore": "272785de092ab4e25b35756168c4d07f2741ac5fe1684da3c2ed5100830c1226",
+		"README.md": "17b51a61f49d62fc23acc3a528ff37c10a05fe8d2d32488b0678c6f7ae1eb38f",
+		"package.json": "4d23758f68fdd1e3e0cd87f34b6589812b4531e1e0c161e7849c2a3341fa4654",
+		"pnpm-lock.yaml": "d254c00d616f0270f8d89ae35db04d08d9661029d37eed9ebc0273ee109a5064",
+		"scripts/tsconfig.json": "11280fdf0cf5cec970ff4a9cc56b21bba5ca7e502c11b047f60e3d6e72e1d1f8",
+		"src/hooks.server.ts": "fd8be4eca8821c9a79b91ecd8585de65d75be7c1cc9e4ade0a22d406ff43d213",
+		"src/lib/components/teaching/ModuleDraftEditor.svelte": "8acfe75501013a53cfd4c7a521da0e964d112b12f324afb99c64e6ee8658a55e",
+		"src/lib/components/teaching/ModuleEditor.svelte": "77d8a990c688874f9d32026fc6eb9007dc1b728c54208ac37c4df30d43b08181",
+		"src/lib/domain/grade-calculation.test.ts": "756545352fa32028dc5ba2aea41339214a9d714490f87ade1af8c7261275486e",
+		"src/lib/domain/grade-calculation.ts": "b63d71b29b07b6386ebc43f6558d7785593a33027ce0e0ebd92aaca908834c37",
+		"src/lib/domain/grade-export.test.ts": "d3abe0488ffa2f3395122c2c8fe15aafe8dec5104f6f64f44199cf34c204c094",
+		"src/lib/domain/grade-export.ts": "181daf5d803d2e9f22c1a357bfc1e749dc5074efe059ceb964c29320ee6d4c88",
+		"src/lib/domain/teaching.ts": "339625654b59890fd1c29f95b2b19592950fd8ad6b02424b584674bfebbfb6bc",
+		"src/lib/server/auth.ts": "e8cafa7eb384207368cfad640a97ac4c627f781849e56133a1177f4308cb1fda",
+		"src/lib/server/auth/auth.test.ts": "79ca9b35af9776461898e5aa81896333852ff6e7052a18b87c641b7eb2680886",
+		"src/lib/server/auth/rate-limit.ts": "8083f5ce074452b6d582df35c5b4196739ea02ccfa2bec09d3d164f53c0e906b",
+		"src/lib/server/auth/runtime.ts": "9f3f4432e4dc91cfc44375b5771c32806e5f7ca7913fb4cacb508cfc761e3358",
+		"src/lib/server/db/index.ts": "2c3c54982e3feece207719d8a5acab89fe3180cff96e45cb8e51c92c6c233fe9",
+		"src/lib/server/db/schema.ts": "aee161fd63e7c97124be217befa66e1122a3f9fa9ebc77bdb23b527e03744382",
+		"src/lib/server/db/teaching.schema.ts": "82350589d4a247253e467090ffd07f5503c02c664c2c0087bca208a61439cbf0",
+		"src/lib/server/db/testing/publication-fixtures.ts": "529bf18ea20c1fb357f61e7b7fa5da2a77dff3096d54ad94560c5d47a25518a8",
+		"src/lib/server/teaching/grade-export.test.ts": "c5da976afb1cd2cd02a807ea11554b38e2bab8616b953d31b60c3529b966f550",
+		"src/lib/server/teaching/grading.ts": "28132826f939061aaf04d7124361f3110b690e5c0ad1fc205cb2467d31b6079d",
+		"src/lib/server/teaching/proposals.test.ts": "ceb27c3d7dec344b5229473b2433c0db6b1355886786ab0d58c86b8083e6e8ca",
+		"src/lib/server/teaching/proposals.ts": "d507f7d8fd8f4daa6542622a9f9075e059097d51cdb6a67a07f398cfc201181e",
+		"src/lib/server/teaching/public-database.ts": "f8b285d56aa44759331845c1305f1b36052de4497befdcf79ff9df1060d538bf",
+		"src/lib/server/teaching/publication-hooks.test.ts": "eef4465581d6832c3d14e0c0dd96a6896e7d7445b0e45a6f9aa02af3a39278e1",
+		"src/lib/server/teaching/service.test.ts": "cae9f9a5189c419cebf826fb03e9e0e181f82f731f520c01adeeaa4273473ede",
+		"src/lib/server/teaching/service.ts": "37905e9abcfa880ebedca436e91f44648ddb7fb337282c79ee0cf6874495907c",
+		"src/lib/teaching/api.ts": "5f0c0da2b32bdb3d46e14d7f6b3d2bb7d45f5f24cac6677708d975921eec0c53",
+		"src/routes/api/activation/+server.ts": "9a222f0574e17b7bda99bdc02203424bb7c265e947867483ad4c93facff49fb7",
+		"src/routes/api/teaching/modules/[moduleId]/+server.ts": "feadc4bad556e5aa2d7190be6a8c6becf8760372df17e9f0a6c2e782ff684084",
+		"src/routes/enseignant/modules/nouveau/+page.server.ts": "64c4297d78cf0fa1804a922ae207aa057226e7d92f774f6558d5a62e34c50b77",
+		"vitest.config.ts": "69504116a744a2740bcef84f09f52da22160a199fb4d08c353fd34f25104da52"
+	}
+}

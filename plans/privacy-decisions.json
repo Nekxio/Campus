@@ -1,0 +1,85 @@
+{
+	"reviewedAt": "2026-10-13",
+	"context": {
+		"operator": "Léo",
+		"use": "individual professional use under operator responsibility",
+		"onlyTeacherAccount": true,
+		"studentDataCurrentlyUsed": false,
+		"currentDataStatementSource": "Operator declaration; no real database inspected",
+		"institutionalRelationshipReviewed": false,
+		"dpoRequired": "NOT_DETERMINED",
+		"readyForRealStudentData": false,
+		"primaryProfession": "full-stack developer",
+		"teachingRole": "external training provider",
+		"toolInitiative": "operator personal initiative; not requested by school",
+		"statedPurposes": [
+			"course organization",
+			"display teaching material to students",
+			"private grading records"
+		],
+		"operatorRetentionPolicy": {
+			"durationYears": 1,
+			"startsAt": "end of the school year",
+			"scope": ["annual classes", "grades", "associated annual personal records"],
+			"implementation": "existing explicit teacher purge; no automatic expiry added",
+			"actualYearEndDate": "to document for each year",
+			"legalJustificationReviewed": false,
+			"externalCopiesReviewed": false
+		},
+		"correctionProcessing": {
+			"location": "operator PC",
+			"entirelyOffline": true,
+			"externalContentTransmission": false,
+			"evidence": "Operator confirmation on 2026-10-14; no real work or configuration inspected",
+			"studentNoticeScope": "Describe actual Coursely purposes and recipients; no presentation of local correction tools"
+		},
+		"hostingAndStorageReviewed": false
+	},
+	"decisions": [
+		{
+			"id": "purposes_roles_legal_basis",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null
+		},
+		{
+			"id": "information_and_rights",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null
+		},
+		{
+			"id": "retention_and_external_copies",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null
+		},
+		{
+			"id": "providers_contracts_transfers",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null
+		},
+		{
+			"id": "ai_dpia_and_classification",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null,
+			"label": "Corrections locales et examen des risques",
+			"scopeNote": "Entirely offline correction declared; evaluate actual grading risks and need for impact assessment. Stable legacy decision ID retained."
+		},
+		{
+			"id": "security_incidents_https_acceptance",
+			"status": "PENDING",
+			"owner": "Léo",
+			"verifiedAt": null,
+			"evidence": null
+		}
+	],
+	"contextClarifiedAt": "2026-10-14"
+}

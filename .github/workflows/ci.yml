@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  WRANGLER_SEND_METRICS: false
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting and lint
+        run: pnpm lint
+
+      - name: Check types
+        run: pnpm check
+
+      - name: Run unit and local integration tests
+        run: pnpm test
+
+      - name: Install Chromium for fictional browser workflows
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Check browser test types
+        run: pnpm check:browser
+
+      - name: Run fictional desktop and mobile browser workflows
+        run: pnpm test:browser
+
+      - name: Build for Cloudflare Workers
+        run: pnpm build
+
+      - name: Check the Cloudflare preview
+        shell: bash
+        run: |
+          pnpm preview > "$RUNNER_TEMP/coursely-preview.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --max-time 2 --output "$RUNNER_TEMP/coursely-sign-in.html" http://127.0.0.1:4173/connexion; then
+              grep --quiet --ignore-case '<!doctype html' "$RUNNER_TEMP/coursely-sign-in.html"
+              node --input-type=module -e '
+                const home = await fetch("http://127.0.0.1:4173/", { redirect: "manual" });
+                if (home.status !== 303 || home.headers.get("location") !== "/connexion") {
+                  throw new Error("Teacher home must redirect anonymous visitors to sign-in");
+                }
+                for (const path of ["/enseignant/classes", "/enseignant/modules/nouveau", "/enseignant/propositions", "/enseignant/modules/00000000-0000-4000-8000-000000000001/publication"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path, { redirect: "manual" });
+                  if (page.status !== 303 || page.headers.get("location") !== "/connexion" || !page.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Teaching pages must remain private and uncached");
+                  }
+                }
+                for (const path of ["classes", "modules"]) {
+                  const mutation = await fetch("http://127.0.0.1:4173/api/teaching/" + path, {
+                    method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:4173" }, body: "{}"
+                  });
+                  if (mutation.status !== 401 || !mutation.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Teaching writes must refuse anonymous access before validation");
+                  }
+                }
+                for (const [path, method] of [
+                  ["/api/agent/context", "GET"],
+                  ["/api/agent/correction-context", "GET"],
+                  ["/api/agent/proposals", "POST"],
+                  ["/api/teaching/proposals/00000000-0000-4000-8000-000000000001/decision", "POST"],
+                  ["/api/teaching/modules/00000000-0000-4000-8000-000000000001/publication", "POST"],
+                  ["/api/agent/modules", "POST"],
+                  ["/api/agent/modules/00000000-0000-4000-8000-000000000001", "PATCH"]
+                ]) {
+                  const agent = await fetch("http://127.0.0.1:4173" + path, {
+                    method, ...(method === "GET" ? {} : { headers: { "Content-Type": "application/json" }, body: "{}" })
+                  });
+                  if (agent.status !== 401 || !agent.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Agent endpoints must refuse missing keys before database access");
+                  }
+                }
+                for (const path of ["/modules/not-an-id", "/classes/not-an-id"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path);
+                  if (page.status !== 404 || !page.headers.get("cache-control")?.includes("no-store") || !page.headers.get("x-robots-tag")?.includes("noindex")) {
+                    throw new Error("Invalid public links must fail closed and remain uncached");
+                  }
+                }
+                for (const path of ["/modules/00000000-0000-4000-8000-000000000001", "/classes/00000000-0000-4000-8000-000000000001"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path);
+                  if (page.status !== 503 || !page.headers.get("cache-control")?.includes("no-store") || !page.headers.get("x-robots-tag")?.includes("noindex")) {
+                    throw new Error("Unconfigured public readers must fail closed without auth configuration");
+                  }
+                }
+                const keyManagement = await fetch("http://127.0.0.1:4173/api/auth/api-key/create", { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:4173" }, body: "{}" });
+                if (keyManagement.status !== 403 || !keyManagement.headers.get("cache-control")?.includes("no-store")) {
+                  throw new Error("API-key management must remain operator-only");
+                }
+                const response = await fetch("http://127.0.0.1:4173/api/session");
+                if (response.status !== 401 || !response.headers.get("cache-control")?.includes("no-store")) {
+                  throw new Error("The private session endpoint must refuse anonymous access without caching");
+                }
+              '
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat "$RUNNER_TEMP/coursely-preview.log"
+          exit 1

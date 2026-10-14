@@ -1,0 +1,74 @@
+{
+  "title": "2/3 — Lire la grille du module",
+  "question": "La grille montre les résultats, sans détail de critères. Chaque disposition donne accès à la correction et indique les notes encore à traiter.",
+  "options": [
+    {
+      "id": "grid-split",
+      "label": "Grille et fiche",
+      "thesis": "Garder la grille visible pendant la consultation de la fiche d’un étudiant.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Résultats à gauche ; évaluations, statut et accès à la correction détaillée à droite.",
+      "risk": "Moins d’allers-retours ; la grille dispose de moins de largeur.",
+      "html": ".impeccable/mocks/decision/lot3-grid-split.html",
+      "comp": ".impeccable/mocks/decision/lot3-grid-split.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "grid-matrix",
+      "label": "Grille complète",
+      "thesis": "Comparer les résultats de toute la classe dans une table lisible.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Quiz, projet, soutenance et résultat final sont alignés ; une action ouvre la correction.",
+      "risk": "Efficace pour douze étudiants ; les résultats nombreux demandent une adaptation mobile.",
+      "html": ".impeccable/mocks/decision/lot3-grid-matrix.html",
+      "comp": ".impeccable/mocks/decision/lot3-grid-matrix.png"
+    },
+    {
+      "id": "grid-expandable",
+      "label": "Résultats par étudiant",
+      "thesis": "Déplier un étudiant pour consulter ses résultats et ouvrir la correction.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "La liste reste compacte ; les résultats de la ligne ouverte se lisent sous son identité.",
+      "risk": "Clair sur téléphone ; comparer toute la classe demande davantage d’ouvertures.",
+      "html": ".impeccable/mocks/decision/lot3-grid-expandable.html",
+      "comp": ".impeccable/mocks/decision/lot3-grid-expandable.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

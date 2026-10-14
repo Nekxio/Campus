@@ -1,0 +1,74 @@
+{
+  "title": "Publication — choisir la vérification",
+  "question": "Choisir une classe et son année, examiner le brouillon destiné aux étudiants, puis publier explicitement. L’ancienne page reste visible pendant les modifications. Les droits et versions Drive restent indépendants. Exemples fictifs.",
+  "options": [
+    {
+      "id": "publish-guided",
+      "label": "Revue en trois étapes",
+      "thesis": "Séparer le choix de classe, la revue et la publication.",
+      "viewport": "Étapes à gauche, aperçu au centre et décision de publier dans la dernière étape.",
+      "risk": "Le parcours est explicite ; les mises à jour courantes demandent davantage de passages.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-publish-guided.html",
+      "comp": ".impeccable/mocks/decision/lot5-publish-guided.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "publish-sections",
+      "label": "Vérification par section",
+      "thesis": "Vérifier les cinq blocs avant une décision explicite.",
+      "viewport": "Sommaire des blocs à gauche, contenu étudiant à droite, état publié et actions persistantes.",
+      "risk": "Les oublis sont plus faciles à repérer ; la revue se fait section par section.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-publish-sections.html",
+      "comp": ".impeccable/mocks/decision/lot5-publish-sections.png"
+    },
+    {
+      "id": "publish-compare",
+      "label": "Publié et brouillon côte à côte",
+      "thesis": "Voir ce que la mise à jour changera sur la page publique.",
+      "viewport": "Version publiée et brouillon côte à côte, classe sélectionnée et action de publication dans le bandeau.",
+      "risk": "Les changements sont visibles ; la comparaison est dense sur ordinateur et se replie sur mobile.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-publish-compare.html",
+      "comp": ".impeccable/mocks/decision/lot5-publish-compare.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

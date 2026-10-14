@@ -1,0 +1,74 @@
+{
+  "title": "3/3 — Corriger un étudiant",
+  "question": "Les mêmes lignes de points entiers, états d’absence, retard et commentaire privé dans trois parcours. Aucun champ de justification par critère.",
+  "options": [
+    {
+      "id": "correction-column",
+      "label": "Correction en une colonne",
+      "thesis": "Noter les lignes de chaque groupe et conserver le résultat à portée de main.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Les huit lignes de Fonctionnalités sont ouvertes ; remise, retard et commentaire suivent.",
+      "risk": "Fluide sur téléphone ; le détail d’un gros projet impose de défiler.",
+      "html": ".impeccable/mocks/decision/lot3-correction-column.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-column.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "correction-guided",
+      "label": "Correction guidée",
+      "thesis": "Corriger un groupe à la fois, puis vérifier remise, retard et résultat.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Les étapes annoncent Fonctionnalités, Qualité, Livraison et Bilan ; la saisie reste conservée.",
+      "risk": "Réduit la charge visuelle ; revoir plusieurs groupes demande de naviguer.",
+      "html": ".impeccable/mocks/decision/lot3-correction-guided.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-guided.png"
+    },
+    {
+      "id": "correction-criteria",
+      "label": "Atelier par critère",
+      "thesis": "Comparer la même ligne de barème entre étudiants pendant la correction.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Huit lignes en lignes, étudiants en colonnes, puis synthèse de l’étudiant sélectionné.",
+      "risk": "Utile pour corriger en série ; plus dense et moins direct sur téléphone.",
+      "html": ".impeccable/mocks/decision/lot3-correction-criteria.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-criteria.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

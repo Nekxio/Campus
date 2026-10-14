@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-13",
+  "scope": "Annual archive and purge workflow inside existing luma teacher workspace",
+  "seed": "f2d39f5f",
+  "dealt": [
+    3,
+    6,
+    4
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "id": "year-split",
+      "label": "Année et bilan latéral",
+      "structure": "Liste des classes/modules à gauche et bilan annuel permanent à droite."
+    },
+    {
+      "rank": 2,
+      "id": "year-steps",
+      "label": "Parcours guidé",
+      "structure": "Trois étapes successives : PDF, récapitulatif et décision finale."
+    },
+    {
+      "rank": 3,
+      "id": "year-continuous",
+      "label": "Dossier annuel continu",
+      "structure": "Une page déroule les PDF, les données supprimées puis les éléments conservés."
+    },
+    {
+      "rank": 4,
+      "id": "year-sheet",
+      "label": "Panneau depuis Classes",
+      "structure": "Un panneau attaché à la page Classes réunit le récapitulatif de l’année et ses actions."
+    },
+    {
+      "rank": 5,
+      "id": "year-register",
+      "label": "Registre des années",
+      "structure": "Une ligne par année avec expansion du bilan et des contextes archivés."
+    },
+    {
+      "rank": 6,
+      "id": "year-comparison",
+      "label": "Supprimé / conservé côte à côte",
+      "structure": "Deux colonnes rendent la frontière de conservation visible avant la décision."
+    },
+    {
+      "rank": 7,
+      "id": "year-review-page",
+      "label": "Vérification dédiée",
+      "structure": "La liste des années conduit à une page séparée de vérification avant la purge."
+    }
+  ],
+  "choices": {
+    "optionId": "year-continuous",
+    "buildPath": "code",
+    "html": ".impeccable/mocks/decision/lot6-year-continuous.html"
+  },
+  "status": "implemented-and-reviewed",
+  "applicationCodeChanged": true,
+  "brief": ".impeccable/mocks/lot6-year-brief.md",
+  "board": {
+    "url": "http://127.0.0.1:58093/",
+    "key": "7b1375da"
+  },
+  "evidenceDirectory": ".impeccable/review/lot6-year",
+  "visualVerification": {
+    "date": "2026-10-13",
+    "scope": "Three static desktop composition sketches and the live decision board; not application implementation.",
+    "viewport": "1440×900 composition fitted into the actual 1280×720 preview",
+    "result": "All three compositions visible; fixed theme preserved; fictional data and static actions labelled; no business data altered.",
+    "sketches": [
+      {
+        "html": ".impeccable/mocks/decision/lot6-year-continuous.html",
+        "sha256": "ef406f38d2573fed3e7c220e990c28f20535437695a989f93293d598b351dc54",
+        "screenshot": ".impeccable/review/lot6-year/continuous.png"
+      },
+      {
+        "html": ".impeccable/mocks/decision/lot6-year-comparison.html",
+        "sha256": "241eb0010ab8ffa5804b41352a3fb0b599c7deb60ff35e3cc42ee603ab6a818f",
+        "screenshot": ".impeccable/review/lot6-year/comparison.png"
+      },
+      {
+        "html": ".impeccable/mocks/decision/lot6-year-sheet.html",
+        "sha256": "ba8e1f1b27eb48a6148aa19de82831a9a38ddc1a484e160aea7752da5729cc28",
+        "screenshot": ".impeccable/review/lot6-year/sheet.png"
+      }
+    ]
+  },
+  "implementation": {
+    "route": "/enseignant/classes/annees",
+    "composition": "year-continuous",
+    "reviewDisposition": "ship",
+    "reviewScope": "Independent full review followed by verdict pass: one mobile summary finding resolved",
+    "evidenceDirectory": ".impeccable/review/lot6-year/build",
+    "migration": "drizzle/0006_chunky_dakota_north.sql",
+    "cloudMigrationApplied": false
+  }
+}

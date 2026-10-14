@@ -1,0 +1,74 @@
+{
+  "title": "Fin d’année — choisir le parcours",
+  "question": "Même fonctionnement dans les trois propositions : archiver sans effacer, ou préparer la purge de l’année choisie. Classes et données étudiantes supprimées ; modules, barèmes, calendriers et liens de modules conservés. Confirmation finale : recopier l’année et confirmer les PDF nécessaires conservés. Exemples fictifs ; aucune suppression réelle.",
+  "options": [
+    {
+      "id": "year-continuous",
+      "label": "Dossier annuel continu",
+      "thesis": "Préparer la rentrée dans un seul dossier lisible.",
+      "viewport": "Année, PDF par module et classe, puis données supprimées et conservées, avant les actions finales.",
+      "risk": "Le parcours se lit dans l’ordre ; la page peut demander du défilement.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma conservé",
+        "Inter · shadcn-svelte",
+        "Année fictive 2025-2026"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-year-continuous.html",
+      "comp": ".impeccable/mocks/decision/lot6-year-continuous.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "year-comparison",
+      "label": "Supprimé / conservé côte à côte",
+      "thesis": "Voir d’un regard ce qui disparaît et ce qui reste.",
+      "viewport": "L’année choisie ouvre deux colonnes de comparaison, avec les PDF et les décisions en dessous.",
+      "risk": "La frontière est explicite ; les colonnes se superposent sur mobile.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma conservé",
+        "Inter · shadcn-svelte",
+        "Année fictive 2025-2026"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-year-comparison.html",
+      "comp": ".impeccable/mocks/decision/lot6-year-comparison.png"
+    },
+    {
+      "id": "year-sheet",
+      "label": "Panneau depuis Classes",
+      "thesis": "Terminer l’année sans quitter la gestion des classes.",
+      "viewport": "La page Classes reste derrière un panneau annuel, avec le récapitulatif et les actions protégées.",
+      "risk": "Le contexte reste à portée ; les longues listes demandent du défilement dans le panneau.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma conservé",
+        "Inter · shadcn-svelte",
+        "Année fictive 2025-2026"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-year-sheet.html",
+      "comp": ".impeccable/mocks/decision/lot6-year-sheet.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

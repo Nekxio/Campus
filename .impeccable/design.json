@@ -1,0 +1,676 @@
+{
+	"schemaVersion": 2,
+	"generatedAt": "2026-10-12T09:39:34.768152Z",
+	"title": "Design System: Coursely",
+	"extensions": {
+		"colorMeta": {
+			"primary": {
+				"role": "primary",
+				"displayName": "Charcoal action",
+				"canonical": "oklch(0.205 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"primary-foreground": {
+				"role": "neutral",
+				"displayName": "Near-white inverse",
+				"canonical": "oklch(0.985 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"background": {
+				"role": "neutral",
+				"displayName": "White workspace",
+				"canonical": "oklch(1 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"foreground": {
+				"role": "neutral",
+				"displayName": "Near-black ink",
+				"canonical": "oklch(0.145 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"muted": {
+				"role": "neutral",
+				"displayName": "Soft state surface",
+				"canonical": "oklch(0.97 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"muted-foreground": {
+				"role": "neutral",
+				"displayName": "Mid-gray supporting text",
+				"canonical": "oklch(0.556 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"border": {
+				"role": "neutral",
+				"displayName": "Fine divider",
+				"canonical": "oklch(0.922 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"input": {
+				"role": "neutral",
+				"displayName": "Input surface source",
+				"canonical": "oklch(0.922 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"ring": {
+				"role": "neutral",
+				"displayName": "Focus gray",
+				"canonical": "oklch(0.708 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"sidebar": {
+				"role": "neutral",
+				"displayName": "Pale navigation",
+				"canonical": "oklch(0.985 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"sidebar-accent": {
+				"role": "neutral",
+				"displayName": "Navigation state surface",
+				"canonical": "oklch(0.97 0 0)",
+				"tonalRamp": [
+					"oklch(0.15 0 0)",
+					"oklch(0.25 0 0)",
+					"oklch(0.35 0 0)",
+					"oklch(0.45 0 0)",
+					"oklch(0.55 0 0)",
+					"oklch(0.65 0 0)",
+					"oklch(0.8 0 0)",
+					"oklch(0.95 0 0)"
+				]
+			},
+			"destructive": {
+				"role": "neutral",
+				"displayName": "Validation red",
+				"canonical": "oklch(0.577 0.245 27.325)",
+				"tonalRamp": [
+					"oklch(0.15 0.245 27.325)",
+					"oklch(0.25 0.245 27.325)",
+					"oklch(0.35 0.245 27.325)",
+					"oklch(0.45 0.245 27.325)",
+					"oklch(0.55 0.245 27.325)",
+					"oklch(0.65 0.245 27.325)",
+					"oklch(0.8 0.245 27.325)",
+					"oklch(0.95 0.245 27.325)"
+				],
+				"purpose": "Functional validation feedback, not a brand accent."
+			}
+		},
+		"typographyMeta": {
+			"headline": {
+				"displayName": "Headline",
+				"purpose": "Desktop page heading."
+			},
+			"headline-compact": {
+				"displayName": "Headline Compact",
+				"purpose": "Narrow page heading."
+			},
+			"title": {
+				"displayName": "Title",
+				"purpose": "Next module heading."
+			},
+			"title-compact": {
+				"displayName": "Title Compact",
+				"purpose": "Narrow next-module and sheet module heading."
+			},
+			"section": {
+				"displayName": "Section",
+				"purpose": "Module-list section heading."
+			},
+			"body": {
+				"displayName": "Body",
+				"purpose": "Regular prose and sheet metadata."
+			},
+			"body-small": {
+				"displayName": "Body Small",
+				"purpose": "Compact descriptions and data."
+			},
+			"label": {
+				"displayName": "Label",
+				"purpose": "Controls and table headers."
+			},
+			"caption": {
+				"displayName": "Caption",
+				"purpose": "Supporting footer text."
+			}
+		},
+		"shadows": [
+			{
+				"name": "sheet-elevation",
+				"value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+				"purpose": "The raised sheet layer only."
+			},
+			{
+				"name": "control-focus",
+				"value": "0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent)",
+				"purpose": "Keyboard focus on buttons and text inputs, not resting elevation."
+			}
+		],
+		"motion": [
+			{
+				"name": "standard-transition",
+				"value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+				"purpose": "Inherited control-state transitions."
+			},
+			{
+				"name": "sheet-transition",
+				"value": "200ms cubic-bezier(0.4, 0, 0.2, 1)",
+				"purpose": "Sheet transitions with a 2.5rem directional slide and fade."
+			},
+			{
+				"name": "overlay-fade",
+				"value": "100ms",
+				"purpose": "Sheet backdrop fade."
+			},
+			{
+				"name": "reduced-motion",
+				"value": "0.01ms; animation-iteration-count: 1; scroll-behavior: auto",
+				"purpose": "Global override under prefers-reduced-motion: reduce."
+			}
+		],
+		"breakpoints": [
+			{
+				"name": "sm",
+				"value": "640px"
+			},
+			{
+				"name": "md",
+				"value": "768px"
+			},
+			{
+				"name": "lg",
+				"value": "1024px"
+			},
+			{
+				"name": "xl",
+				"value": "1280px"
+			}
+		],
+		"sourceFiles": [
+			"src/routes/layout.css",
+			"src/lib/components/teacher/TeacherHome.svelte",
+			"src/lib/components/teacher/TeacherNavigation.svelte",
+			"src/lib/components/teacher/ModulePreview.svelte",
+			"src/lib/components/teacher/GradePreview.svelte",
+			"src/lib/components/ui/button/button.svelte",
+			"src/lib/components/ui/input/input.svelte",
+			"src/lib/components/ui/badge/badge.svelte",
+			"src/lib/components/ui/sidebar/sidebar-menu-button.svelte",
+			"src/lib/components/ui/tabs/tabs-trigger.svelte",
+			"src/lib/components/ui/sheet/sheet-content.svelte",
+			"src/lib/components/auth/TeacherAccess.svelte",
+			"src/routes/connexion/+page.svelte",
+			"src/routes/activation/+page.svelte"
+		],
+		"scope": "The incumbent teacher-home system with its existing theme and sidebar updates, plus reviewed teacher sign-in and invitation activation in light and dark. Teacher-home business data remains fictional; the displayed home identity now comes from the teacher session.",
+		"rampNote": "Tonal ramps are synthesized preview metadata, not additional normative palette tokens.",
+		"componentNote": "Self-contained specimens describe visual states only; tabs and sheet specimens do not recreate Bits UI runtime behavior.",
+		"evidence": {
+			"screenshots": [
+				".impeccable/review/desktop.png",
+				".impeccable/review/mobile.png",
+				".impeccable/review/user-810.png",
+				".impeccable/review/preparation.png",
+				".impeccable/review/student.png",
+				".impeccable/review/grade-error.png",
+				".impeccable/review/grade-valid.png",
+				".impeccable/review/mobile-nav.png",
+				".impeccable/review/mobile-grades.png"
+			],
+			"browser": ".impeccable/review/browser-evidence.json",
+			"reference": ".impeccable/mocks/decision/next-intervention.html",
+			"limitations": "Real-device and screen-reader checks were unavailable. Some sheet axe color-contrast results were incomplete; the recorded browser evidence reports zero violations, not full WCAG certification.",
+			"scope": "Earlier teacher-home preview evidence; the captures and browser record below predate teacher-access implementation. Existing home theme checks are described separately in extensions.theme.evidence.",
+			"teacherAccess": {
+				"scope": "TeacherAccess sign-in and invitation activation: final full review of eleven current light/dark captures after font loading was corrected in the temporary UI copy. UI auth responses remain simulated.",
+				"record": ".impeccable/review/auth-access/evidence.json",
+				"reviewDisposition": "ship",
+				"buildPath": "code",
+				"selectedOption": "auth-vertical",
+				"seed": "0598add3",
+				"browser": "Codex in-app browser",
+				"reference": ".impeccable/mocks/decision/auth-0598-vertical.html",
+				"screenshots": [
+					".impeccable/review/auth-access/desktop-dark.jpg",
+					".impeccable/review/auth-access/desktop-light.jpg",
+					".impeccable/review/auth-access/mobile-dark-full.jpg",
+					".impeccable/review/auth-access/mobile-light.jpg",
+					".impeccable/review/auth-access/mobile-light-bottom.jpg",
+					".impeccable/review/auth-access/user-810-light.jpg",
+					".impeccable/review/auth-access/sign-in-desktop-light.jpg",
+					".impeccable/review/auth-access/sign-in-mobile-dark.jpg",
+					".impeccable/review/auth-access/sign-in-cancelled-light.jpg",
+					".impeccable/review/auth-access/mobile-expired-dark-full.jpg",
+					".impeccable/review/auth-access/mobile-long-identity-dark-full.jpg"
+				],
+				"visualChecks": [
+					"1440x1000 desktop light/dark",
+					"light mobile pair actual375x812 (requested override390x844, screenshot content excludes browser frame/scrollbar area)",
+					"dark mobile390x844; scrolling allowed",
+					"390x1200 complete mobile capture",
+					"810x1223 user viewport light"
+				],
+				"interactionChecks": [
+					"fragment removed",
+					"passkey request busy/disabled",
+					"simulated activation and sign-in success",
+					"cancel then retry",
+					"expired invitation refusal",
+					"preparation 503 then retry",
+					"new invitation in same document",
+					"long name and email wrap",
+					"keyboard primary/link traversal",
+					"sign-out"
+				],
+				"verification": {
+					"tests": 47,
+					"lint": "pass",
+					"types": "0 errors, 0 warnings",
+					"workersBuild": "pass",
+					"anonymousHome": "303 /connexion",
+					"anonymousSessionApi": "401 no-store",
+					"staleCookieFallback": "200 /connexion"
+				},
+				"limitations": [
+					"UI auth responses simulated only in a temporary copy; production helper and guard unchanged",
+					"no real Touch ID or HTTPS origin acceptance",
+					"no physical mobile or screen-reader test",
+					"no Lighthouse/field Core Web Vitals claims",
+					"No font-registry proof: the read-only browser scope did not expose the font registry."
+				],
+				"captureCorrection": "Initial review packet mislabeled the light mobile content dimensions; files are original375x812, no image rescaling. Required matrix corrected to measured phone capture.",
+				"reviewMode": "FULL",
+				"reviewedCaptureCount": 11,
+				"reviewOutcome": "All eleven current captures validated; no material fixes or further captures required.",
+				"screenshotNote": "These eleven files alone were recaptured and freshly reviewed after the font fix. Older supplemental mobile-dark.jpg, mobile-expired-dark.jpg and mobile-long-identity-dark-bottom.jpg are outside the latest required matrix. No capture rescaling.",
+				"fontValidation": {
+					"fixture": "independent node_modules; initial symlink font403 resolved",
+					"family": "Inter Variable",
+					"latinWoff2HttpStatus": 200,
+					"latinWoff2Bytes": 48256,
+					"captures": "required matrix recaptured after font fix",
+					"fontRegistry": "unavailable in read-only browser scope; no font registry claim"
+				},
+				"captureBrowser": {
+					"default": "Codex in-app browser",
+					"mobile-expired-dark-full.jpg": "Chrome via CUA; IAB capture omitted unchanged text, replaced by valid full-page Chrome capture"
+				},
+				"navigation": "SvelteKit3 goto with shallow:true/replace:true and resolved activation route; invalid router fallback strips the fragment through full replacement.",
+				"finalWorkersSmoke": {
+					"anonymousHome": "303 /connexion",
+					"signIn": "200 /connexion",
+					"anonymousSessionApi": "401 no-store",
+					"fontAsset": "200"
+				},
+				"navigationDetails": {
+					"replacement": "goto(resolve('/activation'), { shallow: true, replace: true, state: page.state })",
+					"fallback": "window.location.replace(resolve('/activation'))",
+					"history": "No raw history mutation."
+				}
+			}
+		},
+		"previewSheetLayout": {
+			"width": "75%",
+			"maxWidth": "24rem",
+			"maxWidthFrom": "640px",
+			"source": "The data-[side=right]:w-3/4 and data-[side=right]:sm:max-w-sm library selectors determine the actual rendered width."
+		},
+		"theme": {
+			"default": "system",
+			"choices": [
+				"light",
+				"dark",
+				"system"
+			],
+			"storage": "browser localStorage via mode-watcher",
+			"darkColors": {
+				"primary": "oklch(0.922 0 0)",
+				"primary-foreground": "oklch(0.205 0 0)",
+				"background": "oklch(0.145 0 0)",
+				"foreground": "oklch(0.985 0 0)",
+				"muted": "oklch(0.269 0 0)",
+				"muted-foreground": "oklch(0.708 0 0)",
+				"border": "oklch(1 0 0 / 10%)",
+				"input": "oklch(1 0 0 / 15%)",
+				"ring": "oklch(0.556 0 0)",
+				"sidebar": "oklch(0.205 0 0)",
+				"sidebar-accent": "oklch(0.269 0 0)",
+				"destructive": "oklch(0.704 0.191 22.216)"
+			},
+			"sourceFiles": [
+				"src/routes/+layout.svelte",
+				"src/lib/components/teacher/ThemeSwitcher.svelte",
+				"src/routes/layout.css"
+			],
+			"evidence": "Light and dark desktop, mobile navigation and grade-validation states checked; real devices and screen readers remain unverified."
+		},
+		"userAvatar": {
+			"size": "2rem",
+			"gap": "0.5rem",
+			"sourceFiles": [
+				"src/lib/components/teacher/TeacherNavigation.svelte",
+				"src/lib/components/ui/avatar/avatar.svelte",
+				"src/lib/components/ui/avatar/avatar-fallback.svelte"
+			],
+			"initials": "At most two uppercase initials from the first and last whitespace-separated name elements; one for a single element; ? for an empty name.",
+			"accessibility": "Avatar is aria-hidden and has no separate tab stop; the enclosing user-menu trigger is named in French.",
+			"contrast": "Local fallback --muted-foreground uses var(--foreground), preserving the global palette.",
+			"identitySource": "The authenticated teacher session supplies the home display name; initials derive from that same name. Teaching and grading data on the home remains fictional."
+		},
+		"sidebarShell": {
+			"reference": "https://www.shadcn-svelte.com/view/dashboard-01",
+			"desktopWidth": "18rem",
+			"variant": "inset",
+			"collapse": "offcanvas",
+			"insetMargin": "0.5rem; left 0 when expanded, 0.5rem when collapsed",
+			"insetRadius": "{rounded.2xl}",
+			"insetShadow": "Tailwind shadow-sm",
+			"headerHeight": "3rem",
+			"headerPadding": "1rem; 1.5rem from 64rem",
+			"triggerSize": "2.75rem",
+			"mainLandmarks": 1,
+			"navigation": [
+				"Accueil",
+				"Modules",
+				"Classes",
+				"Notation"
+			],
+			"accountItems": [
+				{
+					"label": "Compte",
+					"disabled": true
+				},
+				{
+					"label": "Notifications",
+					"disabled": true
+				},
+				{
+					"label": "Se déconnecter",
+					"disabled": false,
+					"disabledWhile": "Sign-out request pending; label becomes Déconnexion….",
+					"destination": "/connexion",
+					"failure": "French retry alert in the sidebar footer; the current session view stays in place."
+				}
+			],
+			"themePlacement": "Below the user-menu trigger",
+			"sourceFiles": [
+				"src/lib/components/teacher/TeacherHome.svelte",
+				"src/lib/components/teacher/TeacherHeader.svelte",
+				"src/lib/components/teacher/TeacherNavigation.svelte"
+			]
+		},
+		"teacherAccess": {
+			"surfaceBrief": ".impeccable/surfaces/src-lib-components-auth-teacheraccess-svelte.md",
+			"primaryTarget": "src/lib/components/auth/TeacherAccess.svelte",
+			"routes": [
+				"/connexion",
+				"/activation"
+			],
+			"columnMaxWidth": "30rem",
+			"sideGutters": "1.25rem",
+			"activationSteps": [
+				"Read-only invitation identity from the API",
+				"Create a passkey",
+				"Automatic arrival at teacher home"
+			],
+			"signIn": "One existing-passkey action in the same column.",
+			"markers": "2rem circles and flat separators; the ready key step uses the primary semantic tokens.",
+			"identityAvatarSize": "2.5rem",
+			"feedback": "French in-place alerts and a polite live status region for preparation, device confirmation and opening.",
+			"pending": "Passkey and invitation-verification actions disabled during preparation, a device request or opening.",
+			"retry": "Retryable failures expose the appropriate retry action; invalid or expired invitations cannot proceed.",
+			"successDestination": "/",
+			"mobile": "min-height: 100svh, natural scrolling, safe-area insets and wrapping identity/action text.",
+			"compactConditions": "At most 600px wide or 760px high; surface-specific, not global breakpoints.",
+			"motion": "No entrance animation; incumbent control states and reduced-motion behavior apply.",
+			"evidenceRef": "extensions.evidence.teacherAccess"
+		}
+	},
+	"components": [
+		{
+			"name": "Primary button",
+			"kind": "button",
+			"refersTo": "button-primary",
+			"description": "Filled large preparation action with the library end arrow.",
+			"html": "<button class=\"ds-button ds-primary\" type=\"button\">Ouvrir la préparation <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+			"css": ".ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-primary{padding-left:16px;padding-right:12px;background:var(--primary, oklch(0.205 0 0));color:var(--primary-foreground, oklch(0.985 0 0))}.ds-primary:hover{background:color-mix(in oklab,var(--primary, oklch(0.205 0 0)) 80%,transparent)}"
+		},
+		{
+			"name": "Outline button",
+			"kind": "button",
+			"refersTo": "button-outline",
+			"description": "Quiet secondary action with a white fill and fine boundary.",
+			"html": "<button class=\"ds-button ds-outline\" type=\"button\">Voir la page étudiante</button>",
+			"css": ".ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-outline{padding:0 16px;background:var(--background, oklch(1 0 0));color:var(--foreground, oklch(0.145 0 0));border-color:var(--border, oklch(0.922 0 0))}.ds-outline:hover{background:var(--muted, oklch(0.97 0 0))}"
+		},
+		{
+			"name": "Ghost button",
+			"kind": "button",
+			"refersTo": "button-ghost",
+			"description": "Table notes action with a tonal hover surface.",
+			"html": "<button class=\"ds-button ds-ghost\" type=\"button\">Ouvrir les notes <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+			"css": ".ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-ghost{background:transparent;color:var(--foreground, oklch(0.145 0 0))}.ds-ghost:hover{background:var(--muted, oklch(0.97 0 0))}"
+		},
+		{
+			"name": "Link button",
+			"kind": "button",
+			"refersTo": "button-link",
+			"description": "Module-name action aligned to surrounding row text.",
+			"html": "<button class=\"ds-button ds-link\" type=\"button\">Application web</button>",
+			"css": ".ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-link{background:transparent;color:var(--primary, oklch(0.205 0 0));padding:0;text-underline-offset:4px}.ds-link:hover{text-decoration:underline}"
+		},
+		{
+			"name": "Text input",
+			"kind": "input",
+			"refersTo": "input-text",
+			"description": "Rounded module search field with keyboard focus and invalid state CSS.",
+			"html": "<label class=\"ds-input-label\" for=\"ds-module-search\">Rechercher un module</label><input class=\"ds-input\" id=\"ds-module-search\" type=\"search\" placeholder=\"Rechercher un module…\">",
+			"css": ".ds-input-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.ds-input{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;width:100%;max-width:320px;min-height:44px;box-sizing:border-box;padding:4px 12px;border:1px solid transparent;border-radius:var(--radius-3xl, 1.375rem);background:color-mix(in oklab,var(--input, oklch(0.922 0 0)) 50%,transparent);color:var(--foreground, oklch(0.145 0 0));caret-color:var(--primary, oklch(0.205 0 0));transition:color 150ms,box-shadow 150ms,background-color 150ms}.ds-input::placeholder{color:var(--muted-foreground, oklch(0.556 0 0))}.ds-input:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-input[aria-invalid=true]{border-color:var(--destructive, oklch(0.577 0.245 27.325));box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive, oklch(0.577 0.245 27.325)) 20%,transparent)}.ds-input:disabled{opacity:.5;pointer-events:none;cursor:not-allowed}@media(max-width:767.98px),(pointer:coarse){.ds-input{font-size:1rem}}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}"
+		},
+		{
+			"name": "Navigation",
+			"kind": "nav",
+			"refersTo": "navigation-item",
+			"description": "Pale navigation with explicit labels and an active current-page item.",
+			"html": "<nav class=\"ds-nav\" aria-label=\"Navigation principale\"><a class=\"ds-nav-link ds-nav-active\" href=\"#ds-accueil\" aria-current=\"page\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM9 21v-8h6v8\"/></svg>Accueil</a><a class=\"ds-nav-link\" href=\"#ds-modules\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 7v14m0-14C8 5 5 5 3 6v14c3-1 6-1 9 1m0-14c4-2 7-2 9-1v14c-3-1-6-1-9 1\"/></svg>Modules</a></nav>",
+			"css": ".ds-nav{width:288px;padding:16px;background:var(--sidebar, oklch(0.985 0 0));color:var(--foreground, oklch(0.145 0 0))}.ds-nav-link{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 12px;box-sizing:border-box;border-radius:var(--radius-xl, 0.875rem);color:inherit;text-decoration:none;transition:padding 150ms}.ds-nav-link:hover,.ds-nav-link:active,.ds-nav-active{background:var(--sidebar-accent, oklch(0.97 0 0))}.ds-nav-active{font-weight:500}.ds-nav-link:focus-visible{outline:none;box-shadow:0 0 0 2px var(--sidebar-ring,oklch(0.708 0 0))}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}"
+		},
+		{
+			"name": "Status badges",
+			"kind": "chip",
+			"refersTo": "badge-outline",
+			"description": "Informational outline and secondary statuses; they are not actions.",
+			"html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge-outline\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m9 12 2 2 4-4\"/></svg>Validé</span><span class=\"ds-badge ds-badge-secondary\">À publier</span></div>",
+			"css": ".ds-badges{display:flex;gap:8px;align-items:center}.ds-badge{font-family:'Inter Variable', sans-serif;font-size:.75rem;line-height:1rem;font-weight:500;height:20px;padding:2px 8px;box-sizing:border-box;display:inline-flex;align-items:center;gap:4px;border:1px solid transparent;border-radius:var(--radius-3xl, 1.375rem);white-space:nowrap}.ds-badge-outline{border-color:var(--border, oklch(0.922 0 0));color:var(--foreground, oklch(0.145 0 0))}.ds-badge-secondary{background:var(--muted, oklch(0.97 0 0));color:var(--primary, oklch(0.205 0 0))}"
+		},
+		{
+			"name": "Class tabs",
+			"kind": "custom",
+			"refersTo": "class-tab",
+			"description": "Rounded class-filter track with a white selected trigger.",
+			"html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Classes\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" type=\"button\">Tous</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">B2</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" type=\"button\">B3</button></div>",
+			"css": ".ds-tabs{display:inline-flex;align-items:center;padding:4px;background:var(--muted, oklch(0.97 0 0));border-radius:9999px}.ds-tab{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:4px 12px;border:1px solid transparent;border-radius:9999px;font-weight:500;background:transparent;color:color-mix(in oklab,var(--foreground, oklch(0.145 0 0)) 60%,transparent);transition:all 150ms;cursor:pointer}.ds-tab[aria-selected=true]{background:var(--background, oklch(1 0 0));color:var(--foreground, oklch(0.145 0 0))}.ds-tab:hover{color:var(--foreground, oklch(0.145 0 0))}.ds-tab:focus-visible{outline:1px solid var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 50%,transparent)}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}"
+		},
+		{
+			"name": "Module data container",
+			"kind": "card",
+			"refersTo": "table-container",
+			"description": "The existing flat bordered table container, with a readable labeled-row reflow.",
+			"html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th>Module</th><th>Classe</th><th>Supports</th><th>Notation</th></tr></thead><tbody><tr><td><button class=\"ds-button ds-link\" type=\"button\">Application web</button></td><td>B2</td><td><span class=\"ds-badge ds-badge-secondary\">À publier</span></td><td><button class=\"ds-button ds-ghost\" type=\"button\">Ouvrir les notes <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button></td></tr></tbody></table></div><ul class=\"ds-module-list\"><li><div class=\"ds-module-meta\"><span>B2</span><span class=\"ds-badge ds-badge-secondary\">À publier</span></div><h3><button class=\"ds-button ds-link\" type=\"button\">Application web</button></h3><button class=\"ds-button ds-outline\" type=\"button\">Ouvrir les notes <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button></li></ul>",
+			"css": ".ds-table-wrap{display:none;overflow:hidden;border:1px solid var(--border,oklch(.922 0 0));border-radius:var(--radius-xl,.875rem);background:var(--background,oklch(1 0 0));color:var(--foreground,oklch(.145 0 0))}.ds-table{font-family:'Inter Variable',sans-serif;font-size:.875rem;line-height:1.25rem;width:100%;border-collapse:collapse}.ds-table th{height:48px;padding:0 12px;font-weight:500;text-align:left}.ds-table td{padding:12px}.ds-table th:first-child,.ds-table td:first-child{padding-left:20px}.ds-table th:last-child,.ds-table td:last-child{padding-right:20px;text-align:right}.ds-table tr{border-bottom:1px solid var(--border,oklch(.922 0 0));transition:background-color 150ms}.ds-table tbody tr:last-child{border-bottom:0}.ds-table tbody tr:hover{background:color-mix(in oklab,var(--muted,oklch(.97 0 0)) 50%,transparent)}.ds-module-list{font-family:'Inter Variable',sans-serif;font-size:.875rem;line-height:1.25rem;list-style:none;padding:0;margin:0;border-top:1px solid var(--border,oklch(.922 0 0));border-bottom:1px solid var(--border,oklch(.922 0 0))}.ds-module-list li{display:flex;flex-direction:column;gap:12px;padding:20px 0}.ds-module-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--muted-foreground,oklch(.556 0 0))}.ds-module-list h3{margin:0}.ds-module-list .ds-outline{align-self:flex-start}@media(min-width:1024px){.ds-table-wrap{display:block}.ds-module-list{display:none}}@media(prefers-reduced-motion:reduce){.ds-table tr{transition-duration:.01ms}}.ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-ghost{background:transparent;color:var(--foreground, oklch(0.145 0 0))}.ds-ghost:hover{background:var(--muted, oklch(0.97 0 0))}.ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-link{background:transparent;color:var(--primary, oklch(0.205 0 0));padding:0;text-underline-offset:4px}.ds-link:hover{text-decoration:underline}.ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-outline{padding:0 16px;background:var(--background, oklch(1 0 0));color:var(--foreground, oklch(0.145 0 0));border-color:var(--border, oklch(0.922 0 0))}.ds-outline:hover{background:var(--muted, oklch(0.97 0 0))}.ds-badges{display:flex;gap:8px;align-items:center}.ds-badge{font-family:'Inter Variable', sans-serif;font-size:.75rem;line-height:1rem;font-weight:500;height:20px;padding:2px 8px;box-sizing:border-box;display:inline-flex;align-items:center;gap:4px;border:1px solid transparent;border-radius:var(--radius-3xl, 1.375rem);white-space:nowrap}.ds-badge-outline{border-color:var(--border, oklch(0.922 0 0));color:var(--foreground, oklch(0.145 0 0))}.ds-badge-secondary{background:var(--muted, oklch(0.97 0 0));color:var(--primary, oklch(0.205 0 0))}"
+		},
+		{
+			"name": "Preview sheet",
+			"kind": "custom",
+			"refersTo": "preview-sheet",
+			"description": "Static specimen of the rectangular preview sheet: 75% width, capped at 24rem (384px) from the small breakpoint upward.",
+			"html": "<section class=\"ds-sheet\" aria-labelledby=\"ds-sheet-title\"><header class=\"ds-sheet-header\"><h2 id=\"ds-sheet-title\">Préparation du module</h2><p>Contenu fictif pour explorer l’interface. Aucun élément n’est publié.</p></header><div class=\"ds-sheet-body\"><h3>Application web</h3><p>B2 · 12 étudiants fictifs</p><hr><h4>Cadrage du module</h4><p>Relier ici le cadrage validé, les objectifs et les documents de préparation existants.</p></div><footer class=\"ds-sheet-footer\"><button class=\"ds-button ds-outline\" type=\"button\">Fermer l’aperçu</button></footer></section>",
+			"css": ".ds-sheet{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;width:75%;background:var(--background, oklch(1 0 0));color:var(--foreground, oklch(0.145 0 0));border-left:1px solid var(--border, oklch(0.922 0 0));box-shadow:0 20px 25px -5px rgb(0 0 0 / .1),0 8px 10px -6px rgb(0 0 0 / .1)}.ds-sheet-header{padding:24px 24px 16px}.ds-sheet-header h2{margin:0;font-size:1rem;font-weight:600;line-height:1.5rem}.ds-sheet-header p,.ds-sheet-body p{color:var(--muted-foreground, oklch(0.556 0 0));line-height:1.625}.ds-sheet-body{padding:0 24px 24px}.ds-sheet-body h3{font-size:1.5rem;font-weight:600;line-height:2rem;letter-spacing:-.025em}.ds-sheet-body h4{font-size:1rem;font-weight:600}.ds-sheet-body hr{border:0;border-top:1px solid var(--border, oklch(0.922 0 0))}.ds-sheet-footer{padding:24px;border-top:1px solid var(--border, oklch(0.922 0 0))}.ds-button{font-family:'Inter Variable', sans-serif;font-size:.875rem;line-height:1.25rem;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--radius-4xl, 1.625rem);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}.ds-button:focus-visible{outline:none;border-color:var(--ring, oklch(0.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring, oklch(0.708 0 0)) 30%,transparent)}.ds-button:active{transform:translateY(1px)}.ds-button:disabled{opacity:.5;pointer-events:none}@media(prefers-reduced-motion:reduce){.ds-button,.ds-input,.ds-nav-link,.ds-tab{transition-duration:.01ms!important}}.ds-outline{background:var(--background, oklch(1 0 0));color:var(--foreground, oklch(0.145 0 0));border-color:var(--border, oklch(0.922 0 0))}.ds-outline:hover{background:var(--muted, oklch(0.97 0 0))}@media(min-width:640px){.ds-sheet{max-width:384px}}"
+		},
+		{
+			"name": "Theme toggle",
+			"kind": "custom",
+			"refersTo": "theme-toggle",
+			"description": "Static specimen of the sidebar footer theme choices. The application uses mode-watcher and the installed shadcn-svelte Toggle Group for persistence and keyboard behavior.",
+			"html": "<div class=\"ds-theme\" role=\"radiogroup\" aria-label=\"Thème de l’interface\"><button type=\"button\" role=\"radio\" aria-checked=\"false\" aria-label=\"Thème clair\" tabindex=\"-1\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M2 12h2M20 12h2m-3.1-8.9-1.4 1.4M6.5 17.5l-1.4 1.4M3.1 3.1l1.4 1.4m13 13 1.4 1.4\"/></svg></button><button type=\"button\" role=\"radio\" aria-checked=\"false\" aria-label=\"Thème sombre\" tabindex=\"-1\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z\"/></svg></button><button type=\"button\" role=\"radio\" aria-checked=\"true\" aria-label=\"Thème système\" tabindex=\"0\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"2\" y=\"3\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M8 21h8M12 17v4\"/></svg></button></div>",
+			"css": ".ds-theme{display:flex;width:100%;max-width:244px;color:var(--foreground,oklch(.145 0 0));border-radius:var(--radius-3xl,1.375rem)}.ds-theme button{display:inline-flex;align-items:center;justify-content:center;flex:1;min-width:44px;min-height:44px;padding:0 12px;background:transparent;color:inherit;border:1px solid var(--input,oklch(.922 0 0));cursor:pointer;transition:background-color 150ms}.ds-theme button+button{border-left:0}.ds-theme button:first-child{border-radius:var(--radius-3xl,1.375rem) 0 0 var(--radius-3xl,1.375rem)}.ds-theme button:last-child{border-radius:0 var(--radius-3xl,1.375rem) var(--radius-3xl,1.375rem) 0}.ds-theme button[aria-checked=true],.ds-theme button:hover{background:var(--muted,oklch(.97 0 0))}.ds-theme button:focus-visible{outline:none;border-color:var(--ring,oklch(.708 0 0));box-shadow:0 0 0 3px color-mix(in oklab,var(--ring,oklch(.708 0 0)) 30%,transparent);z-index:1}@media(prefers-reduced-motion:reduce){.ds-theme button{transition-duration:.01ms!important}}"
+		},
+		{
+			"name": "User avatar",
+			"kind": "custom",
+			"refersTo": "avatar-fallback",
+			"description": "Static specimen of the circular avatar beside the user name; the full user-menu trigger also carries the description and ellipsis.",
+			"html": "<div class=\"ds-user\"><span class=\"ds-avatar\" aria-hidden=\"true\"><span class=\"ds-avatar-fallback\">LH</span></span><p>Léo Hilaire</p></div>",
+			"css": ".ds-user{display:flex;align-items:center;gap:8px;color:var(--foreground,oklch(.145 0 0));font-family:'Inter Variable',sans-serif;font-size:.875rem;line-height:1.25rem}.ds-user p{min-width:0;margin:0;font-weight:500;overflow-wrap:break-word}.ds-avatar{position:relative;display:flex;width:32px;height:32px;flex-shrink:0;border-radius:9999px;user-select:none}.ds-avatar::after{position:absolute;inset:0;content:'';border:1px solid var(--border,oklch(.922 0 0));border-radius:inherit;mix-blend-mode:darken}.ds-avatar-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:inherit;background:var(--muted,oklch(.97 0 0));color:var(--foreground,oklch(.145 0 0));font-weight:400}.dark .ds-avatar::after{mix-blend-mode:lighten}"
+		},
+		{
+			"name": "Sidebar inset",
+			"kind": "custom",
+			"refersTo": "sidebar-inset",
+			"description": "Static specimen of the framed desktop work area and its header, using the existing luma material. Mobile removes the margin and corners.",
+			"html": "<div class=\"ds-inset-surround\"><main class=\"ds-inset\"><header class=\"ds-inset-header\"><button type=\"button\" aria-label=\"Masquer la navigation\" aria-expanded=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M9 3v18\"/></svg></button><span class=\"ds-inset-divider\" aria-hidden=\"true\"></span><span>Mon espace</span></header><div class=\"ds-inset-body\"><h1>Mon accueil</h1><p>Préparer la prochaine intervention et retrouver les modules en cours.</p></div></main></div>",
+			"css": ".ds-inset-surround{background:var(--sidebar,oklch(.985 0 0));padding:8px}.ds-inset{min-width:0;background:var(--background,oklch(1 0 0));color:var(--foreground,oklch(.145 0 0));border-radius:var(--radius-2xl,1.125rem);box-shadow:0 1px 3px 0 rgb(0 0 0/.1),0 1px 2px -1px rgb(0 0 0/.1);font-family:'Inter Variable',sans-serif}.ds-inset-header{display:flex;align-items:center;gap:8px;height:48px;padding:0 24px;border-bottom:1px solid var(--border,oklch(.922 0 0));font-size:.875rem;font-weight:500}.ds-inset-header button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;color:inherit;border:0;border-radius:var(--radius-4xl,1.625rem)}.ds-inset-header button:focus-visible{outline:2px solid var(--ring,oklch(.708 0 0))}.ds-inset-divider{height:16px;border-left:1px solid var(--border,oklch(.922 0 0));margin:0 8px}.ds-inset-body{padding:40px 32px}.ds-inset-body h1{margin:0;font-size:2.25rem;line-height:2.5rem;font-weight:600;letter-spacing:-.025em}.ds-inset-body p{color:var(--muted-foreground,oklch(.556 0 0))}@media(max-width:767.98px){.ds-inset-surround{padding:0}.ds-inset{border-radius:0;box-shadow:none}.ds-inset-header{padding:0 16px}.ds-inset-body{padding:36px 20px}}"
+		}
+	],
+	"narrative": {
+		"northStar": "Neutral shadcn-svelte luma workspace",
+		"overview": "Coursely inherits its neutral shadcn-svelte luma foundation: a white work area, pale navigation, Inter and restrained Lucide line icons. The material is quiet and practical. Text, alignment, tonal state changes and consistent borders carry the hierarchy. This records the implemented system rather than introducing a new brand identity.\n\nThe interface has compact information rows and enough space around headings and actions to make daily work legible. Controls retain the luma library’s soft rounded shapes; data containers use smaller corners and separators. Motion belongs to control state changes and opening or closing sheets. No bespoke logo or imagery has been approved; the product name is rendered as text.",
+		"keyCharacteristics": [
+			"White workspace with a pale neutral navigation surface.",
+			"Inter hierarchy, sentence-case labels and restrained Lucide line icons.",
+			"Rounded controls, bordered data containers and flat information rows.",
+			"Responsive reflow, visible keyboard focus and reduced-motion support."
+		],
+		"rules": [
+			{
+				"name": "The Neutral State Rule",
+				"body": "Use the existing neutral tokens for navigation, filters and preparation states. Reserve the destructive color for invalid input; state labels must remain readable without color.",
+				"section": "colors"
+			},
+			{
+				"name": "The Single Family Rule",
+				"body": "Use Inter for headings, prose, labels and data. Establish hierarchy with the observed size, weight and spacing changes.",
+				"section": "typography"
+			},
+			{
+				"name": "The Reflow Rule",
+				"body": "When the available width narrows, stack the content and retain explicit field labels. The current module table becomes labeled rows rather than a horizontally clipped table.",
+				"section": "layout"
+			},
+			{
+				"name": "The Flat Workspace Rule",
+				"body": "Use borders and pale surface changes to separate the working content. Use the small shadow only on the desktop application inset and the substantial shadow on overlays; dimmed backdrops belong to sheets.",
+				"section": "elevation"
+			},
+			{
+				"name": "The Touch Floor Rule",
+				"body": "Interactive buttons, navigation items, tabs and text inputs have a minimum height of 44px; informational badges remain compact. Tab tracks size naturally around those controls; clipped tables and score lists reserve space for the existing keyboard rings.",
+				"section": "components"
+			}
+		],
+		"dos": [
+			"Do use the existing semantic OKLCH tokens and the Inter hierarchy.",
+			"Do preserve the 44px minimum control height, keyboard focus and reduced-motion behavior.",
+			"Do pair preparation and validation states with explicit text, including French field errors.",
+			"Do reflow dense data into labeled rows at narrow widths and keep sheets usable within safe areas.",
+			"Do use the installed shadcn-svelte primitives and restrained Lucide SVG icons.",
+			"Do use one gap for Fieldset groups, reserve focus clearance around table actions and scroll edges, and stack grading selectors when their context names would be truncated."
+		],
+		"donts": [
+			"Don't introduce a bespoke logo, raster artwork or marketing identity without approval.",
+			"Don't turn a status badge into an action or rely on color alone to communicate a state.",
+			"Don't replace the workspace’s flat borders with decorative card shadows.",
+			"Don't add ornamental animation or override the reduced-motion preference."
+		]
+	}
+}

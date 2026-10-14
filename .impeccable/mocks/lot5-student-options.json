@@ -1,0 +1,74 @@
+{
+  "title": "Vue étudiante — choisir la disposition",
+  "question": "Pages publiques par lien, sans compte. Les cinq blocs validés sont conservés. La page de classe liste seulement ses modules publiés ; même thème, aucune donnée étudiante privée. Exemples fictifs.",
+  "options": [
+    {
+      "id": "student-overview",
+      "label": "Vue d’ensemble du module",
+      "thesis": "Trouver les supports et la prochaine échéance dès l’arrivée.",
+      "viewport": "Vue d’ensemble compacte avec accès aux cinq blocs, supports au centre et repères de classe à droite.",
+      "risk": "Les documents sont vite accessibles ; un cours très fourni nécessite de descendre vers les autres blocs.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-student-overview.html",
+      "comp": ".impeccable/mocks/decision/lot5-student-overview.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "student-tabs",
+      "label": "Un bloc à la fois",
+      "thesis": "Ouvrir directement le type de contenu recherché.",
+      "viewport": "Titre et contexte, cinq onglets, une colonne de contenu et les échéances toujours repérables.",
+      "risk": "Peu de contenu à l’écran ; les blocs non sélectionnés demandent un clic.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-student-tabs.html",
+      "comp": ".impeccable/mocks/decision/lot5-student-tabs.png"
+    },
+    {
+      "id": "student-document",
+      "label": "Page de cours continue",
+      "thesis": "Lire le module du début à la fin sans changer de vue.",
+      "viewport": "Cinq sections continues, colonne de lecture et sommaire discret ; dates et remise sont un bloc du document.",
+      "risk": "Repères simples, y compris après une absence ; une longue page implique davantage de défilement.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · contrôles shadcn-svelte",
+        "Contenu fictif"
+      ],
+      "html": ".impeccable/mocks/decision/lot5-student-document.html",
+      "comp": ".impeccable/mocks/decision/lot5-student-document.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

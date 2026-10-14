@@ -1,7 +1,19 @@
-[mcp_servers.svelte]
-url = "https://mcp.svelte.dev/mcp"
-default_tools_approval_mode = "approve"
+  [mcp_servers.svelte]
+    url = "https://mcp.svelte.dev/mcp"
+    default_tools_approval_mode = "approve"
 
-[mcp_servers.playwright]
-command = "pnpm"
-args = ["dlx", "@playwright/mcp@0.0.83"]
+  [mcp_servers.playwright]
+    command = "pnpm"
+    args = ["dlx", "@playwright/mcp@0.0.83"]
+
+  # Only the explicitly selected fictional module folder is authorized.
+  [mcp_servers.coursely]
+    command = "pnpm"
+    args = ["--dir", "/Users/leo/Dev/Education/coursely", "exec", "tsx", "scripts/coursely-mcp.ts"]
+    default_tools_approval_mode = "approve"
+
+    [mcp_servers.coursely.env]
+      COURSELY_MODULE_ROOTS = "/Users/leo/Dev/Education/coursely/data/mcp-demo"
+
+  [mcp_servers.idea]
+    url = "http://127.0.0.1:64342/stream"

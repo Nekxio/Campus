@@ -1,0 +1,74 @@
+{
+  "title": "Propositions de correction — choisir la disposition",
+  "question": "Même thème et sidebar. Vérifier une proposition pour un étudiant et une évaluation, ajuster les points si nécessaire, puis accepter ou refuser. Le commentaire de semestre reste une décision distincte. Les données affichées sont fictives.",
+  "options": [
+    {
+      "id": "proposal-inline-comparison",
+      "label": "Comparaison dans la correction",
+      "thesis": "Comparer et ajuster chaque ligne dans une vue proche de ta correction actuelle.",
+      "viewport": "Bandeau étudiant, groupes en accès direct, table de points comparés, bilan et validation persistants.",
+      "risk": "Repères familiers et peu de clics ; les propositions suivantes se parcourent une à une.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter et Lucide",
+        "Points entiers · résultats au dixième"
+      ],
+      "html": ".impeccable/mocks/decision/lot4-proposal-inline-comparison.html",
+      "comp": ".impeccable/mocks/decision/lot4-proposal-inline-comparison.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "proposal-side-by-side",
+      "label": "Deux versions côte à côte",
+      "thesis": "Voir la correction enregistrée et la proposition dans deux panneaux alignés.",
+      "viewport": "Contexte au-dessus, deux versions en parallèle, commentaire et décision dans un bilan inférieur.",
+      "risk": "Les écarts se lisent immédiatement ; les longues lignes demandent plus de largeur.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter et Lucide",
+        "Points entiers · résultats au dixième"
+      ],
+      "html": ".impeccable/mocks/decision/lot4-proposal-side-by-side.html",
+      "comp": ".impeccable/mocks/decision/lot4-proposal-side-by-side.png"
+    },
+    {
+      "id": "proposal-guided",
+      "label": "Vérification en trois étapes",
+      "thesis": "Vérifier les points, puis le commentaire, avant une décision explicite.",
+      "viewport": "Étapes à gauche, comparaison au centre, effet sur les notes et actions à droite.",
+      "risk": "Chaque décision est bien séparée ; le parcours ajoute des passages entre étapes.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter et Lucide",
+        "Points entiers · résultats au dixième"
+      ],
+      "html": ".impeccable/mocks/decision/lot4-proposal-guided.html",
+      "comp": ".impeccable/mocks/decision/lot4-proposal-guided.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

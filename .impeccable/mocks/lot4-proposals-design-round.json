@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-12",
+  "task": "Lot 4 correction proposals: design selection only",
+  "mode": "operate",
+  "world": "incumbent Coursely luma",
+  "seed": "0e5f8508",
+  "deal": [
+    7,
+    2,
+    5
+  ],
+  "rankedCandidates": [
+    {
+      "id": "proposal-queue-detail",
+      "label": "Liste et comparaison",
+      "structure": "Liste des propositions à gauche, comparaison détaillée et validation de la sélection à droite."
+    },
+    {
+      "id": "proposal-side-by-side",
+      "label": "Deux versions côte à côte",
+      "structure": "Correction enregistrée et proposition sur deux panneaux alignés, puis points retenus et décision."
+    },
+    {
+      "id": "proposal-by-assessment",
+      "label": "Évaluations et étudiants",
+      "structure": "Onglets d’évaluation, liste d’étudiants et comparaison pour la sélection."
+    },
+    {
+      "id": "proposal-inbox-sheet",
+      "label": "Liste et panneau de vérification",
+      "structure": "Liste pleine largeur, comparaison dans un panneau latéral à l’ouverture."
+    },
+    {
+      "id": "proposal-guided",
+      "label": "Vérification en trois étapes",
+      "structure": "Étapes points, commentaire et décision ; une zone de travail centrale avec bilan adjacent."
+    },
+    {
+      "id": "proposal-student-tabs",
+      "label": "Dossier étudiant",
+      "structure": "Navigation entre étudiants, onglets correction/propositions/historique et comparaison active."
+    },
+    {
+      "id": "proposal-inline-comparison",
+      "label": "Comparaison dans la correction",
+      "structure": "Bandeau connu, groupes de critères avec enregistré/proposé/retenu sur chaque ligne, bilan fixe en bas."
+    }
+  ],
+  "optionIds": [
+    "proposal-inline-comparison",
+    "proposal-side-by-side",
+    "proposal-guided"
+  ],
+  "status": "design selected; implementation not started",
+  "applicationCodeChanged": false,
+  "boundaries": [
+    "Single student/assessment proposal review",
+    "No bulk approval",
+    "No private criterion justifications",
+    "Independent private semester comment decision",
+    "Stale rubric/correction/comment revisions block the affected acceptance",
+    "Points and calculations use existing domain rules",
+    "No production implementation before design choice"
+  ],
+  "choice": "proposal-inline-comparison",
+  "label": "Comparaison dans la correction",
+  "chosenSketch": ".impeccable/mocks/decision/lot4-proposal-inline-comparison.html",
+  "buildPath": "code",
+  "buildPathFlipped": false,
+  "previewUrl": "http://127.0.0.1:51298/lot4-proposal-inline-comparison.html",
+  "chosenProof": ".impeccable/review/lot4-proposals-design/chosen.jpg",
+  "decisionBoardProof": ".impeccable/review/lot4-proposals-design/board.jpg",
+  "surfaceBrief": ".impeccable/surfaces/src-routes-enseignant-propositions-page-svelte.md",
+  "telemetry": "choice recorded locally; ping skipped",
+  "implementation": {
+    "status": "implemented and validated locally",
+    "route": "/enseignant/propositions",
+    "review": ".impeccable/review/lot4-proposals/finish-review.md",
+    "documentation": ".impeccable/review/lot4-proposals/documentation-review.md",
+    "cloudActivation": "not performed",
+    "finalDisposition": "ship",
+    "captureMetadata": ".impeccable/review/lot4-proposals/capture-metadata.json",
+    "fontRecapture": "All six final captures rereviewed with loaded Inter; initial verdict superseded."
+  }
+}

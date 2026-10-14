@@ -53,3 +53,6 @@ vite.config.ts.timestamp-*
 
 # Local browser automation artifacts
 /.playwright-mcp/
+
+# Local design exploration
+/.impeccable/mocks/decision/

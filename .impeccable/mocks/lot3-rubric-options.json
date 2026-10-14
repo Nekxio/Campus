@@ -1,0 +1,74 @@
+{
+  "title": "1/3 — Concevoir le barème",
+  "question": "Même thème Coursely, trois dispositions pour les évaluations, critères, lignes de points et calculs. Choisis le parcours qui te paraît le plus naturel.",
+  "options": [
+    {
+      "id": "rubric-guided",
+      "label": "Parcours guidé",
+      "thesis": "Configurer le barème en trois étapes : évaluations, critères, calculs.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "L’étape « Critères » montre les huit lignes de Fonctionnalités et leur maximum.",
+      "risk": "Pratique au départ ; comparer deux évaluations demande de changer d’étape.",
+      "html": ".impeccable/mocks/decision/lot3-rubric-guided.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-guided.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "rubric-outline",
+      "label": "Évaluations à gauche",
+      "thesis": "Choisir une évaluation dans le plan et éditer ses critères à droite.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Quiz, projet et soutenance restent dans le rail ; les lignes du projet occupent la zone principale.",
+      "risk": "Vue rapide et familière ; une évaluation reste ouverte à la fois.",
+      "html": ".impeccable/mocks/decision/lot3-rubric-outline.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-outline.png"
+    },
+    {
+      "id": "rubric-continuous",
+      "label": "Barème sur une page",
+      "thesis": "Retrouver toutes les évaluations et les règles dans une page continue.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Contrôles shadcn-svelte"
+      ],
+      "viewport": "Les évaluations se succèdent avec leurs critères, totaux et actions d’ajout.",
+      "risk": "Tout se compare directement ; un gros barème allonge la page.",
+      "html": ".impeccable/mocks/decision/lot3-rubric-continuous.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-continuous.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

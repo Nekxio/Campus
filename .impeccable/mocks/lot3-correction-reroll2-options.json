@@ -1,0 +1,74 @@
+{
+  "title": "3/3 — Correction : organiser les groupes",
+  "question": "Ton bandeau de contexte, les flèches entre étudiants et le bilan des évaluations sont conservés. Le choix porte sur l’organisation des groupes de points.",
+  "options": [
+    {
+      "id": "correction-bottom-summary",
+      "label": "Groupe et bilan fixe",
+      "thesis": "Corriger le groupe choisi en gardant le bilan détaillé dans le bas de la vue.",
+      "viewport": "Bandeau et flèches en haut ; un groupe au centre ; tableau des évaluations et sauvegarde en bas.",
+      "risk": "Le bilan reste visible pendant la saisie ; il réduit la hauteur disponible pour un grand groupe.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Bandeau et bilan conservés"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-bottom-summary.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-bottom-summary.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "correction-group-outline",
+      "label": "Groupes avec sommaire",
+      "thesis": "Passer directement d’un groupe à l’autre avec un sommaire toujours visible.",
+      "viewport": "Bandeau et bilan compact au-dessus ; liste des groupes à gauche, lignes du groupe actif à droite.",
+      "risk": "Repères stables pour beaucoup de groupes ; le sommaire prend une part de la largeur.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Bandeau et bilan conservés"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-group-outline.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-group-outline.png"
+    },
+    {
+      "id": "correction-group-tabs",
+      "label": "Groupes par onglets",
+      "thesis": "Choisir un groupe en un clic et utiliser toute la largeur pour ses lignes.",
+      "viewport": "Bandeau avec flèches, bilan des évaluations, puis onglets de groupes et liste verticale de points.",
+      "risk": "Correction lisible et directe ; les groupes nombreux demandent une navigation adaptée.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Bandeau et bilan conservés"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-group-tabs.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-group-tabs.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

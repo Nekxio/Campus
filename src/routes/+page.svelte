@@ -1,6 +1,16 @@
+<script lang="ts">
+	import type { PageProps } from './$types';
+	import TeacherHome from '#lib/components/teacher/TeacherHome.svelte';
+	let { data }: PageProps = $props();
+</script>
+
 <svelte:head>
-	<title>Welcome to SvelteKit</title>
+	<title>Mon accueil · Coursely</title>
+	<meta name="robots" content="noindex" />
+	<meta
+		name="description"
+		content="Préparer les modules, retrouver les supports et accéder à la notation dans Coursely."
+	/>
 </svelte:head>
 
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<TeacherHome userName={data.user.name} {data} />

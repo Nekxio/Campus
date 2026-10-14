@@ -1,0 +1,74 @@
+{
+  "title": "PDF final — choisir le parcours",
+  "question": "Toute la grille du module pour la classe et l’année, avec date d’export. Tous les résultats requis doivent être définitifs. Aucun critère ni commentaire privé. Recherche et filtres n’excluent jamais un étudiant du PDF. Exemples fictifs.",
+  "options": [
+    {
+      "id": "pdf-inline",
+      "label": "Export visible avec la classe",
+      "thesis": "Voir immédiatement si la grille complète peut être transmise.",
+      "viewport": "Le contexte du module précède un bandeau d’export compact ; la grille et le bilan étudiant restent dessous.",
+      "risk": "Une seule action pour télécharger ; le bandeau ajoute un peu de hauteur à la page.",
+      "kicker": "THE ROLL",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · shadcn-svelte",
+        "Exemple de classe fictive"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-pdf-inline.html",
+      "comp": ".impeccable/mocks/decision/lot6-pdf-inline.png"
+    },
+    {
+      "id": "pdf-footer",
+      "label": "Action en bas de grille",
+      "thesis": "Terminer la consultation par le téléchargement de la grille complète.",
+      "viewport": "La grille et le bilan conservent leur place ; disponibilité et téléchargement sont réunis sous les résultats.",
+      "risk": "L’en-tête reste léger ; l’action est plus basse quand la classe contient beaucoup de lignes.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · shadcn-svelte",
+        "Exemple de classe fictive"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-pdf-footer.html",
+      "comp": ".impeccable/mocks/decision/lot6-pdf-footer.png"
+    },
+    {
+      "id": "pdf-sheet",
+      "label": "Aperçu dans un panneau",
+      "thesis": "Vérifier le document complet avant de le télécharger.",
+      "viewport": "Un panneau latéral présente le contexte, l’aperçu de la grille complète et le bouton de téléchargement.",
+      "risk": "Le document est plus concret avant l’export ; il faut ouvrir le panneau et son aperçu reste réduit.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma existant",
+        "Inter · shadcn-svelte",
+        "Exemple de classe fictive"
+      ],
+      "html": ".impeccable/mocks/decision/lot6-pdf-sheet.html",
+      "comp": ".impeccable/mocks/decision/lot6-pdf-sheet.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

@@ -1,0 +1,306 @@
+{
+  "scope": "Approved code-led publication and student-view implementation in the existing Coursely world.",
+  "date": "2026-10-12",
+  "world": "existing Coursely luma; preserve DESIGN.md and design.json",
+  "student": {
+    "mode": "Read",
+    "seed": "dc110149",
+    "dealt": [
+      3,
+      2,
+      4
+    ],
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "student-reference",
+        "label": "R\u00e9f\u00e9rence avec sommaire",
+        "structure": "Sommaire lat\u00e9ral, colonne de lecture et \u00e9ch\u00e9ances en marge."
+      },
+      {
+        "rank": 2,
+        "id": "student-tabs",
+        "label": "Un bloc \u00e0 la fois",
+        "structure": "Cinq onglets sous le titre, contenu du bloc choisi et rep\u00e8res communs."
+      },
+      {
+        "rank": 3,
+        "id": "student-overview",
+        "label": "Vue d\u2019ensemble du module",
+        "structure": "Supports et consignes au centre, \u00e9ch\u00e9ances et bref suivi en marge, ancres vers les cinq blocs."
+      },
+      {
+        "rank": 4,
+        "id": "student-document",
+        "label": "Page de cours continue",
+        "structure": "Les cinq blocs se lisent dans une colonne, avec un sommaire discret \u00e0 droite."
+      },
+      {
+        "rank": 5,
+        "id": "student-class-rail",
+        "label": "Classe toujours visible",
+        "structure": "Rail des modules de la classe, lecture centrale et calendrier secondaire."
+      },
+      {
+        "rank": 6,
+        "id": "student-folds",
+        "label": "Sections d\u00e9pliables",
+        "structure": "Cinq sections d\u00e9pliables gardent leurs titres et rep\u00e8res visibles."
+      },
+      {
+        "rank": 7,
+        "id": "student-session",
+        "label": "Entr\u00e9e par les s\u00e9ances",
+        "structure": "Le planning conduit aux supports, avec un index commun pour consignes et ressources."
+      }
+    ],
+    "states": [
+      "published class directory",
+      "published module for exact class/year",
+      "optional empty block omitted",
+      "no published modules",
+      "unpublished or removed class unavailable",
+      "durable module publication retained after annual class purge"
+    ],
+    "constraints": [
+      "Public by link, no accounts",
+      "Five approved content blocks only",
+      "Only selected Drive/external links",
+      "No teacher preparation, local source paths, rosters, grades, comments or proposals",
+      "Snapshot remains until explicit teacher publication",
+      "Drive access/version state independent of Coursely"
+    ]
+  },
+  "publication": {
+    "mode": "Operate",
+    "candidates": [
+      {
+        "rank": 1,
+        "id": "publish-preview-side",
+        "label": "Aper\u00e7u et publication en parall\u00e8le",
+        "structure": "Aper\u00e7u \u00e9tudiant principal, contexte et d\u00e9cision dans une marge \u00e0 droite."
+      },
+      {
+        "rank": 2,
+        "id": "publish-preview-bottom",
+        "label": "Aper\u00e7u avec barre de publication",
+        "structure": "Aper\u00e7u large et actions persistantes en bas, choix de classe dans le bandeau."
+      },
+      {
+        "rank": 3,
+        "id": "publish-compare",
+        "label": "Publi\u00e9 et brouillon c\u00f4te \u00e0 c\u00f4te",
+        "structure": "Deux versions align\u00e9es avec la d\u00e9cision au-dessus et les \u00e9tats explicites."
+      },
+      {
+        "rank": 4,
+        "id": "publish-sections",
+        "label": "V\u00e9rification par section",
+        "structure": "Sommaire des cinq blocs \u00e0 gauche, aper\u00e7u du bloc et d\u00e9cision apr\u00e8s revue."
+      },
+      {
+        "rank": 5,
+        "id": "publish-context-rail",
+        "label": "Publication par classe",
+        "structure": "Liste des classes et de leurs \u00e9tats \u00e0 gauche, aper\u00e7u et d\u00e9cision pour la classe choisie."
+      },
+      {
+        "rank": 6,
+        "id": "publish-guided",
+        "label": "Revue en trois \u00e9tapes",
+        "structure": "Choisir la classe, examiner la page puis publier explicitement."
+      },
+      {
+        "rank": 7,
+        "id": "publish-change-list",
+        "label": "R\u00e9sum\u00e9 des modifications",
+        "structure": "Liste des changements du brouillon au-dessus du rendu \u00e9tudiant et de la d\u00e9cision."
+      }
+    ],
+    "seed": "c676c7fd",
+    "dealt": [
+      6,
+      4,
+      3
+    ],
+    "states": [
+      "first publication",
+      "published unchanged",
+      "draft differs; previous publication stays visible",
+      "saving",
+      "publication conflict retaining reviewed draft",
+      "unpublished",
+      "republication at same stable link"
+    ]
+  },
+  "classDirectory": {
+    "design": "Common compact directory of published module rows, with annual class context; complementary sketch available separately",
+    "sketch": ".impeccable/mocks/decision/lot5-student-class.html",
+    "previewUrl": "http://127.0.0.1:55201/lot5-student-class.html"
+  },
+  "decisions": {
+    "student": "student-tabs",
+    "publication": "publish-sections"
+  },
+  "sketchChecks": [
+    {
+      "file": "lot5-publish-compare.html",
+      "lines": 18,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-publish-guided.html",
+      "lines": 14,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-publish-sections.html",
+      "lines": 14,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-student-class.html",
+      "lines": 28,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-student-document.html",
+      "lines": 30,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-student-overview.html",
+      "lines": 42,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    },
+    {
+      "file": "lot5-student-tabs.html",
+      "lines": 35,
+      "javascript": false,
+      "externalAssets": "Google Fonts only"
+    }
+  ],
+  "boards": {
+    "student": {
+      "url": "http://127.0.0.1:55179/",
+      "key": "1c5cd6aa"
+    },
+    "publication": {
+      "url": "http://127.0.0.1:55186/",
+      "key": "7ad59815"
+    }
+  },
+  "recommendation": {
+    "student": "student-document",
+    "publication": "publish-sections",
+    "reason": "Continuous course reading and familiar section review; no unnecessary step gating."
+  },
+  "applicationCodeChanged": true,
+  "captures": [
+    {
+      "file": "publish-compare.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "1dc6f1e7a9192bcb2ee4dacf130cc9cd32f408d5d353fd684ff2a9d0bd07dae9"
+    },
+    {
+      "file": "publish-guided.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "e13338be0e7484fb3171aab0a4c9a113e10341d7752466f8e6bd0eb8e3a51440"
+    },
+    {
+      "file": "publish-sections.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "7d49e48a3435de53f35f79da5be5443b592dcdb149e913fee21db7ff0f97d1dc"
+    },
+    {
+      "file": "student-class.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "40e32d3eea54d6c44dc8a08e2ebe7529441946ba730a5083d11d03d30ed1e7a2"
+    },
+    {
+      "file": "student-document.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "887822b8d1b6fa818b97d69f31d1080979d72a7f3bc27aa01d2c36bbaca9c4b1"
+    },
+    {
+      "file": "student-overview.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "32883bdc1b1f4408dcd8e6845ba5d9794d2e2206ca492dbf58acda2445a2a7a8"
+    },
+    {
+      "file": "student-tabs.jpg",
+      "width": 1440,
+      "height": 900,
+      "font": "Inter loaded",
+      "scope": "static first viewport; fictional data",
+      "sha256": "072f23cd2ba51cfafb910a8d0ea5c7692dd60d9cb89ea1a3b3f5a9f5c04c563a"
+    }
+  ],
+  "status": "Confirmed student-tabs and publish-sections implemented; fresh supplied-surface finish review: ship; ordinary-extension documenter: no system changes",
+  "implementationDate": "2026-10-13",
+  "choiceEvidence": "etudiant c\u2019etait un bloc a la fois et verification par section pour publication. je viens de faire mon choix",
+  "implementationEvidence": ".impeccable/review/lot5-student-tabs/verification.json",
+  "previousCompletionStatus": "Implemented and locally validated; independent full supplied-surface finish review: ship; independent ordinary-extension documenter: No changes. Cloud and Drive activation remain pending.",
+  "fidelityCorrection": {
+    "request": ".impeccable/review/lot5-fidelity/request.json",
+    "review": ".impeccable/review/lot5-fidelity/corrective-review.md",
+    "originalChoicesRetained": true,
+    "verdict": ".impeccable/review/lot5-fidelity/corrective-verdict.md",
+    "evidence": ".impeccable/review/lot5-fidelity/verification.json",
+    "scope": "Verdict pass scoring eight fixes, not a second full review",
+    "documenter": "No system changes; incumbent DESIGN.md and sidecar preserved"
+  },
+  "statusBeforeReselection": "Fidelity correction complete; same-reviewer verdict pass: ship, all eight findings resolved. Original choices unchanged; cloud/Drive acceptance remains pending.",
+  "reselection": {
+    "date": "2026-10-13",
+    "reason": "Student rendition still rejected; user requests the same proposals for both pages",
+    "originalAlternativesReused": true,
+    "applicationCodeChanged": true,
+    "boards": {
+      "student": {
+        "url": "http://127.0.0.1:51443/",
+        "key": "a01b51e1"
+      },
+      "publication": {
+        "url": "http://127.0.0.1:51448/",
+        "key": "647fb385"
+      },
+      "status": "Waiting for explicit two choices",
+      "source": "Original six HTML mocks and JPG screenshots, byte-for-byte copies; no new roll or redesign",
+      "applicationCodeChanged": false
+    },
+    "newDecisions": {
+      "student": "student-tabs",
+      "publication": "publish-sections"
+    },
+    "choiceEvidence": ".impeccable/review/lot5-student-tabs/choice.json"
+  },
+  "previousDecisions": {
+    "student": "student-document",
+    "publication": "publish-sections"
+  }
+}

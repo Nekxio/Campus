@@ -129,3 +129,74 @@
 		@apply font-sans;
 	}
 }
+
+@layer base {
+	html {
+		scrollbar-color: var(--border) var(--background);
+	}
+	body {
+		min-width: 320px;
+	}
+	::selection {
+		background: var(--primary);
+		color: var(--primary-foreground);
+	}
+	input,
+	textarea,
+	select {
+		caret-color: var(--primary);
+	}
+	button,
+	a,
+	[role='tab'] {
+		touch-action: manipulation;
+	}
+	[data-slot='sheet-content'] {
+		padding-top: env(safe-area-inset-top);
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+	[data-slot='sidebar-menu-button'],
+	[data-slot='button'],
+	[data-slot='tabs-trigger'] {
+		min-height: 44px;
+	}
+	[data-slot='input'],
+	[data-slot='textarea'],
+	[data-slot='native-select'] {
+		min-height: 44px;
+	}
+	[data-slot='tabs-list'] {
+		height: auto;
+	}
+	.skip-link {
+		position: fixed;
+		top: 12px;
+		left: 12px;
+		z-index: 100;
+		padding: 12px 16px;
+		border-radius: var(--radius);
+		background: var(--primary);
+		color: var(--primary-foreground);
+		transform: translateY(-160%);
+	}
+	.skip-link:focus {
+		transform: translateY(0);
+	}
+	@media (pointer: coarse) {
+		[data-slot='input'],
+		[data-slot='textarea'],
+		[data-slot='native-select'] {
+			font-size: 1rem;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}

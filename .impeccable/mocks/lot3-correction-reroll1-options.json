@@ -1,0 +1,74 @@
+{
+  "title": "3/3 — Correction : garder le contexte",
+  "question": "Saisie directe, repères pour se déplacer et informations utiles à portée : trois nouvelles dispositions pour ta correction.",
+  "options": [
+    {
+      "id": "correction-summary",
+      "label": "Bilan puis détail",
+      "thesis": "Vérifier les résultats et les cas en attente avant de parcourir les lignes.",
+      "viewport": "Un bilan compact précède les critères ; remise et commentaire restent dans une colonne de contexte.",
+      "risk": "Les situations à traiter se voient d’abord ; la saisie commence plus bas.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Repères de navigation libres"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-summary.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-summary.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "correction-context",
+      "label": "Critères et contexte",
+      "thesis": "Saisir directement les points avec les repères et le contexte toujours à côté.",
+      "viewport": "Huit lignes à gauche ; repères de groupes, statut, remise, retard et calcul dans le panneau droit.",
+      "risk": "Saisie directe et repères libres ; le panneau doit se replier proprement sur mobile.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Repères de navigation libres"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-context.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-context.png"
+    },
+    {
+      "id": "correction-strip",
+      "label": "Contexte en bandeau",
+      "thesis": "Garder le contexte en haut et toute la largeur pour les lignes du barème.",
+      "viewport": "Identité, état, remise et calcul partagent un bandeau ; les huit lignes sont organisées par paires dessous.",
+      "risk": "Plus de largeur pour les critères ; les libellés longs exigent un bon repli sur mobile.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Repères de navigation libres"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-correction-strip.html",
+      "comp": ".impeccable/mocks/decision/lot3-correction-strip.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}

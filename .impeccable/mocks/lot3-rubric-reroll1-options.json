@@ -1,0 +1,74 @@
+{
+  "title": "1/3 — Barème : édition directe",
+  "question": "Les informations utiles restent visibles et chaque évaluation est accessible directement. Trois nouvelles dispositions, avec saisie conservée lorsque tu changes de zone.",
+  "options": [
+    {
+      "id": "rubric-preview",
+      "label": "Édition et aperçu",
+      "thesis": "Modifier les lignes et voir immédiatement la grille de correction correspondante.",
+      "viewport": "Évaluation et lignes à gauche ; aperçu des critères à droite ; synthèse du calcul dans le bandeau.",
+      "risk": "Facilite la vérification du barème ; chaque côté dispose de moins de largeur.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Édition directe"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-rubric-preview.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-preview.png",
+      "kicker": "THE ROLL"
+    },
+    {
+      "id": "rubric-table",
+      "label": "Table de définition",
+      "thesis": "Éditer directement les libellés et maxima, avec les calculs toujours à côté.",
+      "viewport": "Une table de lignes groupées remplit la zone principale ; évaluations et calcul restent accessibles directement.",
+      "risk": "Peu de clics pour modifier et comparer ; demande des colonnes bien adaptées sur mobile.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Édition directe"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-rubric-table.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-table.png"
+    },
+    {
+      "id": "rubric-results",
+      "label": "Résultats puis évaluations",
+      "thesis": "Relier les notes attendues à leurs évaluations, puis éditer les critères dans la même vue.",
+      "viewport": "Les règles de résultats à gauche correspondent aux évaluations et lignes éditables à droite.",
+      "risk": "Clair pour plusieurs notes indépendantes ; moins immédiat si tu commences par les critères.",
+      "palette": [
+        "#ffffff",
+        "#fafafa",
+        "#171717",
+        "#e5e5e5"
+      ],
+      "materials": [
+        "Thème luma",
+        "Inter",
+        "Édition directe"
+      ],
+      "html": ".impeccable/mocks/decision/lot3-rubric-results.html",
+      "comp": ".impeccable/mocks/decision/lot3-rubric-results.png"
+    }
+  ],
+  "reroll": true,
+  "steer": true,
+  "canon": false,
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  }
+}
