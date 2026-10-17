@@ -281,7 +281,7 @@ test('module creation pending navigation retains identity with an invalid curren
 		).toBeVisible();
 		await page.getByRole('button', { name: 'Annuler', exact: true }).click();
 		await dialog.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
-		await expect(page).toHaveURL(app.origin + '/');
+		await expect(page).toHaveURL(app.origin + '/#modules');
 		expect((await listedModuleIds(context, app)).filter((id) => !before.has(id))).toEqual([
 			saved.id
 		]);

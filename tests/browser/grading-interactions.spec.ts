@@ -146,7 +146,7 @@ test('three new assessments can be cancelled while saved assessments require an 
 	});
 	await activate(page, app);
 	await page.goto(app.origin + '/enseignant/modules/' + app.ids.module + '/bareme');
-	const tabs = page.getByRole('tablist', { name: 'Évaluations du module' }).getByRole('tab');
+	const tabs = page.getByRole('tablist', { name: 'Sections du module' }).getByRole('tab');
 	await expect(tabs).toHaveCount(3);
 	await expect(async () => {
 		await tabs.nth(1).click();
@@ -158,13 +158,13 @@ test('three new assessments can be cancelled while saved assessments require an 
 		if (request.method() === 'PATCH') writes.push(request.url());
 	});
 	for (let index = 0; index < 3; index++) {
-		await page.getByRole('button', { name: 'Ajouter une évaluation', exact: true }).click();
+		await page.getByRole('button', { name: 'Ajouter une section', exact: true }).click();
 		await expect(tabs).toHaveCount(4 + index);
 		await expect(
 			page.getByRole('button', { name: 'Annuler le brouillon', exact: true })
 		).toBeVisible();
 	}
-	await expect(tabs.last()).toContainText('/1');
+	await expect(tabs.last()).toHaveAccessibleName(/\b1 pts$/);
 	await page.screenshot({
 		path: info.outputPath('three-drafts-cancel-action.png'),
 		fullPage: true
@@ -179,7 +179,7 @@ test('three new assessments can be cancelled while saved assessments require an 
 	expect(await tabs.allTextContents()).toEqual(originalTabs);
 	await tabs.first().click();
 	const assessmentName = page
-		.getByLabel('Nom de l’évaluation', { exact: true })
+		.getByLabel('Nom de la section', { exact: true })
 		.filter({ visible: true });
 	const originalName = await assessmentName.inputValue();
 	await page.getByRole('button', { name: 'Retirer l’évaluation', exact: true }).click();

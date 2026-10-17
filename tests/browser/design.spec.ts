@@ -28,9 +28,14 @@ test('chosen compositions reflow in both themes and retain their accessible cont
 					theme === 'dark' ? /dark/ : /^(?!.*dark)/
 				);
 				await current.evaluate(() => document.fonts.ready);
-				const themeControl = current.getByRole('button', { name: 'Choisir le thème', exact: true });
-				if (await themeControl.isVisible())
-					await expect(themeControl).toHaveAttribute('aria-haspopup', 'menu');
+				const themeControls = current.getByRole('button', {
+					name: 'Choisir le thème',
+					exact: true
+				});
+				for (const themeControl of await themeControls.all()) {
+					if (await themeControl.isVisible())
+						await expect(themeControl).toHaveAttribute('aria-haspopup', 'menu');
+				}
 				const state = await current.evaluate(() => ({
 					width: window.innerWidth,
 					overflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -140,7 +145,7 @@ test('calendar, draft recovery, contextual returns and public preview keep the c
 	await page.getByRole('dialog').getByRole('button', { name: 'Annuler', exact: true }).click();
 	await page.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();
 	await page.goto(`${app.origin}/enseignant/modules/${app.ids.module}/bareme?retour=module`);
-	const projectTab = page.getByRole('tab', { name: 'Projet /100', exact: true });
+	const projectTab = page.getByRole('tab', { name: 'Projet 100 pts', exact: true });
 	await expect(async () => {
 		await projectTab.click();
 		await expect(projectTab).toHaveAttribute('aria-selected', 'true', { timeout: 1000 });
@@ -340,14 +345,20 @@ test('finish corrections preserve theme selection, class provenance and responsi
 		await page.setViewportSize({ width: 1440, height: 900 });
 	}
 	for (const name of ['Thème clair', 'Thème sombre', 'Thème système']) {
-		await page.getByRole('button', { name: 'Choisir le thème', exact: true }).click();
+		const trigger = page.getByRole('button', { name: 'Choisir le thème', exact: true });
+		const menu = page.getByRole('menu');
 		const radio = page.getByRole('menuitemradio', { name, exact: true });
 		await expect(async () => {
-			await radio.focus();
-			await page.keyboard.press('Enter');
-			await page.getByRole('button', { name: 'Choisir le thème', exact: true }).click();
-			await expect(radio).toHaveAttribute('aria-checked', 'true', { timeout: 1000 });
+			if (!(await menu.isVisible())) await trigger.click();
+			await expect(radio).toBeVisible({ timeout: 1000 });
 		}).toPass({ timeout: 60000 });
+		await expect(menu).toHaveCSS('opacity', '1');
+		await radio.focus();
+		await expect(radio).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(menu).toHaveCount(0);
+		await trigger.click();
+		await expect(radio).toHaveAttribute('aria-checked', 'true');
 		await expect(page.getByRole('menuitemradio', { checked: true })).toHaveCount(1);
 		metrics.push({ name, selected: true });
 		await page.keyboard.press('Escape');
@@ -375,7 +386,11 @@ test('finish corrections preserve theme selection, class provenance and responsi
 		}
 	);
 	expect(attached.status()).toBe(200);
-	const secondContext = ((await attached.json()) as { id: string }).id;
+	const { id: secondContext, moduleId: secondModule } = (await attached.json()) as {
+		id: string;
+		moduleId: string;
+	};
+	expect(secondModule).not.toBe(module.id);
 	await page.goto(`${app.origin}/enseignant/classes?classe=${secondClass}`);
 	await page
 		.locator('section[aria-labelledby="class-modules-title"]')
@@ -390,7 +405,7 @@ test('finish corrections preserve theme selection, class provenance and responsi
 		.click();
 	await expect(page).toHaveURL(new RegExp(`contexte=${secondContext}`));
 	await expect(page).toHaveURL(new RegExp(`#echeances-${secondContext}$`));
-	await rubricReturn('Retour au module', `/enseignant/modules/${module.id}\\?`);
+	await rubricReturn('Retour au module', `/enseignant/modules/${secondModule}\\?`);
 	await expect(page).toHaveURL(new RegExp(`classe=${secondClass}`));
 	await expect(
 		page.getByRole('tabpanel', { name: 'Classes et planning', exact: true })
@@ -399,7 +414,7 @@ test('finish corrections preserve theme selection, class provenance and responsi
 	await page.getByRole('link', { name: 'Barème', exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`contexte=${secondContext}`));
 	await capture('rubric');
-	await rubricReturn('Retour au module', `/enseignant/modules/${module.id}\\?`);
+	await rubricReturn('Retour au module', `/enseignant/modules/${secondModule}\\?`);
 	await page.getByRole('link', { name: 'Publication', exact: true }).click();
 	await expect(page.getByLabel('Classe et année', { exact: true })).toHaveValue(secondContext);
 	await page.getByRole('link', { name: 'Retour au module', exact: true }).click();
@@ -420,7 +435,7 @@ test('finish corrections preserve theme selection, class provenance and responsi
 		await expect(page).toHaveURL(new RegExp(`contexte=${app.ids.currentContext}`));
 	}
 	await page.goto(
-		`${app.origin}/enseignant/modules/${module.id}?classe=${secondClass}&section=information`
+		`${app.origin}/enseignant/modules/${secondModule}?classe=${secondClass}&section=information`
 	);
 	await readyModuleEditor(page);
 	await page.getByLabel('Objectifs pédagogiques', { exact: true }).focus();
@@ -445,7 +460,7 @@ test('finish corrections preserve theme selection, class provenance and responsi
 	await capture('public-module');
 	await writeFile(
 		resolve(directory, 'finish-fixes.json'),
-		JSON.stringify({ metrics, errors, secondClass, secondContext }, null, 2)
+		JSON.stringify({ metrics, errors, secondClass, secondContext, secondModule }, null, 2)
 	);
 	expect(errors).toEqual([]);
 });
