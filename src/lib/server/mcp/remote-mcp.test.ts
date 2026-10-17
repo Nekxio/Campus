@@ -19,6 +19,7 @@ import { seedFoundationFixtures } from '../db/testing/fixtures.js';
 import { newFolderBinding, resolveLocalModule } from '../../domain/local-module.js';
 import { createModuleImportSchema } from '../../domain/module-import.js';
 import { sampleLocalModule } from '../agent/testing/fixtures.js';
+import { unusedClientLimit, unusedClientRetentionMs } from './registration.js';
 
 const origin = 'https://coursely.example.test';
 const callback = 'http://127.0.0.1:47913/callback';
@@ -160,6 +161,88 @@ afterEach(() => {
 });
 
 describe('MCP distant et OAuth réels sur base fictive', () => {
+	it('borne le DCR global, répond 429 et conserve le client actif puis sa révocation', async () => {
+		const granted = await grant();
+		for (let i = 0; i < unusedClientLimit; i++) {
+			await client.execute({
+				sql: `INSERT INTO oauth_client (id, client_id, redirect_uris, token_endpoint_auth_method, created_at)
+				VALUES (?, ?, '[]', 'none', ?)`,
+				args: ['pending-' + i, 'pending-' + i, Date.now()]
+			});
+		}
+		const saturated = await call(
+			'/oauth2/register',
+			{
+				redirect_uris: [callback],
+				token_endpoint_auth_method: 'none',
+				application_type: 'native'
+			},
+			'',
+			true
+		);
+		expect(saturated.status, await saturated.clone().text()).toBe(429);
+		expect(await saturated.json()).toMatchObject({ error: 'temporarily_unavailable' });
+		await client.execute({
+			sql: 'UPDATE oauth_client SET created_at = ?',
+			args: [Date.now() - unusedClientRetentionMs - 1000]
+		});
+		await registerClient();
+		expect(Number((await client.execute('SELECT COUNT(*) AS n FROM oauth_client')).rows[0].n)).toBe(
+			2
+		);
+		const principal = await authenticateMcp(
+			auth,
+			client,
+			origin,
+			new Request(origin + '/mcp', {
+				headers: { authorization: 'Bearer ' + granted.token.access_token }
+			})
+		);
+		expect(principal.teacherId).toBe(teacherId);
+		const [application] = await listApplications(client, teacherId);
+		await revokeApplication(client, teacherId, {
+			id: application.id,
+			reviewedVersion: application.reviewedVersion
+		});
+		await registerClient();
+		expect(
+			(
+				await client.execute({
+					sql: 'SELECT id FROM oauth_client WHERE client_id = ?',
+					args: [granted.clientId]
+				})
+			).rows
+		).toHaveLength(1);
+		await expect(
+			authenticateMcp(
+				auth,
+				client,
+				origin,
+				new Request(origin + '/mcp', {
+					headers: { authorization: 'Bearer ' + granted.token.access_token }
+				})
+			)
+		).rejects.toMatchObject({ status: 401 });
+	});
+
+	it('conserve la limite effective DCR de cinq requêtes par minute et par IP/chemin', async () => {
+		for (let i = 0; i < 5; i++) await registerClient();
+		const response = await call(
+			'/oauth2/register',
+			{
+				redirect_uris: [callback],
+				token_endpoint_auth_method: 'none',
+				application_type: 'native'
+			},
+			'',
+			true
+		);
+		expect(response.status).toBe(429);
+		expect(Number((await client.execute('SELECT COUNT(*) AS n FROM oauth_client')).rows[0].n)).toBe(
+			5
+		);
+	});
+
 	it('crée un brouillon privé par MCP, rejoue le reçu et garde les étudiants hors du contexte d’import', async () => {
 		const ids = await seedFoundationFixtures(createDatabase(client));
 		const binding = newFolderBinding(origin);

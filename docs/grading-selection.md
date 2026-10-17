@@ -33,4 +33,4 @@ requis complets, aucun PDF final provisoire ni moyenne annuelle inventée.
 
 Les tests utilisent des bases fictives neuves : B2/B3, classe sans module, plusieurs années ouvertes,
 liens directs, sélection vide, réponses retardées et brouillons non enregistrés. Ils ne modifient
-pas la base de la démo utilisée par Léo. Les contrôles Safari/iPhone connecté restent reportés.
+pas la base de la démo existante. Les contrôles Safari/iPhone connecté restent reportés.

@@ -8,6 +8,7 @@
 		"build": "wrangler types && vite build",
 		"worker:dry-run": "tsx scripts/worker-dry-run.ts",
 		"production:prepare": "tsx scripts/production.ts prepare",
+		"production:migrate": "tsx scripts/production-migration.ts",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p scripts/tsconfig.json",

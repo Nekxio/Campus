@@ -22,9 +22,15 @@ import {
 	readInvitation
 } from './auth/invitations.js';
 import { consumeRateLimit } from './auth/rate-limit.js';
+import { cleanupUnusedOAuthClients, withOAuthRegistrationLimit } from './mcp/registration.js';
 
 export async function createAuth(settings: AuthSettings, client: Client) {
 	const origin = authOrigin(settings);
+	const database = drizzleAdapter(createDatabase(client), {
+		provider: 'sqlite',
+		schema,
+		transaction: true
+	});
 	const auth = betterAuth({
 		appName: 'Coursely',
 		baseURL: origin,
@@ -94,13 +100,11 @@ export async function createAuth(settings: AuthSettings, client: Client) {
 					(ctx.request?.method === 'POST' && !claimedOrigin && !nativeOAuthPaths.has(ctx.path))
 				)
 					throw new APIError('FORBIDDEN', { message: 'Origine refusée.' });
+				if (ctx.path === '/oauth2/register') await cleanupUnusedOAuthClients(client);
 			})
 		},
-		database: drizzleAdapter(createDatabase(client), {
-			provider: 'sqlite',
-			schema,
-			transaction: true
-		}),
+		database: (options: Parameters<typeof database>[0]) =>
+			withOAuthRegistrationLimit(database(options)),
 		emailAndPassword: { enabled: false },
 		user: {
 			additionalFields: {

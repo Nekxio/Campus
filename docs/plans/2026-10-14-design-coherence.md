@@ -1,10 +1,10 @@
 # Design et accessibilité — implémentation validée
 
-Léo a validé les 14 compositions et autorisé leur implémentation le 14 octobre 2026. Les précisions calendrier sont intégrées : visuel avec points de séance, mois repliable sur téléphone. Le travail se fait dans le workspace GitButler. Aucune migration cloud, déploiement ou donnée étudiante réelle ne fait partie des vérifications.
+Les 14 compositions et leur implémentation ont été validées le 14 octobre 2026. Les précisions calendrier sont intégrées : visuel avec points de séance, mois repliable sur téléphone. Le travail se fait dans le workspace GitButler. Aucune migration cloud, déploiement ou donnée étudiante réelle ne fait partie des vérifications.
 
 # Plan de design retenu — 14 pages
 
-Compositions choisies par Léo. Ce brief incorpore les précisions du calendrier et propose les corrections de la revue croisée. L’implémentation de ces compositions et des corrections a été autorisée par Léo.
+Compositions validées. Ce brief incorpore les précisions du calendrier et propose les corrections de la revue croisée. L’implémentation de ces compositions et des corrections a été autorisée.
 
 ## Règles partagées
 
@@ -292,7 +292,7 @@ luma, Inter, Lucide et composants existants ; contexte et retours cohérents ; a
 
 ## Autorisation et raccords validés
 
-Les harmonisations de la revue finale ont été retenues. Elles gardent les compositions choisies ; les copies corrigées documentent précisément la création et la connexion. Le calendrier visuel/repliable est confirmé. Léo a explicitement autorisé les modifications du code.
+Les harmonisations de la revue finale ont été retenues. Elles gardent les compositions choisies ; les copies corrigées documentent précisément la création et la connexion. Le calendrier visuel/repliable est confirmé. Les modifications du code ont été explicitement autorisées.
 
 La vérification des régressions aura lieu sur l’application implémentée, avec les composants réels et les états métier, sans migration cloud, déploiement ou données étudiantes réelles.
 
@@ -363,7 +363,7 @@ Le commentaire des propositions est tronqué par la zone de premier écran. Copi
 
 Calendrier entièrement visible repousse la bibliothèque sur téléphone.
 
-**Proposition :** Mois repliable choisi par Léo et calendrier seulement visuel avec points de séance ; pas de sélection de jour, détail supplémentaire, agenda ou remise.
+**Proposition :** Mois repliable validé et calendrier seulement visuel avec points de séance ; pas de sélection de jour, détail supplémentaire, agenda ou remise.
 
 **État :** périmètre confirmé ; maquette dédiée vérifiée.
 

@@ -67,6 +67,10 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	}
 	response.headers.set('Referrer-Policy', 'no-referrer');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	// An additional policy intersects with an existing CSP instead of replacing it.
+	// Same-origin previews remain possible; every ancestor must share this origin.
+	response.headers.append('Content-Security-Policy', "frame-ancestors 'self'");
 	return response;
 };
 

@@ -42,7 +42,7 @@ pnpm preview
 `vite.config.ts` configures SvelteKit, Tailwind and the Cloudflare adapter. The separate
 `vitest.config.ts` runs Node-based tests for domain validation, roster imports, Paris calendar
 conversion, rubric replacement, grading calculations, correction forms and private teaching services,
-local MCP imports and agent API-key access, alongside the original greeting and grade-input examples.
+local MCP imports and agent API-key access, alongside the original greeting example.
 It also runs local migration, database-constraint and cryptographic WebAuthn integration tests
 against isolated in-memory libSQL databases. Tests never load local environment files or contact Turso.
 
@@ -89,7 +89,7 @@ extensions and `index.js` for component barrels. See `PRODUCT.md` for approved s
 
 ### Private Grading
 
-Léo approved three code-led Impeccable compositions: `rubric-table`, `grid-split` and
+The approved code-led Impeccable compositions are `rubric-table`, `grid-split` and
 `correction-bottom-summary`. Their choices and proposal history remain in
 `.impeccable/mocks/lot3-design-round.json` and the three grading surface briefs.
 
@@ -208,7 +208,7 @@ current module/context/correction baselines and an optional semester comment wit
 Its stable proposal/request IDs recover an identical retry without duplicating or applying scores.
 No student data is written into the local folder binding.
 
-`/enseignant/propositions` follows Léo’s selected `proposal-inline-comparison` design. Open it from
+`/enseignant/propositions` follows the approved `proposal-inline-comparison` design. Open it from
 the grade grid or the returned proposal link. Compare Enregistré / Proposé / Retenu, adjust integer
 criterion points, inspect the live grading impact, then explicitly accept or refuse. Omitted proposal
 lines keep their current recorded points; a proposed null stays missing. Points and the semester
@@ -400,31 +400,14 @@ recapture corrected the evidence without changing application code. Mobile conte
 keyboard and its deadline anchor moves the target to a 24px top inset. The link-copy action reports
 success; the browser bridge did not provide independent clipboard contents for that check.
 
-A fresh generic agent adopted the full shipped Impeccable finish-reviewer contract because named
-agent types are unavailable in this harness. Its initial **ship** disposition was superseded when Léo rejected fidelity to the chosen
-layouts on 13 October 2026. A fresh full review returned **fix**, with eight recorded findings in
-`.impeccable/review/lot5-fidelity/corrective-review.md`; those formerly recorded choices were subsequently superseded by the explicit `student-tabs` confirmation.
-The historical corrective verdict pass returned **ship**, scoring all eight fixes resolved. It is not a second
-full surface review, complete screen-reader, real-device or server-security audit. Final types with
-zero errors/warnings, lint, 203 tests and the Workers build pass. A fresh independent ordinary-extension
-documenter preserves DESIGN.md and its sidecar; pre-existing narrative drift remains unrepaired.
-Final native screenshots cover 1440×900, the actual 1936×1224 user viewport, 1280×900, 810×1080 and
-390×844, plus dark and keyboard-anchor supplements. Evidence is in `.impeccable/review/lot5-fidelity/`;
-the initial functional and Workers evidence remains in `.impeccable/review/lot5/`.
-See [the publication guide](docs/publication.md).
-
-Léo subsequently reconfirmed **Un bloc à la fois** (`student-tabs`) for public reading and
-**Vérification par section** (`publish-sections`) for publication. The implemented public page now
-uses five installed shadcn-svelte tabs, one visible content panel and a persistent deadline/project
-rail. The shared compact private preview retains all five sections. Keyboard arrows, Home/End,
-44px controls, panel labeling, light/dark and 320–1936 px reflow were checked. The fresh independent
-full supplied-surface finish review returned **ship**; the generic-role substitution remains explicit.
-Types with zero errors/warnings, lint, 203 tests in 27 files and build pass. Two pre-existing detector
-advisories remain; the fresh documenter preserves the existing system. Evidence is in
-`.impeccable/review/lot5-student-tabs/`; real-device and screen-reader acceptance remain outstanding.
-Professional Drive sharing/version replacement, cloud migrations, deployment and full HTTPS passkey
-acceptance remain pending. No real student data, keys or secret reads were used. The browser reports
-an upstream `$app/environment` deprecation warning; no new application runtime error was observed.
+The approved public reading layout is **Un bloc à la fois** (`student-tabs`), with
+**Vérification par section** (`publish-sections`) for publication. The public page uses five
+shadcn-svelte tabs, one visible panel and a persistent deadline/project rail; the private preview
+retains all sections. Keyboard arrows, Home/End, 44px controls, panel labeling, light/dark and
+320–1936 px reflow were checked. Historical evidence remains in
+`.impeccable/review/lot5-student-tabs/`; screen-reader, real-device and final HTTPS acceptance remain
+outstanding. See [the publication guide](docs/publication.md) and
+[the production checklist](docs/production.md).
 
 The module-import part of lot 4 passes **139 tests across 20 files**, including 34 new agent/MCP
 checks. Installation with the frozen lockfile, types, formatting/lint and the Workers build pass.

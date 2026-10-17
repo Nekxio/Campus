@@ -1,6 +1,6 @@
 # MCP distant — réalisation locale autorisée
 
-Autorisation de développement confirmée par Léo ; connexion, consentement et
+Autorisation de développement confirmée ; connexion, consentement et
 applications connectées approuvés à partir du prototype du 17 octobre.
 
 1. Restaurer l’état initial complet audité et P3 dans une copie durable isolée.

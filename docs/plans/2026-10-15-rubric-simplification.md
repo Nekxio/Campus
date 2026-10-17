@@ -1,6 +1,6 @@
 # Barème par sections — simplification validée le 15 octobre 2026
 
-Léo a validé un éditeur centré sur les sections, les critères et leurs points. Les maxima des
+Le choix validé est un éditeur centré sur les sections, les critères et leurs points. Les maxima des
 sections déterminent leur part dans le total, ensuite ramené sur 20. Les valeurs 60/35/20 ne
 sont qu’un exemple de calcul ; aucun trio ni maximum n’est imposé. Un dossier seul, un dossier
 et une soutenance ou tout autre ensemble de livrables sont possibles.

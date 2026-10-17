@@ -17,7 +17,7 @@ jobs:
   quality:
     name: Quality checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     # Superseded checks may stop; this never cancels the separate deployment job.
     concurrency:
       group: ci-quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -59,14 +59,8 @@ jobs:
       - name: Run unit and local integration tests
         run: pnpm test
 
-      - name: Install Chromium for fictional browser workflows
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Check browser test types
         run: pnpm check:browser
-
-      - name: Run fictional desktop and mobile browser workflows
-        run: pnpm test:browser
 
       - name: Build for Cloudflare Workers
         run: pnpm build

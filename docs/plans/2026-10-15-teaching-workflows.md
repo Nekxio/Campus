@@ -1,6 +1,6 @@
 # Cadrage enseignant validé — 15 octobre 2026
 
-Ce plan applique le cadrage confirmé par Léo après le diagnostic. Il remplace les anciennes
+Ce plan applique le cadrage validé après le diagnostic. Il remplace les anciennes
 règles contradictoires du plan du 12 octobre : module partagé entre classes, cumul brut des quiz,
 remplacement implicite des éléments par le MCP et délai de conservation automatique supposé.
 Le périmètre actuel est MyDigitalSchool. Les sources restent locales, les fichiers étudiants sur

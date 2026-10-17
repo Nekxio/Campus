@@ -89,6 +89,23 @@ ou utiliser le MCP stdio pour conserver le lien au dossier sélectionné.
 - DCR public limité aux clients natifs, callbacks HTTP loopback, hôte et chemin
   exacts ; variation du port locale permise par RFC 8252. Aucun redirect externe,
   wildcard, fragment, credential dans l’URI ou source de clés distante.
+- Les inscriptions publiques sans propriétaire, référence, découverte, consentement ni
+  token enregistré sont limitées globalement à 100 par un trigger SQLite atomique
+  (migration `0011_bound_unused_oauth_clients.sql`, à appliquer explicitement avant usage).
+  Le DCR conserve aussi sa limite de 5 requêtes/minute/IP/chemin. À chaque inscription
+  valide, au plus 100 clients inutilisés depuis plus de 24 heures sont supprimés avant
+  l’insertion ; sans nouvelle inscription, aucun nettoyage ne s’exécute. Une saturation
+  répond HTTP 429 sans évincer de connexion récente. Un ancien stock supérieur à 100
+  se résorbe par lots sans autoriser sa croissance. La migration ne supprime rien.
+  Les consentements, propriétaires, clients gérés et toutes les lignes de tokens, même
+  expirés/révoqués, protègent leurs clients. Une date de création absente est conservée
+  et compte dans la borne. Après révocation, un client JWT sans token stocké ni autre
+  référence peut être nettoyé ; un client jamais autorisé depuis plus de 24 heures doit
+  reprendre son inscription depuis Codex, même si sa connexion vient de commencer.
+- Les réponses applicatives interdisent les cadres tiers avec `X-Frame-Options:
+SAMEORIGIN` et une politique CSP supplémentaire `frame-ancestors 'self'`. Les autres
+  politiques CSP restent cumulatives ; les cadres de même origine et la navigation
+  OAuth vers le callback loopback restent possibles.
 - CIMD n’est pas annoncé : le transport DNS avec adresse épinglée exigé par le
   plugin n’est pas établi pour cette application Workers. DPoP n’est pas activé.
 - Origines tierces refusées sur les écritures et appels MCP ; seule la navigation
@@ -120,14 +137,14 @@ pas les credentials, n’utilisent pas Safari et ne changent pas les données de
 la démo existante. Les captures, rapports et patchs de reconstruction sont
 conservés dans `data/recovery/remote-mcp-20261017/delivery/`.
 
-Le 17 octobre, Léo a confirmé avec le vrai client Codex le parcours local sur données fictives :
+Le parcours local a été vérifié avec le client Codex sur données fictives :
 passkey sur son appareil, consentement, lecture des modules puis révocation effective au prochain
 appel. Le rapport d’intégration et ses preuves sont dans
 `data/recovery/remote-mcp-20261017/delivery/integration-report.md`.
 Restent l’acceptation sur l’origine HTTPS finale, le lecteur d’écran et la recette complète sur
 appareil physique. Un build ou un dry-run local ne valide pas les ressources distantes ni les
 limites CPU réelles. Les étapes de mise en service sont dans
-[le point production du 17 octobre](production-readiness-2026-10-17.md).
+[le guide de production](production.md).
 
 Références vérifiées le 17 octobre 2026 :
 [MCP autorisation](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization),

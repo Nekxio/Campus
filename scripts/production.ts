@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 
-// Account namespace supplied by Léo; this is the intended origin, not proof of deployment.
+// Stable production origin; configuration alone does not prove deployment.
 export const productionWorkerName = 'mds';
 export const expectedProductionOrigin = `https://${productionWorkerName}.leohilaire-1f7.workers.dev`;
 

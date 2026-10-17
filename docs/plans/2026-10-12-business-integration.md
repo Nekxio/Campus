@@ -1,6 +1,6 @@
 # Plan d’intégration métier de Coursely
 
-12 octobre 2026 — plan validé par Léo ; lots 1, 2, 3 et 4 implémentés et validés localement.
+12 octobre 2026 — plan validé ; lots 1, 2, 3 et 4 implémentés et validés localement.
 13 octobre 2026 — publication et pages étudiantes du lot 5 implémentées localement ;
 vérification du partage/remplacement Drive professionnel et activation HTTPS encore à réaliser.
 
@@ -11,13 +11,14 @@ Coursely conservera leurs liens. L’interface et un MCP local offriront deux en
 mêmes opérations métier.
 
 Chaque nouvelle page ou parcours visuel fera l’objet d’un cadrage Impeccable et de
-propositions de disposition, avec choix de Léo avant son développement. Le thème luma,
+propositions de disposition, avec choix explicite du responsable produit avant son développement.
+Le thème luma,
 shadcn-svelte, la sidebar et la composition de l’accueil validés constituent la base.
 
 ## Avancement
 
 Le socle de données et d’accès enseignant est implémenté : schémas Turso/Drizzle, migration
-initiale, contrats Zod, fixtures fictives et Better Auth par passkey sur invitation. Léo a choisi
+initiale, contrats Zod, fixtures fictives et Better Auth par passkey sur invitation. Le choix retenu est
 le parcours vertical Impeccable pour la connexion et l’activation ; ces pages sont implémentées
 et l’accueil exige une session enseignant.
 
@@ -47,7 +48,7 @@ configurée. Aucune migration cloud, connexion au Drive, clé réelle ni donnée
 n’a été utilisée dans ce lot. Les contrôles HTTPS complets des passkeys, VoiceOver et appareil
 réel restent à effectuer.
 
-Le lot 3 est implémenté après les trois choix Impeccable de Léo : « Table de définition »
+Le lot 3 est implémenté après les trois choix Impeccable validés : « Table de définition »
 (`rubric-table`), « Grille et fiche » (`grid-split`) et « Groupe et bilan fixe »
 (`correction-bottom-summary`). Les barèmes, groupes, lignes, descriptions et règles structurées
 se modifient dans `/enseignant/modules/[moduleId]/bareme`, avec les échéances de chaque contexte.
@@ -98,7 +99,7 @@ permissions limitées, hachage, expiration et quota atomique. La clé ne devient
 web ; les endpoints publics de gestion sont fermés. Le contexte d’import ne renvoie aucune
 identité étudiante, note, remise, proposition ou commentaire. La migration offline
 `0003_premium_tomas.sql` ajoute les clés et reçus, sans application cloud. Le guide d’usage est
-`docs/module-import.md`. Léo a choisi un dossier fictif isolé pour le premier essai ; la
+`docs/module-import.md`. Le choix retenu est un dossier fictif isolé pour le premier essai ; la
 configuration MCP est limitée à `data/mcp-demo`, sans accès à toute la racine des formations.
 
 Cette partie du lot 4 passe 139 tests dans 20 fichiers, dont 34 nouveaux contrôles agent/MCP.
@@ -115,7 +116,7 @@ connexion Drive, migration cloud ou mise en ligne n’a été effectuée pour le
 
 ## Propositions de correction du lot 4
 
-Léo a choisi « Comparaison dans la correction » (`proposal-inline-comparison`, graine
+Le choix retenu est « Comparaison dans la correction » (`proposal-inline-comparison`, graine
 `0e5f8508`) avant le développement. L’écran `/enseignant/propositions` reprend le contexte compact,
 les groupes de critères et le bilan inférieur. Chaque ligne montre Enregistré, Proposé et Retenu ;
 les entiers ajustés actualisent les calculs existants, sans formule particulière au jeu de démo.
@@ -133,7 +134,7 @@ Le dépôt n’écrit aucun score ni commentaire de référence. Seule une sessi
 prendre une décision à même origine. La validation des points écrit les valeurs retenues de
 l’évaluation et garde la remise, la décision de retard, les autres évaluations et le commentaire.
 Un commentaire accepté séparément garde les points. Une absence désactive les champs et empêche
-la validation de points ; Léo choisit explicitement « À évaluer » ou « Noté » pour les retenir.
+la validation de points ; l’enseignant choisit explicitement « À évaluer » ou « Noté » pour les retenir.
 Les révisions devenues obsolètes bloquent la décision concernée. Actualiser conserve la saisie,
 sans rendre une ancienne proposition actuelle : l’agent doit déposer une proposition réconciliée.
 Le refus conserve les scores et le commentaire encore indécis ; un commentaire déjà accepté
@@ -204,7 +205,7 @@ La purge cible une année et affiche les classes, étudiants et corrections conc
 confirmation. Elle préserve le compte enseignant, les clés d’accès, les modules, leurs
 documents et leurs liens Drive. Les données personnelles éventuellement incluses dans des
 propositions sont supprimées aussi ; un historique technique ne doit pas en conserver de
-copie. Les PDF déjà téléchargés restent chez Léo et ne permettent pas de restaurer le détail
+copie. Les PDF déjà téléchargés restent chez l’enseignant et ne permettent pas de restaurer le détail
 des corrections. Les anciens liens de classes supprimées cessent de fonctionner ; les
 modules publiés restent disponibles par leurs propres liens.
 
@@ -232,17 +233,12 @@ fictif du Drive professionnel reste à effectuer séparément. Voir `docs/public
 La validation locale du lot 5 passe 203 tests dans 27 fichiers, le lint, les types sans erreur
 ni avertissement et le build Workers. Vingt et un contrôles HTTP sur la construction réelle
 vérifient les protections et erreurs publiques sans secrets. Les essais fictifs couvrent publication,
-dépublication, republication au même lien et conflit entre deux fenêtres. La revue Impeccable
-indépendante initiale concluait « ship » sur les écrans et captures fournis, sans correction matérielle.
-Léo a rejeté cette fidélité visuelle le 13 octobre : ce verdict est historique et remplacé.
-Une nouvelle revue complète a demandé huit corrections. Après leur application, le même relecteur
-a conclu « ship » dans un passage de verdict limité à ces huit points, tous résolus. Les choix
-« Page de cours continue » et « Vérification par section » étaient alors enregistrés ; ce choix étudiant
-a ensuite été remis en discussion. Léo a rouvert les mêmes propositions et confirmé « Un bloc à la fois »
-(`student-tabs`) et « Vérification par section » (`publish-sections`). Le précédent verdict reste historique. Les captures finales
-aux formats 1440, 1936, 1280, 810 et 390 px et les contrôles correctifs sont dans
-`.impeccable/review/lot5-fidelity/`. Types, lint, 203 tests et build passent ; le documenter conserve
-le système visuel existant. Ce verdict ne constitue pas une seconde revue complète des pages.
+dépublication, republication au même lien et conflit entre deux fenêtres.
+Les compositions finales validées sont « Un bloc à la fois » (`student-tabs`) et
+« Vérification par section » (`publish-sections`). Les anciens verdicts et alternatives sont
+historiques. Les captures et contrôles correctifs sont conservés dans
+`.impeccable/review/lot5-fidelity/`. Les vérifications locales ne constituent pas une recette
+sur appareil physique, au lecteur d’écran ou sur l’origine HTTPS finale.
 Les formats 1440, 1280, 810 et 390 px, les thèmes clair/sombre et les états vides/erreur sont
 consignés dans `.impeccable/review/lot5/`. Les types de rôles nommés étant indisponibles,
 un agent générique a adopté le contrat complet de revue fourni par le skill. Les vérifications
@@ -311,7 +307,7 @@ distincts sur 20, sans agrégation annuelle ; quiz et entretiens formatifs.
 - Le retard utilise l’échéance et la date de remise dans le fuseau Europe/Paris, en jours
   calendaires. La pénalité est d’un point par jour sur la production ramenée sur 20, une seule
   fois, avec minimum zéro et conservation des points bruts.
-- Les exceptions et refus sont des choix de Léo. L’application ne déduit pas une absence de
+- Les exceptions et refus sont des choix explicites de l’enseignant. L’application ne déduit pas une absence de
   nouvelles de l’étudiant ; le refus met zéro à la production concernée.
 
 Un barème peut être remplacé directement et les résultats sont recalculés, sans étape
@@ -328,7 +324,7 @@ correction plus récente. L’état d’enregistrement est visible.
 
 Le commentaire de semestre dispose d’un champ privé et d’une action de copie. L’agent peut le
 proposer avec les points, sans ajouter de justifications par critère à Coursely. Une
-proposition n’écrase aucun résultat enregistré : Léo la vérifie puis l’accepte ou la refuse.
+proposition n’écrase aucun résultat enregistré : l’enseignant la vérifie puis l’accepte ou la refuse.
 
 ## PDF final pour l’école
 
@@ -380,7 +376,7 @@ par Git. La suppression ou révocation d’une clé est testée avant l’usage 
 
 Chaque lot commence uniquement après validation de ce plan. Lorsqu’il comporte une page ou
 un nouveau parcours visuel, la séquence est : brief Impeccable réutilisant ce cadrage,
-propositions de disposition, choix de Léo, développement, critique, audit et finition.
+propositions de disposition, choix explicite du responsable produit, développement, critique, audit et finition.
 Les variantes explorent la composition et les interactions dans le thème existant.
 
 | Lot                                     | Travail                                                                                                                                                                                | Résultat à vérifier                                                                                                                                                                                                   |
@@ -395,7 +391,7 @@ Les variantes explorent la composition et les interactions dans le thème exista
 
 L’accueil conserve sa direction « Prochaine intervention », la sidebar inset escamotable,
 l’avatar et les trois modes de thème. Il reçoit les données et liens réels au fil des lots ;
-aucune nouvelle disposition n’est imposée sans le choix de Léo.
+aucune nouvelle disposition n’est imposée sans le choix explicite du responsable produit.
 
 ## Organisation technique prévue
 
