@@ -1,4 +1,5 @@
-@import 'tailwindcss';
+/* Product classes live in src; design mocks and generated validation copies are not sources. */
+@import 'tailwindcss' source('../');
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
 @import '@fontsource-variable/inter';
@@ -19,13 +20,14 @@
 	--secondary: oklch(0.97 0 0);
 	--secondary-foreground: oklch(0.205 0 0);
 	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
+	--muted-foreground: oklch(0.5 0 0);
 	--accent: oklch(0.97 0 0);
 	--accent-foreground: oklch(0.205 0 0);
 	--destructive: oklch(0.577 0.245 27.325);
 	--border: oklch(0.922 0 0);
 	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
+	--ring: var(--foreground);
+	--control-border: var(--muted-foreground);
 	--chart-1: oklch(0.87 0 0);
 	--chart-2: oklch(0.556 0 0);
 	--chart-3: oklch(0.439 0 0);
@@ -39,7 +41,7 @@
 	--sidebar-accent: oklch(0.97 0 0);
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+	--sidebar-ring: var(--ring);
 }
 
 .dark {
@@ -60,7 +62,7 @@
 	--destructive: oklch(0.704 0.191 22.216);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
+	--ring: var(--foreground);
 	--chart-1: oklch(0.87 0 0);
 	--chart-2: oklch(0.556 0 0);
 	--chart-3: oklch(0.439 0 0);
@@ -73,7 +75,7 @@
 	--sidebar-accent: oklch(0.269 0 0);
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+	--sidebar-ring: var(--ring);
 }
 
 @theme inline {
@@ -133,6 +135,7 @@
 @layer base {
 	html {
 		scrollbar-color: var(--border) var(--background);
+		-webkit-text-size-adjust: 100%;
 	}
 	body {
 		min-width: 320px;
@@ -148,8 +151,14 @@
 	}
 	button,
 	a,
-	[role='tab'] {
+	[role='tab'],
+	summary {
 		touch-action: manipulation;
+	}
+	button,
+	[role='tab'],
+	summary {
+		user-select: none;
 	}
 	[data-slot='sheet-content'] {
 		padding-top: env(safe-area-inset-top);
@@ -158,11 +167,6 @@
 	[data-slot='sidebar-menu-button'],
 	[data-slot='button'],
 	[data-slot='tabs-trigger'] {
-		min-height: 44px;
-	}
-	[data-slot='input'],
-	[data-slot='textarea'],
-	[data-slot='native-select'] {
 		min-height: 44px;
 	}
 	[data-slot='tabs-list'] {
@@ -182,13 +186,6 @@
 	.skip-link:focus {
 		transform: translateY(0);
 	}
-	@media (pointer: coarse) {
-		[data-slot='input'],
-		[data-slot='textarea'],
-		[data-slot='native-select'] {
-			font-size: 1rem;
-		}
-	}
 	@media (prefers-reduced-motion: reduce) {
 		*,
 		*::before,
@@ -198,5 +195,83 @@
 			transition-duration: 0.01ms !important;
 			scroll-behavior: auto !important;
 		}
+	}
+}
+
+/* Unlayered so compact utility classes cannot shrink a coarse-pointer target. */
+@media (pointer: coarse) {
+	[data-slot='input'],
+	[data-slot='textarea'],
+	[data-slot='native-select'] {
+		min-height: 44px;
+		font-size: 1rem;
+	}
+}
+
+/* Cancel primitive/plugin focus halos. Keyboard indicators stay inside the control. */
+:where(button, a, input, textarea, select, summary, [tabindex]):focus {
+	outline: none;
+	box-shadow: none;
+	--tw-ring-shadow: 0 0 #0000;
+	--tw-ring-offset-shadow: 0 0 #0000;
+}
+
+:where(button, a, summary, [tabindex]:not([role='menu'])):focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -2px;
+}
+
+:where(input, textarea, select):focus-visible {
+	outline: none;
+}
+
+:where([aria-invalid='true']):focus-visible {
+	outline-color: var(--destructive);
+}
+
+.editor-save-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 10;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border-top: 1px solid var(--border);
+	background: var(--background);
+	padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 63.99rem), (pointer: coarse) {
+	/* Keep the action in flow so a software keyboard cannot cover the edited field. */
+	.editor-save-bar {
+		position: static;
+	}
+}
+
+:where(
+		[data-slot='input'],
+		[data-slot='textarea'],
+		[data-slot='native-select'],
+		[data-slot='checkbox']
+	):not([aria-invalid='true']):not([data-checked]) {
+	border-color: var(--control-border);
+}
+:where(
+		[data-slot='input'],
+		[data-slot='textarea'],
+		[data-slot='native-select'],
+		[data-slot='checkbox']
+	):not([aria-invalid='true']):focus-visible {
+	border-color: var(--ring);
+}
+
+@media (min-width: 64rem) and (pointer: fine) {
+	html {
+		scroll-padding-block-end: 8rem;
+	}
+	:where(input, textarea, select, [tabindex]) {
+		scroll-margin-block-end: 8rem;
 	}
 }

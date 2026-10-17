@@ -6,6 +6,7 @@ import {
 	mkdir,
 	mkdtemp,
 	readFile,
+	realpath,
 	readdir,
 	rm,
 	symlink,
@@ -97,6 +98,15 @@ export type Database = ReturnType<typeof createDatabase>;
 `
 		);
 		files[adapterPath].copied = hash(await readFile(join(directory, adapterPath)));
+		// Only the launch configuration is extended; copied source files stay byte-for-byte exact.
+		await writeFile(
+			join(directory, 'vite.fixture.config.mjs'),
+			`import { mergeConfig } from 'vite';
+import base from './vite.config.ts';
+export default mergeConfig(base, { cacheDir: ${JSON.stringify(join(directory, '.vite-cache'))}, server: { fs: { allow: ${JSON.stringify([directory, await realpath(join(directory, 'node_modules'))])} } } });
+`,
+			{ mode: 0o600 }
+		);
 		const manifest: CopyManifest = { directory, databasePath, files, override: adapterPath };
 		await writeFile(join(directory, 'fixture-manifest.json'), JSON.stringify(manifest), {
 			mode: 0o600

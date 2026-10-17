@@ -1,6 +1,53 @@
 import { z } from 'zod';
 import type { GradeGridData } from './grading.js';
 import { calculateStudent } from './grade-calculation.js';
+import type { RubricAssessment, RubricResult } from './grading.js';
+
+export function sectionWeight(
+	assessment: RubricAssessment,
+	result: RubricResult,
+	assessments: RubricAssessment[]
+) {
+	if (assessment.purpose !== 'graded') return 0;
+	const components =
+		result.rule.kind === 'weighted'
+			? result.rule.components
+			: [{ assessmentIds: result.rule.assessmentIds, weight: 100 }];
+	const component = components.find((item) => item.assessmentIds.includes(assessment.id));
+	if (!component) return 0;
+	if (
+		result.rule.kind === 'weighted' ||
+		component.assessmentIds.every(
+			(id) => assessments.find((item) => item.id === id)?.kind === 'quiz'
+		)
+	)
+		return component.weight / component.assessmentIds.length;
+	const maximum = assessments
+		.filter((item) => component.assessmentIds.includes(item.id))
+		.reduce((sum, item) => sum + item.lines.reduce((total, line) => total + line.maxPoints, 0), 0);
+	return maximum
+		? (100 * assessment.lines.reduce((sum, line) => sum + line.maxPoints, 0)) / maximum
+		: 0;
+}
+export function sectionWeightLabel(
+	assessment: RubricAssessment,
+	results: RubricResult[],
+	assessments: RubricAssessment[]
+) {
+	if (assessment.purpose === 'formative') return 'Formatif';
+	return (
+		results
+			.flatMap((result) => {
+				const weight = sectionWeight(assessment, result, assessments);
+				return weight
+					? [
+							`${results.length > 1 ? result.title + ' : ' : ''}${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(weight)} %`
+						]
+					: [];
+			})
+			.join(' · ') || 'Hors résultat'
+	);
+}
 
 export const finalGradeExportSchema = z
 	.strictObject({
@@ -8,11 +55,13 @@ export const finalGradeExportSchema = z
 		className: z.string().min(1).max(200),
 		academicYear: z.string().min(1).max(200),
 		exportedAt: z.iso.datetime(),
+		sections: z.array(z.strictObject({ title: z.string(), weight: z.string() })).optional(),
 		results: z.array(z.string().min(1).max(200)).min(1).max(100),
 		students: z
 			.array(
 				z.strictObject({
 					name: z.string().min(1).max(200),
+					sectionMarks: z.array(z.number().finite().min(0).max(20).nullable()).optional(),
 					marks: z.array(z.number().finite().min(0).max(20)).min(1).max(100)
 				})
 			)
@@ -21,6 +70,12 @@ export const finalGradeExportSchema = z
 	})
 	.superRefine((value, ctx) => {
 		for (const [index, student] of value.students.entries()) {
+			if (value.sections && student.sectionMarks?.length !== value.sections.length)
+				ctx.addIssue({
+					code: 'custom',
+					path: ['students', index, 'sectionMarks'],
+					message: 'Sections incomplètes.'
+				});
 			if (student.marks.length !== value.results.length)
 				ctx.addIssue({
 					code: 'custom',
@@ -69,9 +124,16 @@ export function projectFinalGradeExport(
 		className: context.className,
 		academicYear: context.academicYear,
 		exportedAt: exportedAt.toISOString(),
+		sections: grid.rubric.assessments.map((assessment) => ({
+			title: assessment.title,
+			weight: sectionWeightLabel(assessment, grid.rubric!.results, grid.rubric!.assessments)
+		})),
 		results: grid.rubric.results.map((result) => result.title),
 		students: status.calculated.map(({ student, calculation }) => ({
 			name: student.name,
+			sectionMarks: grid.rubric!.assessments.map(
+				(assessment) => calculation.assessments[assessment.id].mark
+			),
 			marks: grid.rubric!.results.map((result) => calculation.results[result.id].mark)
 		}))
 	});

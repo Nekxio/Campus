@@ -17,6 +17,7 @@ function completeGrid(): GradeGridData {
 			contexts: [
 				{
 					id: 'context',
+					classId: 'class',
 					className: 'B2',
 					academicYear: '2026–2027',
 					expectedRevision: 1,
@@ -130,6 +131,12 @@ describe('Final module export', () => {
 		expect(document.students[0].name).toBe('Élodie Démo');
 		expect(document.students[0].marks[0]).toBeCloseTo((11 / 15) * 20, 10);
 		expect(document.results).toEqual(['Résultat']);
+		expect(document.sections).toEqual([
+			{ title: 'Assessment 0', weight: '100 %' },
+			{ title: 'Assessment 1', weight: 'Formatif' }
+		]);
+		expect(document.students[0].sectionMarks?.[0]).toBeCloseTo(document.students[0].marks[0], 10);
+		expect(document.students[0].sectionMarks?.[1]).toBeNull();
 		expect(document.exportedAt).toBe(date.toISOString());
 		expect(JSON.stringify(document)).not.toMatch(/Private|private-submission|student-0|line-0/);
 	});
@@ -167,6 +174,11 @@ describe('Final module export', () => {
 			false
 		);
 		document.students[0].marks = [];
+		expect(finalGradeExportSchema.safeParse(document).success).toBe(false);
+	});
+	it('rejects mismatched section columns without coercing missing marks to zero', () => {
+		const document = projectFinalGradeExport(completeGrid(), date)!;
+		document.students[0].sectionMarks = [null];
 		expect(finalGradeExportSchema.safeParse(document).success).toBe(false);
 	});
 });

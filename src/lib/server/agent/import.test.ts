@@ -11,7 +11,8 @@ import { editableModule } from '../../teaching/types.js';
 import {
 	createModuleImportSchema,
 	updateModuleImportSchema,
-	importContextSchema
+	importContextSchema,
+	importFingerprint
 } from '../../domain/module-import.js';
 import { newFolderBinding, resolveLocalModule } from '../../domain/local-module.js';
 import { importModule, readImportContext } from './import.js';
@@ -51,6 +52,42 @@ async function updateInput(moduleId: string) {
 }
 
 describe('Atomic agent module imports', () => {
+	it('preserves new public content when an older update omits it', async () => {
+		const first = await importModule(db, ids.teacher, 'create', createInput());
+		const current = await getModule(db, first.moduleId);
+		await updateModule(db, current.id, {
+			...editableModule(current),
+			expectedRevision: current.revision,
+			studentContent: {
+				instructions: 'Consignes conservées',
+				projectInstructions: '',
+				exercises: []
+			}
+		});
+		const input = await updateInput(first.moduleId);
+		delete input.draft.studentContent;
+		await importModule(db, ids.teacher, 'update', input);
+		expect((await getModule(db, current.id)).studentContent?.instructions).toBe(
+			'Consignes conservées'
+		);
+	});
+	it('replays a pre-patch version-1 receipt after later manual edits', async () => {
+		const created = await importModule(db, ids.teacher, 'create', createInput());
+		const input = await updateInput(created.moduleId);
+		const receipt = await importModule(db, ids.teacher, 'update', input);
+		await db
+			.update(tables.agentImports)
+			.set({ fingerprint: await importFingerprint({ action: 'update', input }) })
+			.where(eq(tables.agentImports.requestId, input.requestId));
+		const current = await getModule(db, created.moduleId);
+		await updateModule(db, current.id, {
+			...editableModule(current),
+			title: 'Modification manuelle ultérieure',
+			expectedRevision: current.revision
+		});
+		expect(await importModule(db, ids.teacher, 'update', input)).toEqual(receipt);
+		expect((await getModule(db, current.id)).title).toBe('Modification manuelle ultérieure');
+	});
 	it('creates a complete private module, schedule, rubric and one durable receipt', async () => {
 		const input = createInput();
 		const receipt = await importModule(db, ids.teacher, 'create', input);

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, or, sql, isNull, ne } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import * as t from '../db/schema.js';
 import { academicYearSchema } from '../../domain/contracts.js';
@@ -14,6 +14,7 @@ import {
 import { getGradeGrid } from './grading.js';
 import type { GradeGridData } from '../../domain/grading.js';
 import { gradeExportStatus } from '../../domain/grade-export.js';
+import { requireActiveYear } from './annual-access.js';
 
 type Store = Pick<Database, 'select' | 'insert' | 'update' | 'delete'>;
 const emptyCounts = (): AnnualCounts => ({
@@ -229,7 +230,21 @@ async function snapshot(db: Store, academicYear: string) {
 		results,
 		lessons,
 		deadlines,
-		publications
+		publications,
+		publicModuleLinks: moduleIds.length
+			? await db
+					.select()
+					.from(t.publicModuleLinks)
+					.where(inArray(t.publicModuleLinks.moduleId, moduleIds))
+					.orderBy(asc(t.publicModuleLinks.id))
+			: [],
+		publicClassLinks: classIds.length
+			? await db
+					.select()
+					.from(t.publicClassLinks)
+					.where(inArray(t.publicClassLinks.classId, classIds))
+					.orderBy(asc(t.publicClassLinks.id))
+			: []
 	};
 	return { ...source, token: await hash(source) };
 }
@@ -283,6 +298,7 @@ function snapshotGrid(
 			contexts: [
 				{
 					id: context.id,
+					classId: context.classId,
 					className: context.className,
 					academicYear: context.academicYear,
 					expectedRevision: context.revision,
@@ -314,6 +330,7 @@ function snapshotGrid(
 						revision: row.revision,
 						rubricRevision: module.revision,
 						status: row.status,
+						needsReview: row.needsReview,
 						submittedAt: row.submittedAt?.toISOString() ?? null,
 						submissionUrl: row.submissionUrl,
 						latenessDecision: row.latenessDecision,
@@ -434,6 +451,27 @@ export async function decideAnnualYear(
 		if (input.action === 'reopen' && !source.state?.archivedAt) conflict();
 		if (input.action === 'archive' && source.state?.archivedAt) conflict();
 		if (!source.classRows.length && !source.contexts.length) conflict();
+		if (input.action === 'purge') {
+			const moduleIds = source.moduleRows.map((module) => module.id);
+			const choices = input.moduleChoices ?? [];
+			if (
+				choices.length !== moduleIds.length ||
+				new Set(choices.map((choice) => choice.moduleId)).size !== moduleIds.length ||
+				choices.some((choice) => !moduleIds.includes(choice.moduleId))
+			)
+				error(422, 'Choisissez explicitement Reprendre ou Mettre de côté pour chaque module.');
+			if (input.nextAcademicYear) await requireActiveYear(tx, input.nextAcademicYear);
+			for (const moduleId of moduleIds) {
+				if (
+					source.contexts.filter((context) => context.moduleId === moduleId && context.classId)
+						.length > 1
+				)
+					error(
+						422,
+						'Un ancien module est partagé entre plusieurs classes. Isolez les copies avant de clôturer.'
+					);
+			}
+		}
 		const now = new Date();
 		await tx
 			.insert(t.academicYears)
@@ -479,6 +517,132 @@ export async function decideAnnualYear(
 					}
 				: emptyCounts();
 		if (input.action === 'purge') {
+			const continuedClasses = new Map<string, string>();
+			for (const oldClass of source.classRows) {
+				const [link] = await tx
+					.select()
+					.from(t.publicClassLinks)
+					.where(eq(t.publicClassLinks.classId, oldClass.id));
+				if (!link)
+					await tx.insert(t.publicClassLinks).values({ id: oldClass.id, classId: oldClass.id });
+				const shouldContinue = source.contexts.some(
+					(context) =>
+						context.classId === oldClass.id &&
+						input.moduleChoices?.some(
+							(choice) => choice.moduleId === context.moduleId && choice.decision === 'continue'
+						)
+				);
+				if (shouldContinue) {
+					if (!input.nextAcademicYear) error(422, 'Choisissez l’année de reprise.');
+					const [duplicate] = await tx
+						.select()
+						.from(t.classes)
+						.where(
+							and(
+								eq(t.classes.name, oldClass.name),
+								eq(t.classes.academicYear, input.nextAcademicYear)
+							)
+						);
+					if (duplicate)
+						error(
+							409,
+							'Une classe de même nom existe déjà dans l’année de reprise. Aucun rapprochement automatique n’est effectué.'
+						);
+					const newClassId = crypto.randomUUID();
+					await tx
+						.insert(t.classes)
+						.values({ id: newClassId, name: oldClass.name, academicYear: input.nextAcademicYear });
+					continuedClasses.set(oldClass.id, newClassId);
+					await tx
+						.update(t.publicClassLinks)
+						.set({ classId: newClassId })
+						.where(eq(t.publicClassLinks.id, link?.id ?? oldClass.id));
+				}
+			}
+			for (const choice of input.moduleChoices ?? []) {
+				const [otherActive] = await tx
+					.select()
+					.from(t.teachingContexts)
+					.where(
+						and(
+							eq(t.teachingContexts.moduleId, choice.moduleId),
+							ne(t.teachingContexts.academicYear, input.academicYear),
+							isNull(t.teachingContexts.archivedAt)
+						)
+					)
+					.limit(1);
+				if (otherActive && choice.decision === 'continue')
+					error(
+						422,
+						'Un ancien module possède une autre classe active : créez une copie indépendante avant la reprise.'
+					);
+				const old = source.contexts.find(
+					(context) => context.moduleId === choice.moduleId && context.classId
+				);
+				const moduleContexts = source.contexts.filter(
+					(context) => context.moduleId === choice.moduleId
+				);
+				for (const context of moduleContexts) {
+					const [link] = await tx
+						.select()
+						.from(t.publicModuleLinks)
+						.where(eq(t.publicModuleLinks.contextId, context.id));
+					const publication = source.publications.find((item) => item.contextId === context.id);
+					if (!link)
+						await tx.insert(t.publicModuleLinks).values({
+							id: context.id,
+							moduleId: choice.moduleId,
+							contextId: context.id,
+							publishedContextId: publication ? context.id : null,
+							enabled: !!publication && !publication.unpublishedAt
+						});
+				}
+				if (choice.decision === 'continue') {
+					const newClassId = old?.classId ? continuedClasses.get(old.classId) : undefined;
+					if (!newClassId || !input.nextAcademicYear)
+						error(422, 'Ce module ne possède plus de classe à reprendre.');
+					const newContextId = crypto.randomUUID();
+					await tx.insert(t.teachingContexts).values({
+						id: newContextId,
+						moduleId: choice.moduleId,
+						classId: newClassId,
+						className: old!.className,
+						academicYear: input.nextAcademicYear
+					});
+					await tx
+						.update(t.publicModuleLinks)
+						.set({ contextId: newContextId })
+						.where(eq(t.publicModuleLinks.contextId, old!.id));
+					await tx
+						.update(t.modules)
+						.set({
+							pausedAt: null,
+							needsReview: true,
+							agentChanges: [
+								'Nouvelle promotion : planning et échéances à renseigner ; publication précédente conservée jusqu’à votre décision'
+							]
+						})
+						.where(eq(t.modules.id, choice.moduleId));
+				} else {
+					if (!otherActive)
+						await tx
+							.update(t.modules)
+							.set({ pausedAt: now, needsReview: true })
+							.where(eq(t.modules.id, choice.moduleId));
+					await tx
+						.update(t.publicModuleLinks)
+						.set({ enabled: false })
+						.where(
+							and(
+								eq(t.publicModuleLinks.moduleId, choice.moduleId),
+								inArray(
+									t.publicModuleLinks.contextId,
+									moduleContexts.map((context) => context.id)
+								)
+							)
+						);
+				}
+			}
 			// Explicitly remove context-owned private records, including malformed legacy roster links.
 			if (contextIds.length) {
 				await tx

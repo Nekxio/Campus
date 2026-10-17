@@ -2,11 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./database.js', () => ({ withTeacherDatabase: vi.fn() }));
 import { withTeacherDatabase } from './database.js';
 import { GET } from '../../../routes/api/teaching/contexts/[contextId]/export/+server.js';
+import { GET as studentExport } from '../../../routes/api/teaching/contexts/[contextId]/students/[studentId]/export/+server.js';
 const teacher = {
 	user: { id: 'teacher', role: 'teacher' },
 	session: { userId: 'teacher', expiresAt: new Date(Date.now() + 60000) }
 };
 describe('Export access', () => {
+	it('protects the individual export before parsing identities', async () => {
+		vi.mocked(withTeacherDatabase).mockClear();
+		const response = await studentExport({
+			locals: { user: null, session: null },
+			params: { contextId: 'invalid', studentId: 'invalid' }
+		} as Parameters<typeof studentExport>[0]);
+		expect(response.status).toBe(401);
+		expect(withTeacherDatabase).not.toHaveBeenCalled();
+		expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+	});
 	it.each([
 		{ user: null, session: null, authUnavailable: false },
 		{ ...teacher, user: { id: 'student', role: 'student' } }

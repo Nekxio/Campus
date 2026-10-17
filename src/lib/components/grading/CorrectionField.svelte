@@ -86,7 +86,6 @@
 							{disabled}
 							{maxlength}
 							value={value.current}
-							class="min-h-11"
 							oninput={(event) => update(event.currentTarget.value)}
 							onchange={validate}
 						/>

@@ -1,4 +1,5 @@
 import type { Preparation, Resource } from '../domain/contracts.js';
+import type { StudentContent } from '../domain/pedagogy.js';
 
 export type ClassSummary = {
 	id: string;
@@ -15,6 +16,9 @@ export type ModuleSummary = {
 	description: string;
 	revision: number;
 	resourceCount: number;
+	needsReview?: boolean;
+	paused?: boolean;
+	agentChanges?: string[];
 	classes: { id: string; name: string; academicYear: string }[];
 };
 export type ClassDetail = ClassSummary & { students: StudentRecord[]; modules: ModuleSummary[] };
@@ -43,15 +47,29 @@ export type ModuleDraft = {
 	objectives: string[];
 	sourcePath: string;
 	preparation: Preparation;
+	studentContent?: StudentContent;
 	resources: Resource[];
 	contexts: ContextDraft[];
 };
-export type ModuleDetail = ModuleDraft & { id: string; revision: number };
-export type EditorData = { classes: ClassSummary[]; module: ModuleDetail | null };
+export type ModuleDetail = ModuleDraft & {
+	id: string;
+	revision: number;
+	needsReview?: boolean;
+	agentChanges?: string[];
+	paused?: boolean;
+};
+export type EditorData = {
+	classes: ClassSummary[];
+	module: ModuleDetail | null;
+	publishedPath?: string | null;
+};
 export type HomeData = {
 	modules: ModuleSummary[];
+	calendar: { month: string; lessonDates: string[] };
 	nextLesson: {
 		moduleId: string;
+		contextId?: string;
+		classId?: string;
 		moduleTitle: string;
 		className: string;
 		academicYear: string;
@@ -67,19 +85,30 @@ export function emptyModule(): ModuleDraft {
 		objectives: [],
 		sourcePath: '',
 		preparation: { framing: '', nextSteps: '', sourceLinks: [] },
+		studentContent: { instructions: '', projectInstructions: '', exercises: [] },
 		resources: [],
 		contexts: []
 	};
 }
 export function editableModule(module: ModuleDetail | null): ModuleDraft {
 	if (!module) return emptyModule();
-	const { title, description, objectives, sourcePath, preparation, resources, contexts } = module;
+	const {
+		title,
+		description,
+		objectives,
+		sourcePath,
+		preparation,
+		studentContent,
+		resources,
+		contexts
+	} = module;
 	return structuredClone({
 		title,
 		description,
 		objectives,
 		sourcePath,
 		preparation,
+		studentContent: studentContent ?? { instructions: '', projectInstructions: '', exercises: [] },
 		resources,
 		contexts
 	});

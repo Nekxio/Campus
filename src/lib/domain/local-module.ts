@@ -9,6 +9,7 @@ import {
 } from './contracts.js';
 import { moduleDraftSchema } from './teaching.js';
 import { importRubricSchema } from './module-import.js';
+import { studentContentSchema } from './pedagogy.js';
 
 // Local keys describe durable entities; titles are editable and never used to guess identity.
 export const localKeySchema = z
@@ -29,6 +30,7 @@ const localRule = z.discriminatedUnion('kind', [
 ]);
 export const localModuleSchema = z.strictObject({
 	title,
+	studentContent: studentContentSchema.optional(),
 	description: z.string().max(20000).default(''),
 	objectives: z.array(title).max(100).default([]),
 	preparation: preparationSchema.default({ framing: '', nextSteps: '', sourceLinks: [] }),
@@ -117,6 +119,34 @@ export const localModuleSchema = z.strictObject({
 		})
 		.optional()
 });
+// Legacy updates must state every scalar field: creation defaults must never erase an existing draft.
+// Targeted updates with omissions use the version-2 patch contract instead.
+const legacyContext = localModuleSchema.shape.contexts.removeDefault().element;
+const legacyLesson = legacyContext.shape.lessons.element;
+export const localModuleUpdateSchema = localModuleSchema.extend({
+	description: localModuleSchema.shape.description.removeDefault(),
+	objectives: localModuleSchema.shape.objectives.removeDefault(),
+	preparation: preparationSchema.extend({
+		framing: preparationSchema.shape.framing.removeDefault(),
+		nextSteps: preparationSchema.shape.nextSteps.removeDefault(),
+		sourceLinks: preparationSchema.shape.sourceLinks.removeDefault()
+	}),
+	resources: localModuleSchema.shape.resources.removeDefault(),
+	contexts: z
+		.array(
+			legacyContext.extend({
+				lessons: z
+					.array(
+						legacyLesson.extend({
+							recap: legacyLesson.shape.recap.removeDefault(),
+							toDo: legacyLesson.shape.toDo.removeDefault()
+						})
+					)
+					.max(200)
+			})
+		)
+		.max(100)
+});
 export type LocalModule = z.infer<typeof localModuleSchema>;
 const identityMap = z
 	.record(z.string().max(300), idSchema)
@@ -175,6 +205,7 @@ export function resolveLocalModule(value: LocalModule, binding: FolderBinding, f
 		description: draft.description,
 		objectives: draft.objectives,
 		preparation: draft.preparation,
+		studentContent: draft.studentContent,
 		sourcePath: folder,
 		resources: draft.resources.map(({ key, driveFileId, ...resource }) => {
 			if (driveFileId) binding.driveFiles[key] = driveFileId;

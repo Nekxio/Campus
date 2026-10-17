@@ -22,7 +22,15 @@ it('adds publication revisions without rebuilding or losing a previous snapshot'
 		const moduleId = crypto.randomUUID(),
 			contextId = crypto.randomUUID(),
 			publicationId = crypto.randomUUID();
-		await db.insert(tables.modules).values({ id: moduleId, title: 'Fictional legacy module' });
+		await client.execute({
+			sql: 'INSERT INTO module (id,title,preparation,created_at) VALUES (?,?,?,?)',
+			args: [
+				moduleId,
+				'Fictional legacy module',
+				JSON.stringify({ framing: '', nextSteps: '', sourceLinks: [] }),
+				1
+			]
+		});
 		await db
 			.insert(tables.teachingContexts)
 			.values({ id: contextId, moduleId, className: 'Archived Demo', academicYear: '2025-2026' });

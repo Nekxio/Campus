@@ -32,6 +32,18 @@ workspace. The teacher must be able to edit it comfortably by hand as well as wi
   into the school's existing form.
 - Use up to 12 students per class as the planning range supplied by Léo, not a product limit.
 
+## Current approved scope — 15 October 2026
+
+MyDigitalSchool only. A module belongs to one class; reuse for another class makes an independent copy without students, scores, planning or deadlines. Public material includes selected links, module/project instructions, blank criteria and ungraded exercises with freely accessible corrections. No student accounts, file storage, quiz engine or date locks.
+
+Quiz sections normalize each Wayground quiz score and average quizzes equally. Sections and independent results are configurable. Numerical rubric changes retain raw points and mark affected corrections for review. Projects lose one point per Paris calendar day for 1–5 days; beyond five days they are zero, with explicit exceptions and a zero floor.
+
+Class PDFs contain section marks/weights and all final results; individual PDFs contain one student’s complete rubric, section subtotals and contributions. Neither includes comments. Incomplete required results block a final export.
+
+Annual close is manual with a reviewed per-module continue/pause choice. It deletes the selected annual student records in Coursely while preserving every module and external Drive/PDF files. Continued public URLs stay stable through distinct annual contexts; paused modules become private. MCP changes remain drafts, preserve omitted content and name removals explicitly.
+
+The implementation plan is `docs/plans/2026-10-15-teaching-workflows.md`. Older milestone accounts below remain historical.
+
 ## Capabilities and Constraints
 
 The business integration plan was approved on 12 October 2026. The data and teacher-authentication

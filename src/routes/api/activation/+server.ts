@@ -1,4 +1,4 @@
-import { error, json } from '@sveltejs/kit';
+import { error, isHttpError, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { withAuth } from '#lib/server/auth/runtime.js';
 import {
@@ -7,6 +7,7 @@ import {
 	readInvitation
 } from '#lib/server/auth/invitations.js';
 import { consumeRateLimit } from '#lib/server/auth/rate-limit.js';
+import { ACTIVATION_BODY_LIMIT, withBoundedAuthRequest } from '#lib/server/auth/request-body.js';
 
 export const POST: RequestHandler = (event) =>
 	withAuth(async (_auth, client, origin) => {
@@ -22,11 +23,16 @@ export const POST: RequestHandler = (event) =>
 			);
 		let token: string;
 		try {
-			const body: unknown = await event.request.json();
+			const body: unknown = await withBoundedAuthRequest(
+				event.request,
+				ACTIVATION_BODY_LIMIT,
+				(request) => request.json()
+			);
 			if (!body || typeof body !== 'object' || !('token' in body) || typeof body.token !== 'string')
 				throw new InvalidInvitationError();
 			token = body.token;
-		} catch {
+		} catch (cause) {
+			if (isHttpError(cause) && cause.status === 413) throw cause;
 			error(400, 'Invitation invalide.');
 		}
 		try {

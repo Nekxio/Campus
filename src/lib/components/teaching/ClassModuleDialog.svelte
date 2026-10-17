@@ -5,6 +5,7 @@
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { resolve } from '$app/paths';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Form from '#lib/components/ui/form/index.js';
 	import * as NativeSelect from '#lib/components/ui/native-select/index.js';
@@ -81,6 +82,19 @@
 		await onReload();
 		onClose();
 	}
+	let discardOpen = $state(false);
+	const dirty = $derived($moduleData.moduleId !== '');
+	function requestClose() {
+		if (pending) return;
+		if (dirty) discardOpen = true;
+		else onClose();
+	}
+	function guardClose(event: Event) {
+		if (pending || dirty) {
+			event.preventDefault();
+			if (!pending) requestClose();
+		}
+	}
 </script>
 
 <Dialog.Root
@@ -93,10 +107,10 @@
 		showCloseButton={false}
 		class="class-module-dialog max-h-[calc(100dvh-2rem)] overflow-y-auto"
 		onEscapeKeydown={(event) => {
-			if (pending) event.preventDefault();
+			guardClose(event);
 		}}
 		onInteractOutside={(event) => {
-			if (pending) event.preventDefault();
+			guardClose(event);
 		}}
 	>
 		<Dialog.Header>
@@ -134,7 +148,9 @@
 								{/snippet}
 							</Form.Control>
 							<Form.Description
-								>Les modules déjà associés à cette classe ne figurent pas dans cette liste.</Form.Description
+								>Les modules déjà associés à cette classe ne figurent pas dans cette liste. Un
+								module d’une autre classe crée une copie indépendante, sans étudiants, notes ou
+								dates. Un module mis de côté est repris en brouillon.</Form.Description
 							>
 							<Form.FieldErrors aria-live="polite" />
 						</Form.Field>
@@ -143,7 +159,7 @@
 				<ClassMutationFeedback {error} {pending} onReload={reload} />
 				<p role="status" class="sr-only">{pending ? 'Rattachement en cours…' : ''}</p>
 				<Dialog.Footer>
-					<Button variant="outline" class="min-h-11" disabled={pending} onclick={onClose}
+					<Button variant="outline" class="min-h-11" disabled={pending} onclick={requestClose}
 						>Annuler</Button
 					>
 					<Button type="submit" class="min-h-11" disabled={pending || !chosen}
@@ -158,7 +174,7 @@
 					: 'Créez votre premier module pour pouvoir l’associer à cette classe.'}
 			</p>
 			<Dialog.Footer>
-				<Button variant="outline" class="min-h-11" onclick={onClose}>Fermer</Button>
+				<Button variant="outline" class="min-h-11" onclick={requestClose}>Fermer</Button>
 				<Button href={resolve('/enseignant/modules/nouveau')} class="min-h-11"
 					>Créer un module</Button
 				>
@@ -166,6 +182,21 @@
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
+
+<AlertDialog.Root bind:open={discardOpen}
+	><AlertDialog.Content
+		><AlertDialog.Header
+			><AlertDialog.Title>Abandonner les modifications ?</AlertDialog.Title><AlertDialog.Description
+				>Votre saisie n’est pas enregistrée. Vous pouvez continuer à modifier ou l’abandonner
+				explicitement.</AlertDialog.Description
+			></AlertDialog.Header
+		><AlertDialog.Footer
+			><AlertDialog.Cancel>Continuer à modifier</AlertDialog.Cancel><AlertDialog.Action
+				onclick={onClose}>Abandonner la saisie</AlertDialog.Action
+			></AlertDialog.Footer
+		></AlertDialog.Content
+	></AlertDialog.Root
+>
 
 <style>
 	:global(.class-module-dialog [data-slot='native-select']) {

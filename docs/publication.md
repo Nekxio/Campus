@@ -1,6 +1,7 @@
 # Module publication and public course pages
 
-Publication is a teacher-only decision for one reusable module and one exact class/year context.
+Publication is a teacher-only decision for one module and one exact class/year context. One active
+module belongs to one class; another class uses an independent pedagogical copy.
 The saved private draft and the public snapshot are separate. Editing a module, importing it through
 MCP or replacing its rubric never publishes a course page automatically.
 
@@ -16,6 +17,11 @@ MCP or replacing its rubric never publishes a course page automatically.
    refresh icon is **Actualiser les références**. **Dépublier** requires confirmation and
    takes the page out of the class directory; republication uses the same URL.
 
+The teacher sidebar's **Vue étudiante** opens a private list of classes with available published
+modules. Each class link opens its existing public directory in another tab. The module editor's
+**Voir la page publiée** opens the last available publication, even while its private draft changes;
+**Publication** remains the separate review workflow. This adds no global public class directory.
+
 A newer saved draft stays private while the previous snapshot remains public. Publishing checks the
 module, context, class and publication revisions in one transaction. HTTP 409 retains the reviewed
 preview and blocks a decision until **Actualiser les références** deliberately loads current content.
@@ -29,7 +35,9 @@ following a successful write requires an explicit refresh before another decisio
 - `/classes/[classId]` lists only published modules in active contexts. Names and descriptions come
   from reviewed snapshots, never from an unpublished draft. A never-published class has a generic
   empty directory; its unpublished identity is withheld.
-- The module’s five tab panels contain selected course links, instructions/rubric links, assessment
+- The module’s five tab panels contain selected course links, public module/project instructions,
+  the blank rubric (criteria, descriptions and maxima), ungraded exercises with freely readable
+  corrections/optional code, instructions/rubric links, assessment
   deadlines with submission instructions, useful resources and optional public lesson recap/to-do.
   Its header also includes the saved title, description, objectives and class/year. Dates use Paris time.
   Document labels and named open/read actions are distinct; PDF badges require a URL ending in `.pdf`.
@@ -37,7 +45,8 @@ following a successful write requires an explicit refresh before another decisio
   separate rail across tab selections; on narrow screens the rail follows the selected content.
   All five tabs stay discoverable, including a truthful empty recap/to-do state. All deadlines are
   retained in their panel; the rail identifies an upcoming deadline or labels the latest past deadline.
-  Source objectives are available with the course supports. No explanatory course text is invented.
+  Source objectives and ungraded exercises are available with the course supports. No date or session
+  unlock restricts those exercises or corrections. Wayground quizzes and work submission remain external.
 - Private preparation, local source paths, rosters, individual grades, corrections, submissions,
   semester comments, proposals, sessions and agent keys never enter the public DTO.
 - Text renders as text; selected HTTPS links open externally with a no-referrer policy. The server
@@ -47,10 +56,13 @@ following a successful write requires an explicit refresh before another decisio
   Already downloaded documents cannot be recalled by unpublishing.
 
 An unpublished, missing, malformed or legacy version-1 snapshot fails closed, without falling back
-to its draft. A teacher reviews and republishes legacy material before making it public. If an annual
-class is removed, its directory disappears. Its durable context snapshot remains reachable at the
-module URL without a class-return link, and the teacher can still unpublish it. Archived contexts
-cannot be republished. This retention supports the approved future annual purge; that UI is separate.
+to its draft. A teacher reviews and republishes legacy material before making it public. During manual
+annual closure, **Reprendre** maps the existing class/module URLs to an empty new annual context;
+the old reviewed snapshot stays public until deliberate republication. It may still display the old
+year/dates during that interval. **Mettre de côté** retains private teaching content and disables the
+old module link. Recovery keeps it disabled until manual publication. A class with no continued module
+loses its public directory. Archived contexts cannot be republished, but can be unpublished. The
+[annual lifecycle guide](annual-lifecycle.md) describes that implemented workflow.
 
 ## Drive remains external
 
@@ -64,7 +76,8 @@ an explicitly selected fictional file before real classroom use.
 
 `drizzle/0005_nasty_skrulls.sql` adds source/context/class revisions and a teacher-bound publication
 receipt table. It was generated offline and tested against fresh and legacy local databases; it has
-not been applied to Turso. Preserve migrations `0000`–`0005` in order for a new dedicated installation.
+not been applied to Turso. Apply every pending versioned migration, including `0008` for public-link
+bindings and public student content, through the explicit operator workflow before using new code.
 Receipts store IDs, revisions and hashes only, never source bodies or student data. They are durable
 with their context; annual student deletion does not remove a module publication.
 

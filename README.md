@@ -1,5 +1,7 @@
 # Coursely
 
+The current approved scope is [the 15 October teacher workflow](docs/plans/2026-10-15-teaching-workflows.md): one class per active module, independent copies, equal-weight normalized quizzes, targeted MCP patches, two private PDF projections and manual annual close with stable public links. Earlier milestone narratives below are historical; the current guides describe the implemented contracts. Migration `0008_lucky_puppet_master.sql` is generated offline; no existing/cloud database was migrated.
+
 SvelteKit 3 / Svelte 5 / TypeScript foundation with shadcn-svelte, Tailwind CSS 4 and Cloudflare
 Workers, with the approved Turso/Drizzle data foundation and invitation-only teacher passkeys.
 The French teacher home, annual classes and reusable module drafts now use private teaching
@@ -12,6 +14,9 @@ and detailed correction are implemented. Private MCP correction proposals and th
 
 Use Node **26.11.1** (`.node-version`) and pnpm **12.11.2** (`packageManager`).
 Dependency versions are resolved in `pnpm-lock.yaml`.
+
+Production preparation and deployment after successful main-push CI are documented in
+[the launch guide](docs/production.md). Local preparation never deploys or provisions remote services.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -61,7 +66,10 @@ confirmation and removes that student's associated records.
 `/enseignant/modules/nouveau` creates a draft without requiring a class.
 `/enseignant/modules/[moduleId]` edits the same reusable module through four sections: Informations,
 Préparation, Liens étudiants and Classes et planning. Objectives, private preparation and references,
-selected student HTTPS links and optional class lessons are saved together. The local source path
+selected student HTTPS links and optional class lessons are saved together. Public module/project
+instructions and ungraded exercises with freely accessible corrections are edited in Liens étudiants.
+One active module belongs to one class; attaching it elsewhere creates an independent pedagogical copy
+without students, grades, lessons or deadlines. The local source path
 is a textual reference; the website does not read the Mac's files. Paris lesson times are stored
 in UTC, and invalid or ambiguous daylight-saving times are reported instead of silently adjusted.
 
@@ -101,13 +109,13 @@ submission details and direct previous/next student navigation.
 Corrections distinguish À évaluer, Noté, Absent injustifié and Absent justifié / rattrapage.
 Blank points remain missing; decimals are rejected. Absence disables inputs while preserving
 raw points. Unjustified absence resolves the assessment to zero; justified absence keeps it
-pending. Internal calculations retain precision; /20 marks display one decimal. Quiz aggregation
-adds obtained and possible points, rather than averaging percentages. Missing or invalid required
+pending. Internal calculations retain precision; /20 marks display one decimal. Quiz sections contain one score line per Wayground quiz. Each quiz is normalized to /20 and
+contributes equally to the section average, regardless of its maximum. Missing or invalid required
 scores keep a result pending or invalid.
 
 Project delay compares deadline and submission dates in Europe/Paris calendar days. It subtracts
-one point per day from the project mark normalized to /20, once, with a zero floor and raw points
-retained. The teacher chooses an exemption or refusal explicitly; refusal resolves the project
+one point per Paris calendar day for delays of one to five days from the project /20 mark;
+beyond five days the project is zero. Explicit exceptions and raw points are retained. The teacher chooses an exemption or refusal explicitly; refusal resolves the project
 to zero. A private semester comment has its own save and copy actions. It is separate from scoring;
 there are no private criterion-justification fields.
 
@@ -142,8 +150,9 @@ selection and publication decision; publishing and confirmed unpublishing are ex
 The previous snapshot stays public during draft edits. Module/context/class/publication revisions
 prevent an older review from publishing unseen changes, and identical retries have transactional
 receipts. Public `/modules/[contextId]` and `/classes/[classId]` pages need no account and expose only
-validated published content, without rosters, grades, private preparation or auth state. Module links
-stay stable after republication and annual class deletion; a deleted class loses its directory/link.
+validated published content, without rosters, grades, private preparation or auth state. Module and class links
+stay stable through a continued annual closure. Paused modules retain private content and disable
+their public link until recovery and manual publication; uncontinued classes lose their directory.
 Public errors and pages are uncached and request no indexing. Legacy snapshots require review and
 republication; they never expose a draft as fallback.
 
@@ -153,9 +162,9 @@ at an already shared file URL becomes visible independently of the publication b
 
 ### Local Module MCP
 
-The local stdio server provides five tools: `inspect_module_folder`, `get_import_context`,
-`bind_module_folder`, `create_module_draft` and `update_module_draft`. It writes private drafts
-through the same transaction-backed services as the teacher editor. These five module tools have no correction, roster, publication or Drive operations. No new page
+The local stdio server provides six module tools: `inspect_module_folder`, `get_import_context`,
+`bind_module_folder`, `create_module_draft`, legacy `update_module_draft` and targeted `patch_module_draft`. It writes private drafts
+through the same transaction-backed services as the teacher editor. These six module tools have no correction, roster, publication or Drive operations. No new page
 is added; imported modules are reviewed in the existing editor.
 
 See [the local import guide](docs/module-import.md) for the contract, durable local keys, retry
@@ -171,7 +180,10 @@ credentials; it sends its key only to the configured HTTPS origin (HTTP loopback
 with redirects disabled. Keys cannot become browser sessions. Public API-key management endpoints
 are blocked; revocation affects the selected key without removing teacher passkeys or sessions.
 
-The strict version-1 import groups module metadata, selected links, class calendars and an optional
+Creation uses the strict version-1 payload; preferred updates use version-2 targeted patches.
+Omitted fields and array members stay unchanged, and removals are explicit. Legacy complete-field
+updates require all scalar fields rather than silently applying creation defaults.
+The creation payload groups module metadata, selected links, class calendars and an optional
 rubric in one atomic transaction. `.coursely.json` stores stable IDs and the retry key before an
 HTTP write, so a lost response can be retried without a duplicate. Updates require fresh module
 and context revisions; a different stale write returns HTTP 409. Rubric replacement requires an
@@ -241,7 +253,7 @@ Superforms release supports this stack directly. Existing peer warnings remain v
 ## Continuous Integration
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pull requests, pushes to
-`main` and `develop`, and manual dispatch. Its single `Quality checks` job installs dependencies
+`main` and `develop`, and manual dispatch. Its `Quality checks` job installs dependencies
 with the frozen lockfile, checks formatting and lint, checks types, runs unit and local integration tests, builds the
 Cloudflare Worker and verifies that the local Workers preview serves sign-in, redirects anonymous visitors away from teacher home and refuses an
 anonymous request to the private session endpoint. It also checks private class/module page
@@ -250,12 +262,17 @@ Agent reads/writes also refuse missing keys with HTTP 401, and public API-key ma
 HTTP 403; all these responses are uncached.
 
 Node is read from `.node-version`, and pnpm from `packageManager` in `package.json`. Actions are
-pinned to immutable commits. The pnpm store is cached; superseded runs are cancelled and each
-run has a 15-minute limit. The workflow needs read-only repository access and no application
-secrets. It does not deploy or activate any Cloudflare service.
+pinned to immutable commits. The pnpm store is cached; superseded quality jobs may be cancelled.
+Quality checks have a 30-minute limit. Repository permissions remain `contents: read`, and quality
+checks receive no production secrets.
 
-To enforce these checks before merging, select `Quality checks` as a required status check in
-the GitHub branch rules after the workflow has run once.
+After a successful push CI on `main`, the separate `Deploy mds` job deploys that same commit when
+`COURSELY_PRODUCTION_ENABLED=true` is configured in repository variables. PRs, `develop`, failed
+checks and manual dispatch never deploy. Deployment jobs are serialized without cancelling an
+in-progress upload, and an old queued commit is skipped if main has advanced. Production secrets
+are injected only in the final deployment step, after the build and dry run. No GitHub environment,
+paid branch protection or parallel Cloudflare Workers Builds connection is required. This local
+preparation has not enabled the pipeline remotely; see [the activation guide](docs/production.md).
 
 ## Cloudflare
 
@@ -364,7 +381,7 @@ dependency does too), while this project uses SvelteKit 3. The integration delib
 standard Request/Response handlers and the project's own hooks rather than version-specific
 SvelteKit helpers; local types, WebAuthn tests and the Workers build check this integration.
 
-## Local Acceptance Status
+## Historical Acceptance Evidence
 
 The publication/student-view part of lot 5 passes **203 tests across 27 files**, including 29
 publication, access, hook and migration checks. Svelte/application and operator types report zero

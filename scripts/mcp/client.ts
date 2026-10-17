@@ -4,6 +4,7 @@ import {
 	type CreateProposal
 } from '../../src/lib/domain/proposals.js';
 import { z } from 'zod';
+import type { ModulePatchImport } from '../../src/lib/domain/module-patch.js';
 import {
 	importContextSchema,
 	importReceiptSchema,
@@ -128,7 +129,7 @@ export function agentClient(config: AgentConnection, fetcher: typeof fetch = fet
 				throw new Error('The proposal exceeds the 256 KB request limit.');
 			return proposalReceiptSchema.parse(await request('/api/agent/proposals', 'POST', input));
 		},
-		async import(action: 'create' | 'update', input: ModuleImport) {
+		async import(action: 'create' | 'update', input: ModuleImport | ModulePatchImport) {
 			if (Buffer.byteLength(JSON.stringify(input)) > 256000)
 				throw new Error('The import exceeds the 256 KB request limit.');
 			return importReceiptSchema.parse(

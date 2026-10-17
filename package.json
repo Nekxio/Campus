@@ -6,6 +6,8 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "wrangler types && vite build",
+		"worker:dry-run": "tsx scripts/worker-dry-run.ts",
+		"production:prepare": "tsx scripts/production.ts prepare",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "wrangler types && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p scripts/tsconfig.json",
@@ -82,8 +84,11 @@
 	"dependencies": {
 		"@better-auth/api-key": "1.7.7",
 		"@better-auth/drizzle-adapter": "1.7.7",
+		"@better-auth/mcp": "1.7.7",
+		"@better-auth/oauth-provider": "1.7.7",
 		"@better-auth/passkey": "1.7.7",
 		"@libsql/client": "0.18.0",
+		"@modelcontextprotocol/server": "2.3.1",
 		"better-auth": "1.7.7",
 		"drizzle-orm": "0.45.4",
 		"mode-watcher": "^1.1.0",

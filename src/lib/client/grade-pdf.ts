@@ -15,15 +15,15 @@ export function gradePdfFilename(document: FinalGradeExport) {
 }
 
 export function gradePdfDefinition(document: FinalGradeExport): TDocumentDefinitions {
-	const date = new Intl.DateTimeFormat('fr-FR', {
-		dateStyle: 'long',
-		timeZone: 'Europe/Paris'
-	}).format(new Date(document.exportedAt));
 	const content: Content[] = [];
+	const headers = [
+		...(document.sections ?? []).map((section) => `${section.title} /20\n${section.weight}`),
+		...document.results.map((title) => `${title} /20`)
+	];
 	// Repeat the full roster for each group of columns rather than shrink 100 results to illegibility.
 	const columnsPerTable = 5;
-	for (let start = 0; start < document.results.length; start += columnsPerTable) {
-		const titles = document.results.slice(start, start + columnsPerTable);
+	for (let start = 0; start < headers.length; start += columnsPerTable) {
+		const titles = headers.slice(start, start + columnsPerTable);
 		content.push(
 			{
 				text: document.moduleTitle,
@@ -38,7 +38,7 @@ export function gradePdfDefinition(document: FinalGradeExport): TDocumentDefinit
 				margin: [0, 0, 0, 4]
 			},
 			{
-				text: `Grille complète · ${document.students.length} étudiants · Export du ${date}`,
+				text: `Grille complète · ${document.students.length} étudiants`,
 				color: '#525252',
 				margin: [0, 0, 0, 16]
 			},
@@ -51,16 +51,19 @@ export function gradePdfDefinition(document: FinalGradeExport): TDocumentDefinit
 						[
 							{ text: 'Étudiant', bold: true },
 							...titles.map((title) => ({
-								text: `${title} /20`,
+								text: title,
 								bold: true,
 								alignment: 'right' as const
 							}))
 						],
 						...document.students.map((student) => [
 							{ text: student.name },
-							...student.marks
+							...[...(student.sectionMarks ?? []), ...student.marks]
 								.slice(start, start + columnsPerTable)
-								.map((mark) => ({ text: formatMark(mark), alignment: 'right' as const }))
+								.map((mark) => ({
+									text: mark === null ? 'En attente' : formatMark(mark),
+									alignment: 'right' as const
+								}))
 						])
 					]
 				},

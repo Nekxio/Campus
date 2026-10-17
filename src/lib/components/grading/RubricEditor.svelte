@@ -9,6 +9,7 @@
 	import { zod4, zod4Client } from 'sveltekit-superforms/adapters';
 	import { beforeNavigate, goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import type { ResolvedPathname } from '$app/types';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
@@ -17,9 +18,9 @@
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
+	import XIcon from '@lucide/svelte/icons/x';
 	import PencilIcon from '@lucide/svelte/icons/pencil';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
@@ -41,11 +42,13 @@
 		rubricToDomain,
 		rubricToInput,
 		savedDeadlineDates,
+		syncRubricSections,
 		type RubricEditorInput
 	} from '#lib/grading/rubric-form.js';
 	import { cn } from '#lib/utils.js';
 	import RubricField from './RubricField.svelte';
 	import RubricResults from './RubricResults.svelte';
+	import RubricSummary from './RubricSummary.svelte';
 
 	let { data }: { data: RubricData } = $props();
 	// Route refreshes cannot replace the editable store. Only an explicit reload does so.
@@ -78,6 +81,8 @@
 	let summary = $state<HTMLDivElement | null>(null);
 	let confirmOpen = $state(false);
 	let confirmKind = $state<'leave' | 'reload'>('leave');
+	let removalOpen = $state(false);
+	let removalId = $state('');
 	let destination = $state<ResolvedPathname>(resolve('/'));
 	let allowNavigation = false;
 	let baseline = $state(untrack(() => JSON.stringify($formData)));
@@ -89,7 +94,14 @@
 			lines: assessment.lines.map((line) => ({ ...line }))
 		}))
 	);
-	const active = $derived(assessments.find((assessment) => assessment.id === assessmentId));
+	const removalAssessment = $derived(assessments.find((assessment) => assessment.id === removalId));
+	const removalResults = $derived(
+		$formData.results.filter(
+			(result) =>
+				result.assessmentIds.includes(removalId) ||
+				result.components.some((component) => component.assessmentIds.includes(removalId))
+		)
+	);
 	const errorEntries = $derived(
 		$allErrors.map(({ path, messages }) => [path, messages[0]] as const)
 	);
@@ -114,6 +126,7 @@
 		);
 	}
 	async function revalidate() {
+		formData.update(syncRubricSections);
 		const checkedDraft = JSON.stringify($formData);
 		const validated = await form.validateForm({ update: false, focusOnError: false });
 		if (JSON.stringify($formData) === checkedDraft) form.errors.set(validated.errors);
@@ -129,35 +142,48 @@
 		id: string,
 		update: (assessment: RubricAssessment) => RubricAssessment
 	) {
-		formData.update((input) => ({
-			...input,
-			assessments: input.assessments.map((assessment) =>
-				assessment.id === id ? update(assessment) : assessment
-			)
-		}));
+		formData.update((input) =>
+			syncRubricSections({
+				...input,
+				assessments: input.assessments.map((assessment) =>
+					assessment.id === id ? update(assessment) : assessment
+				)
+			})
+		);
 	}
 	async function addAssessment() {
 		const id = crypto.randomUUID();
 		const groupId = crypto.randomUUID();
-		formData.update((input) => ({
-			...input,
-			assessments: [
-				...input.assessments,
-				{
-					id,
-					title: '',
-					kind: 'other',
-					purpose: 'graded',
-					groups: [{ id: groupId, title: 'Critères' }],
-					lines: [{ id: crypto.randomUUID(), groupId, label: '', description: '', maxPoints: 1 }]
-				}
-			]
-		}));
+		formData.update((input) =>
+			syncRubricSections({
+				...input,
+				assessments: [
+					...input.assessments,
+					{
+						id,
+						title: '',
+						kind: 'other',
+						purpose: 'graded',
+						groups: [{ id: groupId, title: 'Critères' }],
+						lines: [{ id: crypto.randomUUID(), groupId, label: '', description: '', maxPoints: 1 }]
+					}
+				]
+			})
+		);
 		assessmentId = id;
 		await tick();
 		document.getElementById(`assessment-${id}-title`)?.focus();
 	}
-	function removeAssessment(id: string) {
+	function requestRemoveAssessment(id: string) {
+		if (!saved.assessments.some((assessment) => assessment.id === id)) {
+			removeAssessment(id);
+			return;
+		}
+		removalId = id;
+		removalOpen = true;
+	}
+	async function removeAssessment(id: string) {
+		const wasSaved = saved.assessments.some((assessment) => assessment.id === id);
 		const index = assessments.findIndex((assessment) => assessment.id === id);
 		formData.update((input) => ({
 			...input,
@@ -177,8 +203,12 @@
 		}));
 		assessmentId =
 			$formData.assessments[Math.min(index, $formData.assessments.length - 1)]?.id ?? '';
-		status = 'Évaluation retirée du brouillon, de ses calculs et de ses dates de remise.';
-		revalidate();
+		status = wasSaved
+			? 'Évaluation retirée du brouillon. Vérifiez les résultats concernés, puis enregistrez le barème.'
+			: 'Brouillon d’évaluation annulé.';
+		void revalidate();
+		await tick();
+		document.getElementById(`assessment-${assessmentId}-title`)?.focus();
 	}
 	function reorderAssessment(index: number, direction: number) {
 		formData.update((input) => ({
@@ -311,13 +341,17 @@
 			expectedRevision: 'Version'
 		};
 		const subject =
-			parts[0] === 'assessments'
-				? assessments[Number(parts[1])]?.title || 'Évaluation'
-				: parts[0] === 'results'
-					? $formData.results[Number(parts[1])]?.title || 'Résultat'
-					: parts[0] === 'contexts'
-						? saved.contexts[Number(parts[1])]?.className || 'Classe'
-						: 'Barème';
+			parts[0] === 'quizMaxima'
+				? assessments.find(
+						(item) => item.id === $formData.quizMaxima[Number(parts[1])]?.assessmentId
+					)?.title || 'Section Quiz'
+				: parts[0] === 'assessments'
+					? assessments[Number(parts[1])]?.title || 'Évaluation'
+					: parts[0] === 'results'
+						? $formData.results[Number(parts[1])]?.title || 'Résultat'
+						: parts[0] === 'contexts'
+							? saved.contexts[Number(parts[1])]?.className || 'Classe'
+							: 'Barème';
 		return `${subject} · ${labels[parts.at(-1) ?? ''] || 'Champs à vérifier'}`;
 	}
 	async function showError(path: string) {
@@ -353,7 +387,7 @@
 		const snapshot = form.capture();
 		for (const [rawPath, message] of Object.entries(fields)) {
 			let path = rubricInputPath(rawPath).replace(/\.(\d+)(?=\.|$)/g, '[$1]');
-			if (!/^(assessments|results|contexts)(\.|\[|$)/.test(path)) path = '';
+			if (!/^(assessments|results|contexts|quizMaxima)(\.|\[|$)/.test(path)) path = '';
 			else if (
 				/^(assessments|results|contexts)$/.test(path) ||
 				/\.(groups|lines|components|assessmentIds|deadlines)$/.test(path)
@@ -388,7 +422,8 @@
 				'PATCH'
 			);
 			applySaved(value);
-			status = 'Barème enregistré. Les résultats ont été recalculés.';
+			status =
+				'Barème enregistré. Les points sont conservés ; les évaluations touchées par une modification numérique sont à revoir.';
 		} catch (error) {
 			if (error instanceof TeachingRequestError) {
 				conflict = error.status === 409;
@@ -414,14 +449,29 @@
 			confirmOpen = true;
 		}
 	});
+	const returnToModule = $derived(page.url.searchParams.get('retour') === 'module');
+	const returnContext = $derived(
+		saved.contexts.find((context) => context.id === page.url.searchParams.get('contexte'))
+	);
+	const returnSection = $derived(
+		['information', 'preparation', 'resources', 'planning'].includes(
+			page.url.searchParams.get('section') ?? ''
+		)
+			? page.url.searchParams.get('section')
+			: null
+	);
+	const returnPath = $derived(
+		returnToModule
+			? `${resolve('/enseignant/modules/[moduleId]', { moduleId: saved.module.id })}${returnContext || returnSection ? '?' + new URLSearchParams({ ...(returnContext ? { contexte: returnContext.id, ...(returnContext.classId ? { classe: returnContext.classId } : {}) } : {}), ...(returnSection ? { section: returnSection } : {}) }) : ''}`
+			: `${resolve('/enseignant/notation')}?${new URLSearchParams({ module: saved.module.id, ...(returnContext ? { contexte: returnContext.id } : {}) })}`
+	);
 	async function returnToGrid() {
 		try {
-			const gridPath =
-				`${resolve('/enseignant/notation')}?module=${saved.module.id}` as ResolvedPathname;
+			const gridPath = returnPath as ResolvedPathname;
 			await goto(gridPath);
 		} catch {
 			if (!confirmOpen) {
-				errorMessage = 'Impossible d’ouvrir la grille. Vos saisies sont conservées.';
+				errorMessage = 'Impossible d’ouvrir la page de retour. Vos saisies sont conservées.';
 				await focusErrors();
 			}
 		}
@@ -467,11 +517,10 @@
 				variant="outline"
 				class="min-h-11"
 				disabled={pending}
-				onclick={returnToGrid}><ArrowLeftIcon data-icon="inline-start" />Retour à la grille</Button
-			><Button type="submit" form="rubric-form" class="min-h-11" disabled={pending}
-				>{#if pending}<Spinner data-icon="inline-start" />{/if}{pending
-					? 'Enregistrement…'
-					: 'Enregistrer'}</Button
+				onclick={returnToGrid}
+				><ArrowLeftIcon data-icon="inline-start" />{returnToModule
+					? 'Retour au module'
+					: 'Retour à la grille'}</Button
 			>
 		</div>
 	</div>
@@ -524,19 +573,21 @@
 	{/if}
 	<form id="rubric-form" novalidate onsubmit={save} aria-busy={pending}>
 		<fieldset disabled={pending} class="min-w-0">
+			<RubricSummary {form} />
 			<Tabs.Root bind:value={assessmentId} class="flex min-w-0 flex-col gap-4">
 				<div class="flex min-w-0 flex-wrap items-start gap-2 border-b pb-3">
 					<Tabs.List
-						aria-label="Évaluations du module"
+						aria-label="Sections du module"
 						class="rubric-tabs h-auto max-w-full min-w-0 flex-wrap justify-start gap-1"
 					>
 						{#each assessments as assessment (assessment.id)}<Tabs.Trigger
 								value={assessment.id}
 								class="min-h-11 max-w-full min-w-0 whitespace-normal"
-								><span class="min-w-0 break-words">{assessment.title || 'Nouvelle évaluation'}</span
-								><span class="shrink-0 text-muted-foreground tabular-nums"
-									>/{maximum(assessment)}</span
-								></Tabs.Trigger
+								><span class="min-w-0 break-words">{assessment.title || 'Nouvelle section'}</span
+								>{#if assessment.kind !== 'quiz'}<span
+										class="shrink-0 text-muted-foreground tabular-nums"
+										>{maximum(assessment)} pts</span
+									>{/if}</Tabs.Trigger
 							>{/each}
 					</Tabs.List>
 					<Button
@@ -544,14 +595,13 @@
 						variant="ghost"
 						class="min-h-11"
 						disabled={assessments.length >= 100}
-						onclick={addAssessment}
-						><PlusIcon data-icon="inline-start" />Ajouter une évaluation</Button
+						onclick={addAssessment}><PlusIcon data-icon="inline-start" />Ajouter une section</Button
 					>
+					<p class="basis-full text-sm text-muted-foreground">
+						Brouillon conservé entre les sections.
+					</p>
 				</div>
-				<p class="text-sm text-muted-foreground">
-					Votre brouillon est conservé lorsque vous changez d’évaluation.
-				</p>
-				<div class="rubric-layout grid min-w-0 gap-8">
+				<div class="grid min-w-0 gap-8">
 					<div class="min-w-0">
 						{#each assessments as assessment, assessmentIndex (assessment.id)}
 							<Tabs.Content value={assessment.id} class="min-w-0">
@@ -563,15 +613,29 @@
 									<Form.Legend class="sr-only"
 										>{assessment.title || 'Nouvelle évaluation'}</Form.Legend
 									>
+
 									<Field.FieldGroup class="assessment-settings grid min-w-0 gap-3">
-										<div class="assessment-title min-w-0">
-											<RubricField
-												{form}
-												name={`assessments[${assessmentIndex}].title`}
-												id={`assessment-${assessment.id}-title`}
-												label="Nom de l’évaluation"
-												maxlength={200}
-											/>
+										<div class="assessment-title flex min-w-0 flex-wrap items-end gap-3">
+											<div class="min-w-0 flex-1 basis-48">
+												<RubricField
+													{form}
+													name={`assessments[${assessmentIndex}].title`}
+													id={`assessment-${assessment.id}-title`}
+													label="Nom de la section"
+													maxlength={200}
+												/>
+											</div>
+											<Button
+												type="button"
+												variant="outline"
+												class="min-h-11 whitespace-normal"
+												onclick={() => requestRemoveAssessment(assessment.id)}
+												>{#if saved.assessments.some((item) => item.id === assessment.id)}
+													<TrashIcon data-icon="inline-start" />Retirer l’évaluation
+												{:else}
+													<XIcon data-icon="inline-start" />Annuler le brouillon
+												{/if}</Button
+											>
 										</div>
 										<div class="assessment-purpose min-w-0">
 											<RubricField
@@ -587,21 +651,23 @@
 											{form}
 											name={`assessments[${assessmentIndex}].kind`}
 											id={`assessment-${assessment.id}-kind`}
-											label="Type d’évaluation"
+											label="Type de section"
 											options={kindOptions}
+											onvaluechange={revalidate}
 										/>
 										<div class="flex min-h-11 items-center gap-1 self-end">
 											<output
 												class="font-semibold tabular-nums"
-												aria-label={`Maximum de ${assessment.title || 'l’évaluation'}`}
-												>/{maximum(assessment)}</output
+												aria-label={`Total des maxima des lignes de ${assessment.title || 'la section'}`}
+												>{maximum(assessment)}
+												{assessment.kind === 'quiz' ? 'questions' : 'pts'}</output
 											>{@render actionsMenu(
 												'l’évaluation',
 												assessmentIndex,
 												assessments.length,
 												() => reorderAssessment(assessmentIndex, -1),
 												() => reorderAssessment(assessmentIndex, 1),
-												() => removeAssessment(assessment.id)
+												() => requestRemoveAssessment(assessment.id)
 											)}
 										</div>
 									</Field.FieldGroup>
@@ -627,7 +693,7 @@
 																{form}
 																name={`assessments[${assessmentIndex}].lines[${lineIndex}].label`}
 																id={`line-${line.id}-label`}
-																label={`Libellé du critère ${lineIndex + 1}`}
+																label={`${assessment.kind === 'quiz' ? 'Nom du quiz' : 'Libellé du critère'} ${lineIndex + 1}`}
 																compact
 																maxlength={200}
 															/></Table.Cell
@@ -650,11 +716,15 @@
 																{form}
 																name={`assessments[${assessmentIndex}].lines[${lineIndex}].maxPoints`}
 																id={`line-${line.id}-max`}
-																label={`Maximum du critère ${lineIndex + 1} (pts)`}
+																label={assessment.kind === 'quiz'
+																	? `Nombre de questions du quiz ${lineIndex + 1}`
+																	: `Maximum du critère ${lineIndex + 1} (pts)`}
 																compact
 																type="number"
 																min={1}
 																max={1000000}
+																step={1}
+																onvaluechange={revalidate}
 															/></Table.Cell
 														>
 														<Table.Cell class="criterion-actions"
@@ -694,18 +764,24 @@
 											class="min-h-11"
 											disabled={assessment.lines.length >= 1000}
 											onclick={() => addLine(assessment.id)}
-											><PlusIcon data-icon="inline-start" />Ajouter une ligne</Button
+											><PlusIcon data-icon="inline-start" />{assessment.kind === 'quiz'
+												? 'Ajouter un quiz'
+												: 'Ajouter une ligne'}</Button
 										>
-										<p class="text-sm text-muted-foreground">Points entiers · maxima libres</p>
+										<p class="text-sm text-muted-foreground">
+											{assessment.kind === 'quiz'
+												? 'Une ligne par quiz Wayground · 1 question = 1 point · chaque quiz a le même poids après conversion sur 20.'
+												: 'Points entiers · maxima libres'}
+										</p>
 									</div>
 									<Form.Fieldset
 										{form}
 										name={`assessments[${assessmentIndex}].groups`}
 										class="flex min-w-0 flex-col gap-3"
 									>
-										<Form.Legend>Groupes et maxima</Form.Legend>
+										<Form.Legend class="border-b pb-3 text-base">Groupes et maxima</Form.Legend>
 										{#each assessment.groups as group, groupIndex (group.id)}<div
-												class="flex min-w-0 items-end gap-2"
+												class={cn('flex min-w-0 items-end gap-2', groupIndex === 0 && 'mt-4')}
 											>
 												<div class="min-w-0 flex-1">
 													<RubricField
@@ -749,20 +825,33 @@
 							</Tabs.Content>
 						{:else}<Empty.Root class="border border-dashed py-12"
 								><Empty.Header
-									><Empty.Title>Définissez votre première évaluation</Empty.Title><Empty.Description
-										>Ajoutez une évaluation, ses critères et les maxima que vous souhaitez utiliser.</Empty.Description
+									><Empty.Title>Définissez votre première section</Empty.Title><Empty.Description
+										>Reprenez les critères et les points de votre grille : dossier, soutenance ou
+										tout autre livrable.</Empty.Description
 									></Empty.Header
 								><Empty.Content
 									><Button type="button" class="min-h-11" onclick={addAssessment}
-										><PlusIcon data-icon="inline-start" />Ajouter une évaluation</Button
+										><PlusIcon data-icon="inline-start" />Ajouter une section</Button
 									></Empty.Content
 								></Empty.Root
 							>{/each}
 					</div>
-					<div class="calculation-column min-w-0"><RubricResults {form} assessment={active} /></div>
 				</div>
 			</Tabs.Root>
-			<Form.Fieldset {form} name="contexts" class="mt-8 flex min-w-0 flex-col gap-5 border-t pt-7">
+			{#if $formData.calculationMode === 'custom'}
+				<details class="mt-6 min-w-0 border-t pt-3">
+					<summary class="min-h-11 cursor-pointer py-3 font-medium"
+						>Configurer les résultats existants</summary
+					><RubricResults {form} />
+				</details>
+			{/if}
+			<Form.Fieldset
+				{form}
+				name="contexts"
+				id="echeances"
+				tabindex={-1}
+				class="mt-8 flex min-w-0 flex-col gap-5 border-t pt-7"
+			>
 				<Form.Legend class="text-xl font-semibold tracking-tight"
 					>Dates et consignes de remise</Form.Legend
 				><Form.Description
@@ -773,14 +862,15 @@
 					<Form.Fieldset
 						{form}
 						name={`contexts[${contextIndex}].deadlines`}
+						id={`echeances-${context.id}`}
+						tabindex={-1}
 						class="flex min-w-0 flex-col gap-4"
 					>
-						<Form.Legend
-							>{saved.contexts.find((value) => value.id === context.id)?.className || 'Classe'}
-							<Badge variant="outline"
-								>{saved.contexts.find((value) => value.id === context.id)?.academicYear}</Badge
-							></Form.Legend
-						>
+						<Form.Legend class="mb-2 text-muted-foreground">Classe associée</Form.Legend>
+						<p class="text-base font-medium wrap-anywhere">
+							{saved.contexts.find((value) => value.id === context.id)?.className || 'Classe'}
+							· {saved.contexts.find((value) => value.id === context.id)?.academicYear}
+						</p>
 						{#each context.deadlines as deadline, deadlineIndex (deadline.assessmentId)}
 							<div class="deadline-editor min-w-0 border-b pb-5">
 								<h3 class="mb-3 font-medium break-words">
@@ -831,12 +921,19 @@
 			</Form.Fieldset>
 		</fieldset>
 	</form>
-	<div role="status" aria-live="polite" class="min-h-5 text-sm text-muted-foreground">
-		{pending
-			? 'Enregistrement et recalcul en cours…'
-			: dirty
-				? status || 'Modifications non enregistrées.'
-				: status || 'Toutes les modifications sont enregistrées.'}
+	<div class="editor-save-bar">
+		<div role="status" aria-live="polite" class="min-h-5 text-sm text-muted-foreground">
+			{pending
+				? 'Enregistrement et recalcul en cours…'
+				: dirty
+					? status || 'Modifications non enregistrées.'
+					: status || 'Toutes les modifications sont enregistrées.'}
+		</div>
+		<Button type="submit" form="rubric-form" disabled={pending}
+			>{#if pending}<Spinner data-icon="inline-start" />{/if}{pending
+				? 'Enregistrement…'
+				: 'Enregistrer le barème'}</Button
+		>
 	</div>
 </div>
 
@@ -902,8 +999,34 @@
 	></AlertDialog.Root
 >
 
+<AlertDialog.Root bind:open={removalOpen}
+	><AlertDialog.Content class="max-h-[calc(100svh-2rem)] w-[calc(100%-2rem)] overflow-y-auto"
+		><AlertDialog.Header
+			><AlertDialog.Title
+				>Retirer « {removalAssessment?.title || 'l’évaluation'} » ?</AlertDialog.Title
+			><AlertDialog.Description>
+				Cette évaluation sera retirée du barème actif, des calculs et des dates de remise lorsque
+				vous cliquerez sur « Enregistrer le barème ». Les points déjà enregistrés seront conservés
+				dans l’historique privé des corrections.
+				{#if removalResults.length > 0}
+					Résultats à vérifier : {removalResults
+						.map((result) => result.title || 'Résultat sans nom')
+						.join(', ')}.
+				{/if}
+			</AlertDialog.Description></AlertDialog.Header
+		><AlertDialog.Footer
+			><AlertDialog.Cancel class="min-h-11">Conserver l’évaluation</AlertDialog.Cancel
+			><AlertDialog.Action
+				class="min-h-11"
+				disabled={pending}
+				onclick={() => removeAssessment(removalId)}>Retirer du brouillon</AlertDialog.Action
+			></AlertDialog.Footer
+		></AlertDialog.Content
+	></AlertDialog.Root
+>
+
 <style>
-	.rubric-editor :global([data-slot='native-select']) {
+	.rubric-editor :global([data-slot='native-select']:not([data-size='sm'])) {
 		min-height: 2.75rem;
 	}
 	.rubric-editor {
@@ -934,8 +1057,8 @@
 		min-width: 0;
 	}
 	.definition-wrap :global([data-slot='table-cell']) {
-		padding: 0.3rem;
-		vertical-align: top;
+		padding: 0.75rem;
+		vertical-align: middle;
 		white-space: normal;
 	}
 	.definition-wrap :global([data-slot='table-head']) {
@@ -946,9 +1069,8 @@
 	}
 	@container rubric (min-width: 50rem) {
 		.rubric-editor :global(.assessment-settings) {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.7fr) auto;
+			grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.7fr) auto;
 		}
-		.assessment-title,
 		.assessment-purpose {
 			grid-column: auto;
 		}
@@ -956,15 +1078,6 @@
 	@container rubric (min-width: 40rem) {
 		.rubric-editor :global(.deadline-fields) {
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		}
-	}
-	@media (min-width: 80rem) {
-		.rubric-layout {
-			grid-template-columns: minmax(0, 1fr) 20rem;
-		}
-		.calculation-column {
-			border-left: 1px solid var(--border);
-			padding-left: 1.5rem;
 		}
 	}
 	@container criteria (max-width: 35rem) {
@@ -988,6 +1101,9 @@
 			align-items: end;
 			gap: 0.75rem;
 			padding: 1.25rem 0;
+		}
+		.definition-wrap :global([data-slot='table-cell']) {
+			padding: 0;
 		}
 		.definition-wrap :global(.criterion-label) {
 			grid-column: 1 / -1;

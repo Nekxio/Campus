@@ -44,6 +44,13 @@ export const modules = sqliteTable(
 		description: text('description').notNull().default(''),
 		objectives: text('objectives', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		sourcePath: text('source_path').notNull().default(''),
+		studentContent: text('student_content', { mode: 'json' })
+			.$type<import('../../domain/pedagogy.js').StudentContent>()
+			.notNull()
+			.default({ instructions: '', projectInstructions: '', exercises: [] }),
+		needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
+		agentChanges: text('agent_changes', { mode: 'json' }).$type<string[]>().notNull().default([]),
+		pausedAt: timestamp('paused_at'),
 		preparation: text('preparation', { mode: 'json' })
 			.$type<Preparation>()
 			.notNull()
@@ -282,6 +289,7 @@ export const corrections = sqliteTable(
 		latenessDecision: text('lateness_decision', { enum: ['automatic', 'exempt', 'refused'] })
 			.notNull()
 			.default('automatic'),
+		needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
 		revision: revision()
 	},
 	(table) => [

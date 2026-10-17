@@ -62,7 +62,17 @@ export const resultRuleSchema = z.discriminatedUnion('kind', [
 	}),
 	z.strictObject({
 		kind: z.literal('weighted'),
-		components: z.array(componentSchema).min(1).max(100)
+		components: z.array(componentSchema).min(1).max(100),
+		// Optional authoring mode; existing weighted rules keep their exact meaning.
+		sectionPoints: z
+			.strictObject({
+				quizMaxima: z
+					.array(
+						z.strictObject({ assessmentId: idSchema, maxPoints: z.int().positive().max(1000000) })
+					)
+					.max(100)
+			})
+			.optional()
 	})
 ]);
 export type ResultRule = z.infer<typeof resultRuleSchema>;

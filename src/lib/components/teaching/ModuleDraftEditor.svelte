@@ -1,6 +1,10 @@
 <script module lang="ts">
 	import type { ModuleDraft } from '#lib/teaching/types.js';
-	export type ModuleEditorInput = Omit<ModuleDraft, 'objectives' | 'preparation'> & {
+	export type ModuleEditorInput = Omit<
+		ModuleDraft,
+		'objectives' | 'preparation' | 'studentContent'
+	> & {
+		studentContent: import('#lib/domain/pedagogy.js').StudentContent;
 		objectives: string;
 		addClassId: string;
 		preparation: {
@@ -13,6 +17,7 @@
 
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import { z } from 'zod';
 	import {
 		defaults,
@@ -24,9 +29,8 @@
 	import { beforeNavigate, goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { page } from '$app/state';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
@@ -49,6 +53,8 @@
 	import EditorFields from './EditorFields.svelte';
 	import LinkEditor from './LinkEditor.svelte';
 	import PlanningEditor from './PlanningEditor.svelte';
+	import StudentContentEditor from './StudentContentEditor.svelte';
+	import { studentContentSchema, emptyStudentContent } from '#lib/domain/pedagogy.js';
 
 	let { data }: { data: EditorData } = $props();
 	// Keyed by the parent; refreshing route data cannot overwrite an unsaved form.
@@ -77,6 +83,7 @@
 				nextSteps: z.string(),
 				sourceLinks: z.array(z.strictObject({ id: z.string(), label: z.string(), url: z.string() }))
 			}),
+			studentContent: studentContentSchema,
 			resources: z.array(
 				z.strictObject({
 					id: z.string(),
@@ -133,7 +140,18 @@
 	);
 	const { form: formData, errors, allErrors } = form;
 	let persistedIds = $state(initial?.contexts.map((context) => context.id) ?? []);
-	let section = $state('information');
+	let persistedLessonIds = $state(
+		initial?.contexts.flatMap((context) => context.lessons.map((lesson) => lesson.id)) ?? []
+	);
+	let section = $state(
+		untrack(() =>
+			['information', 'preparation', 'resources', 'planning'].includes(
+				page.url.searchParams.get('section') ?? ''
+			)
+				? page.url.searchParams.get('section')!
+				: 'information'
+		)
+	);
 	let pending = $state(false);
 	let errorMessage = $state('');
 	let conflict = $state(false);
@@ -149,6 +167,29 @@
 	const dirty = $derived(formFingerprint($formData) !== baseline);
 	const errorEntries = $derived(
 		$allErrors.map(({ path, messages }) => [path, messages[0]] as const)
+	);
+	const openedClass = $derived(
+		data.classes.find((item) =>
+			$formData.contexts.some(
+				(context) =>
+					context.classId === item.id &&
+					(item.id === page.url.searchParams.get('classe') ||
+						(!page.url.searchParams.has('classe') &&
+							context.id === page.url.searchParams.get('contexte')))
+			)
+		)
+	);
+	const openedContext = $derived(
+		$formData.contexts.find(
+			(context) => persistedIds.includes(context.id) && context.classId === openedClass?.id
+		)
+	);
+	const navigationScope = $derived.by((): Record<string, string> =>
+		openedContext ? { classe: openedContext.classId, contexte: openedContext.id } : {}
+	);
+	const moduleQuery = $derived(new URLSearchParams({ ...navigationScope, section }).toString());
+	const rubricQuery = $derived(
+		new URLSearchParams({ ...navigationScope, section, retour: 'module' }).toString()
 	);
 	const sections = [
 		{ value: 'information', label: 'Informations' },
@@ -191,6 +232,7 @@
 			description: module?.description ?? '',
 			objectives: module?.objectives.join('\n') ?? '',
 			sourcePath: module?.sourcePath ?? '',
+			studentContent: structuredClone(module?.studentContent ?? emptyStudentContent()),
 			addClassId: '',
 			preparation: {
 				framing: module?.preparation.framing ?? '',
@@ -223,6 +265,7 @@
 				.map((line) => line.trim())
 				.filter(Boolean),
 			sourcePath: input.sourcePath,
+			studentContent: structuredClone(input.studentContent),
 			preparation: {
 				framing: input.preparation.framing,
 				nextSteps: input.preparation.nextSteps,
@@ -260,13 +303,16 @@
 		savedDates = savedDateMetadata(value);
 		form.reset({ data: toInput(value), newState: toInput(value) });
 		persistedIds = value.contexts.map((context) => context.id);
+		persistedLessonIds = value.contexts.flatMap((context) =>
+			context.lessons.map((lesson) => lesson.id)
+		);
 		conflict = false;
 		errorMessage = '';
 		baseline = formFingerprint($formData);
 	}
 	function sectionFor(path: string) {
 		if (path.startsWith('contexts') || path === 'addClassId') return 'planning';
-		if (path.startsWith('resources')) return 'resources';
+		if (path.startsWith('resources') || path.startsWith('studentContent')) return 'resources';
 		if (path.startsWith('preparation') || path === 'sourcePath') return 'preparation';
 		return 'information';
 	}
@@ -352,7 +398,17 @@
 	async function jumpToError(path: string) {
 		section = sectionFor(path);
 		await tick();
-		document.querySelector<HTMLElement>('#module-form [aria-invalid="true"]')?.focus();
+		const name = path.replace(/\.(\d+)/g, '[$1]').replace(/\._errors$/, '');
+		const fields = [...document.querySelectorAll<HTMLElement>('#module-form [name]')];
+		const target =
+			fields.find((field) => field.getAttribute('name') === name) ??
+			fields.find(
+				(field) =>
+					field.getAttribute('name')?.startsWith(`${name}.`) ||
+					field.getAttribute('name')?.startsWith(`${name}[`)
+			);
+		if (target) target.focus();
+		else summary?.focus();
 	}
 	async function readSavedModule(id: string) {
 		const response = await fetch(`/api/teaching/modules/${id}`, { credentials: 'same-origin' });
@@ -371,6 +427,22 @@
 		status = '';
 		creationConfirmed = false;
 		try {
+			// The main save also commits the pending class selection, without requiring
+			// the intermediate add action. Keep its ID in the draft for retries/errors.
+			if ($formData.addClassId && $formData.contexts.length === 0) {
+				const classId = $formData.addClassId;
+				if (!data.classes.some((item) => item.id === classId)) {
+					applyRequestErrors({ addClassId: 'Choisissez une classe disponible.' });
+					errorMessage = 'Vérifiez la classe choisie. Vos saisies sont conservées.';
+					await focusErrors();
+					return;
+				}
+				$formData = {
+					...$formData,
+					addClassId: '',
+					contexts: [{ id: crypto.randomUUID(), classId, lessons: [] }]
+				};
+			}
 			const creating = moduleId === null;
 			let command = creating ? creationCommand : undefined;
 			let payload: ModuleDraft;
@@ -404,6 +476,9 @@
 				revision = saved.revision;
 				savedDates = savedDateMetadata(saved);
 				persistedIds = saved.contexts.map((context) => context.id);
+				persistedLessonIds = saved.contexts.flatMap((context) =>
+					context.lessons.map((lesson) => lesson.id)
+				);
 				baseline = formFingerprint(toInput(saved));
 				$formData = { ...$formData, contexts };
 				creationCommand = undefined;
@@ -504,7 +579,9 @@
 	}
 	async function cancelEditing() {
 		try {
-			await goto(resolve('/'));
+			await goto(
+				openedClass ? resolve(`/enseignant/classes?classe=${openedClass.id}`) : resolve('/#modules')
+			);
 		} catch {
 			if (!confirmOpen) {
 				errorMessage = 'Impossible d’ouvrir l’accueil. Vos saisies sont conservées.';
@@ -515,21 +592,44 @@
 </script>
 
 <div class="module-editor flex min-w-0 flex-col gap-7">
+	{#if data.module?.needsReview}<Alert.Root role="region" aria-label="Brouillon à relire">
+			<CircleAlertIcon aria-hidden="true" /><Alert.Title
+				>Brouillon à relire avant publication</Alert.Title
+			>
+			<Alert.Description
+				><ul>
+					{#each data.module.agentChanges ?? [] as change, index (index)}<li>{change}</li>{/each}
+				</ul>
+				La page publique conserve sa dernière version jusqu’à votre décision dans Publication.</Alert.Description
+			>
+		</Alert.Root>{/if}
 	<div class="flex min-w-0 flex-col gap-3">
 		<div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
 			<h1 class="min-w-0 text-3xl font-semibold tracking-tight sm:text-4xl">
 				{moduleId ? 'Modifier le module' : 'Créer un module'}
 			</h1>
 			<div class="flex flex-wrap items-center gap-3">
+				{#if data.publishedPath}<Button
+						variant="outline"
+						href={data.publishedPath}
+						target="_blank"
+						rel="noopener noreferrer"
+						><ExternalLinkIcon data-icon="inline-start" />Voir la page publiée<span class="sr-only">
+							· nouvel onglet</span
+						></Button
+					>{/if}
 				{#if moduleId}<Button
 						variant="outline"
-						href={resolve('/enseignant/modules/[moduleId]/publication', { moduleId })}
+						href={`${resolve('/enseignant/modules/[moduleId]/publication', { moduleId })}?${moduleQuery}`}
 						>Publication</Button
 					><Button
 						variant="outline"
-						href={resolve('/enseignant/modules/[moduleId]/bareme', { moduleId })}>Barème</Button
-					><Button variant="outline" href={`${resolve('/enseignant/notation')}?module=${moduleId}`}
-						>Notes</Button
+						href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId })}?${rubricQuery}`}
+						>Barème</Button
+					><Button
+						variant="outline"
+						href={`${resolve('/enseignant/notation')}?${new URLSearchParams({ module: moduleId, ...(openedContext ? { contexte: openedContext.id } : {}) })}`}
+						>Notation</Button
 					>{/if}
 				<Button
 					type="button"
@@ -538,12 +638,14 @@
 					disabled={pending}
 					onclick={cancelEditing}>Annuler</Button
 				>
-				<Button type="submit" form="module-form" class="min-h-11" disabled={pending}>
-					{#if pending}<Spinner data-icon="inline-start" />{/if}
-					{pending ? 'Enregistrement…' : moduleId ? 'Enregistrer' : 'Créer le brouillon'}
-				</Button>
 			</div>
 		</div>
+		{#if moduleId}<p class="text-lg font-medium wrap-anywhere">
+				{$formData.title || initial?.title}
+			</p>{/if}
+		{#if openedClass}<p class="text-sm text-muted-foreground">
+				{openedClass.name} · {openedClass.academicYear}
+			</p>{/if}
 		<p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
 			{moduleId
 				? 'Retrouvez les informations, les supports et le planning du module.'
@@ -589,15 +691,12 @@
 	{/if}
 	<form id="module-form" novalidate onsubmit={save} aria-busy={pending}>
 		<fieldset disabled={pending} class="min-w-0">
-			<Tabs.Root orientation="vertical" bind:value={section} class="module-layout">
+			<Tabs.Root orientation="horizontal" bind:value={section} class="module-layout">
 				<div class="section-rail hidden min-w-0 lg:block">
-					<Tabs.List aria-label="Sections du module" class="w-full gap-1">
+					<Tabs.List aria-label="Sections du module" class="w-full flex-wrap gap-1">
 						{#each sections as item (item.value)}
-							<Tabs.Trigger
-								value={item.value}
-								class="min-h-11 w-full justify-between text-left whitespace-normal"
-							>
-								{item.label}{#if section === item.value}<ChevronRightIcon aria-hidden="true" />{/if}
+							<Tabs.Trigger value={item.value} class="min-h-11 flex-1 whitespace-normal">
+								{item.label}
 							</Tabs.Trigger>
 						{/each}
 					</Tabs.List>
@@ -619,7 +718,9 @@
 						<div class="flex flex-col gap-2">
 							<h2 class="text-xl font-semibold tracking-tight sm:text-2xl">Informations</h2>
 							<p class="text-sm leading-relaxed text-muted-foreground">
-								Seul le nom est nécessaire pour créer le brouillon.
+								{moduleId
+									? 'Ces informations identifient le module et peuvent être publiées après vérification.'
+									: 'Seul le nom est nécessaire pour créer le brouillon.'}
 							</p>
 						</div>
 						<div class="identity-layout mt-6 grid min-w-0 gap-8">
@@ -653,25 +754,46 @@
 								</p>
 							</Field.FieldGroup>
 							<aside class="completion-hints flex flex-col gap-7" aria-label="Compléter le module">
-								<section class="flex flex-col items-start gap-2">
-									<h3 class="text-sm font-medium">Classes et planning</h3>
-									<Badge variant="outline">Facultatif</Badge>
-									<p class="text-sm leading-relaxed text-muted-foreground">
-										Rattachez une classe et organisez son planning quand vous êtes prêt.
-									</p>
-								</section>
-								<section class="flex flex-col gap-2">
-									<h3 class="text-sm font-medium">Préparation</h3>
-									<p class="text-sm leading-relaxed text-muted-foreground">
-										Ajoutez vos références et documents de travail privés.
-									</p>
-								</section>
-								<section class="flex flex-col gap-2">
-									<h3 class="text-sm font-medium">Liens étudiants</h3>
-									<p class="text-sm leading-relaxed text-muted-foreground">
-										Renseignez les liens vers les supports choisis pour les étudiants.
-									</p>
-								</section>
+								{#if moduleId}
+									<h3 class="font-medium">Dans ce module</h3>
+									<dl class="grid gap-5 text-sm">
+										<div class="flex flex-col gap-1">
+											<dt class="text-muted-foreground">Classes associées</dt>
+											<dd class="text-base font-medium tabular-nums">
+												{$formData.contexts.length}
+											</dd>
+										</div>
+										<div class="flex flex-col gap-1">
+											<dt class="text-muted-foreground">Liens étudiants</dt>
+											<dd class="text-base font-medium tabular-nums">
+												{$formData.resources.length}
+											</dd>
+										</div>
+									</dl>
+									<Button type="button" variant="outline" onclick={() => (section = 'planning')}
+										>Classes et planning</Button
+									>
+								{:else}
+									<section class="flex flex-col items-start gap-2">
+										<h3 class="text-sm font-medium">Classes et planning</h3>
+										<p class="text-sm leading-relaxed text-muted-foreground">
+											Facultatif. Rattachez une classe et organisez son planning quand vous êtes
+											prêt.
+										</p>
+									</section>
+									<section class="flex flex-col gap-2">
+										<h3 class="text-sm font-medium">Préparation</h3>
+										<p class="text-sm leading-relaxed text-muted-foreground">
+											Ajoutez vos références et documents de travail privés.
+										</p>
+									</section>
+									<section class="flex flex-col gap-2">
+										<h3 class="text-sm font-medium">Liens étudiants</h3>
+										<p class="text-sm leading-relaxed text-muted-foreground">
+											Renseignez les liens vers les supports choisis pour les étudiants.
+										</p>
+									</section>
+								{/if}
 							</aside>
 						</div>
 					</Tabs.Content>
@@ -720,35 +842,51 @@
 						</div>
 						<div class="mt-6">
 							<LinkEditor {form} student />
+							<div class="mt-8"><StudentContentEditor {form} /></div>
 						</div>
 					</Tabs.Content>
 					<Tabs.Content value="planning" class="min-w-0">
 						<div class="flex flex-col gap-2">
 							<h2 class="text-xl font-semibold tracking-tight sm:text-2xl">Classes et planning</h2>
 							<p class="max-w-prose text-sm leading-relaxed text-muted-foreground">
-								Chaque classe a son propre planning. Les dates sont saisies à l’heure de Paris
+								Ce module appartient à une seule classe. Les dates sont saisies à l’heure de Paris
 								(Europe/Paris).
 							</p>
 						</div>
 						<div class="mt-6">
-							<PlanningEditor {form} classes={data.classes} {persistedIds} />
+							{#if moduleId}<Button
+									class="mb-5"
+									variant="outline"
+									href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId })}?${rubricQuery}#echeances${openedContext ? '-' + openedContext.id : ''}`}
+									>Régler les échéances des évaluations</Button
+								>{/if}
+							<PlanningEditor {form} classes={data.classes} {persistedIds} {persistedLessonIds} />
 						</div>
 					</Tabs.Content>
 				</div>
 			</Tabs.Root>
 		</fieldset>
 	</form>
-	<div role="status" aria-live="polite" class="min-h-5 text-sm text-muted-foreground">
-		{pending
-			? 'Enregistrement du module en cours…'
-			: dirty
-				? creationConfirmed
-					? 'Brouillon créé. Vos modifications actuelles restent à enregistrer.'
-					: 'Modifications non enregistrées.'
-				: status ||
-					(moduleId
-						? 'Toutes les modifications sont enregistrées.'
-						: 'Le brouillon n’est pas encore créé.')}
+	<div class="editor-save-bar">
+		<div role="status" aria-live="polite" class="min-h-5 text-sm text-muted-foreground">
+			{pending
+				? 'Enregistrement du module en cours…'
+				: dirty
+					? creationConfirmed
+						? 'Brouillon créé. Vos modifications actuelles restent à enregistrer.'
+						: 'Modifications non enregistrées.'
+					: status ||
+						(moduleId
+							? 'Toutes les modifications sont enregistrées.'
+							: 'Le brouillon n’est pas encore créé.')}
+		</div>
+		<Button type="submit" form="module-form" disabled={pending}
+			>{#if pending}<Spinner data-icon="inline-start" />{/if}{pending
+				? 'Enregistrement…'
+				: moduleId
+					? 'Enregistrer le module'
+					: 'Créer le brouillon'}</Button
+		>
 	</div>
 </div>
 
@@ -790,8 +928,8 @@
 		font-size: 1rem;
 	}
 	.section-rail {
-		border-right: 1px solid var(--border);
-		padding-right: 1.25rem;
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 1rem;
 	}
 	.section-rail :global([data-slot='tabs-list']) {
 		background: transparent;
@@ -811,7 +949,7 @@
 	}
 	@media (min-width: 64rem) {
 		.module-editor :global(.module-layout) {
-			grid-template-columns: 210px minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr);
 			gap: 2.5rem;
 		}
 	}

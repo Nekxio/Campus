@@ -13,7 +13,7 @@
 		children
 	}: {
 		userName: string;
-		active?: 'home' | 'classes' | 'modules' | 'grading';
+		active?: 'home' | 'classes' | 'modules' | 'grading' | 'student-view' | 'applications';
 		title?: string;
 		boundedCorrection?: boolean;
 		parentLink?: { href: string; label: string };
@@ -53,6 +53,12 @@
 </Sidebar.Provider>
 
 <style>
+	@media (max-width: 767px) {
+		:global(html:has(.teacher-header)) {
+			/* Leave focused fields and anchor targets below the compact navigation header. */
+			scroll-padding-block-start: calc(3rem + env(safe-area-inset-top, 0px) + 0.75rem);
+		}
+	}
 	@media (min-width: 80rem) and (min-height: 36rem) {
 		#workspace-content[data-bounded-correction='true'] {
 			/* The editor height already reserves the sidebar inset's bottom margin. */

@@ -146,8 +146,9 @@
 			>
 		{:else}
 			<p class="max-w-prose text-sm text-muted-foreground">
-				La grille reprend les données enregistrées. Les résultats utilisent le barème conservé ; les
-				points bruts et les commentaires restent consultables ci-dessous.
+				La grille reprend les données enregistrées. Les résultats sont recalculés avec le barème
+				actuel du module, qui peut avoir changé ; les points bruts et les commentaires restent
+				consultables ci-dessous.
 			</p>
 			{#if rubric?.results.length}
 				<Table.Root>

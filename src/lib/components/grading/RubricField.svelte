@@ -67,6 +67,7 @@
 							{name}
 							value={String(value.current)}
 							class="w-full"
+							size={compact ? 'sm' : 'default'}
 							onchange={(event) => {
 								update(event.currentTarget.value);
 								void validate();
@@ -96,7 +97,7 @@
 							{max}
 							{step}
 							inputmode={step === 1 ? 'numeric' : 'decimal'}
-							class="min-h-11"
+							density={compact || hideLabel ? 'compact' : 'default'}
 							oninput={(event) => update(event.currentTarget.value)}
 							onchange={validate}
 						/>
@@ -107,7 +108,7 @@
 							{type}
 							value={String(value.current)}
 							{maxlength}
-							class="min-h-11"
+							density={compact || hideLabel ? 'compact' : 'default'}
 							oninput={(event) => update(event.currentTarget.value)}
 							onchange={validate}
 						/>

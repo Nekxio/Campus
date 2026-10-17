@@ -11,7 +11,6 @@
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import type { ClassesData, ClassSummary } from '#lib/teaching/types.js';
 	import ClassRoster from './ClassRoster.svelte';
 	import ClassDetailsDialog from './ClassDetailsDialog.svelte';
@@ -145,21 +144,34 @@
 				<PencilIcon data-icon="inline-start" aria-hidden="true" />Modifier la classe
 			</Button>
 		</div>
+		<nav aria-label="Sections de la classe" class="mt-4 flex flex-wrap gap-2 lg:hidden">
+			<Button variant="outline" href="#class-roster">Étudiants</Button><Button
+				variant="outline"
+				href="#class-modules-title">Modules associés</Button
+			>
+		</nav>
 		<div
 			class="mt-5 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]"
 			inert={switching || refreshing}
 			aria-busy={refreshing}
 		>
-			<ClassRoster record={selected} onSaved={saved} onReload={refreshAll} />
+			<section
+				id="class-roster"
+				tabindex="-1"
+				aria-label="Étudiants de la classe"
+				class="min-w-0 scroll-mt-6"
+			>
+				<ClassRoster record={selected} onSaved={saved} onReload={refreshAll} />
+			</section>
 			<section
 				aria-labelledby="class-modules-title"
 				class="min-w-0 border-t pt-6 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-7"
 			>
 				<div class="mb-1 flex items-center gap-2.5">
-					<h3 id="class-modules-title" class="text-lg font-semibold tracking-tight">
+					<h3 id="class-modules-title" tabindex="-1" class="text-lg font-semibold tracking-tight">
 						Modules associés
 					</h3>
-					<Badge variant="outline">{selected.modules.length}</Badge>
+					<span class="text-sm text-muted-foreground tabular-nums">{selected.modules.length}</span>
 				</div>
 				<p class="text-sm text-muted-foreground">Les modules suivis par cette classe.</p>
 				{#if selected.modules.length}
@@ -167,8 +179,11 @@
 						{#each selected.modules as module (module.id)}
 							<li>
 								<a
-									href={resolve('/enseignant/modules/[moduleId]', { moduleId: module.id })}
-									class="flex min-h-24 items-center gap-3 rounded-sm py-4 text-sm outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/30"
+									href={resolve(
+										`/enseignant/modules/[moduleId]?classe=${selected.id}&section=planning`,
+										{ moduleId: module.id }
+									)}
+									class="flex min-h-24 items-center gap-3 rounded-sm px-3 py-4 text-sm outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/30"
 								>
 									<BookIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
 									<div class="min-w-0 flex-1">

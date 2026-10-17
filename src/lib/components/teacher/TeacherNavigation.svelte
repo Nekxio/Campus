@@ -1,9 +1,11 @@
 <script lang="ts">
+	import PlugIcon from '@lucide/svelte/icons/plug';
 	import { resolve } from '$app/paths';
 	import HomeIcon from '@lucide/svelte/icons/house';
 	import BookIcon from '@lucide/svelte/icons/book-open';
 	import UsersIcon from '@lucide/svelte/icons/users';
 	import PenIcon from '@lucide/svelte/icons/clipboard-pen';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import DotsIcon from '@lucide/svelte/icons/ellipsis-vertical';
 	import UserIcon from '@lucide/svelte/icons/user-round';
 	import BellIcon from '@lucide/svelte/icons/bell';
@@ -19,7 +21,10 @@
 	let {
 		userName,
 		active = 'home'
-	}: { userName: string; active?: 'home' | 'classes' | 'modules' | 'grading' } = $props();
+	}: {
+		userName: string;
+		active?: 'home' | 'classes' | 'modules' | 'grading' | 'student-view' | 'applications';
+	} = $props();
 	const sidebar = Sidebar.useSidebar();
 	const initials = $derived(getInitials(userName));
 	let signingOut = $state(false);
@@ -146,6 +151,23 @@
 									>{/snippet}</Sidebar.MenuButton
 							></Sidebar.MenuItem
 						>
+						<Sidebar.MenuItem>
+							<Sidebar.MenuButton isActive={active === 'student-view'}>
+								{#snippet child({ props })}
+									<a
+										{...props}
+										href={resolve('/enseignant/vue-etudiante')}
+										target="_blank"
+										rel="noopener noreferrer"
+										aria-current={active === 'student-view' ? 'page' : undefined}
+										onclick={closeNavigation}
+									>
+										<ExternalLinkIcon aria-hidden="true" /><span>Vue étudiante</span>
+										<span class="sr-only"> · nouvel onglet</span>
+									</a>
+								{/snippet}
+							</Sidebar.MenuButton>
+						</Sidebar.MenuItem>
 					</Sidebar.Menu>
 				</nav>
 			</Sidebar.GroupContent>
@@ -200,6 +222,19 @@
 				</DropdownMenu.Root>
 			</Sidebar.MenuItem>
 		</Sidebar.Menu>
+		<Sidebar.Menu
+			><Sidebar.MenuItem
+				><Sidebar.MenuButton isActive={active === 'applications'}
+					>{#snippet child({ props })}<a
+							{...props}
+							href={resolve('/enseignant/applications')}
+							aria-current={active === 'applications' ? 'page' : undefined}
+							onclick={closeNavigation}
+							><PlugIcon aria-hidden="true" /><span>Applications connectées</span></a
+						>{/snippet}</Sidebar.MenuButton
+				></Sidebar.MenuItem
+			></Sidebar.Menu
+		>
 		<ThemeSwitcher />
 		{#if signOutFailed}
 			<Alert.Root>

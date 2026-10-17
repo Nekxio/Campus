@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { idSchema, revisionSchema } from './contracts.js';
-import { moduleDraftSchema } from './teaching.js';
+import { idSchema, revisionSchema, preparationSchema } from './contracts.js';
+import { moduleDraftSchema, moduleDetailSchema } from './teaching.js';
 import { rubricDraftSchema } from './grading.js';
+import { studentContentSchema } from './pedagogy.js';
 
 export const agentActions = ['read', 'create', 'update', 'rubric'] as const;
 export type AgentAction = (typeof agentActions)[number];
@@ -39,7 +40,7 @@ const importFields = {
 	rubric: importRubricSchema.optional()
 };
 function validateContexts(
-	value: { draft: z.infer<typeof moduleDraftSchema>; rubric?: z.infer<typeof importRubricSchema> },
+	value: { draft: { contexts: { id: string }[] }; rubric?: z.infer<typeof importRubricSchema> },
 	ctx: z.RefinementCtx
 ) {
 	if (value.rubric?.contexts.some((c) => !value.draft.contexts.some((d) => d.id === c.id)))
@@ -58,9 +59,41 @@ export const createModuleImportSchema = z.strictObject(importFields).superRefine
 			message: 'Un nouveau module ne peut reprendre un contexte existant.'
 		});
 });
+const legacyContext = moduleDraftSchema.shape.contexts.element;
+const legacyLesson = legacyContext.shape.lessons.element;
 export const updateModuleImportSchema = z
 	.strictObject({
 		...importFields,
+		draft: z
+			.strictObject({
+				...moduleDraftSchema.shape,
+				studentContent: studentContentSchema.optional(),
+				contexts: z
+					.array(
+						legacyContext.extend({
+							lessons: z
+								.array(
+									legacyLesson.safeExtend({
+										recap: legacyLesson.shape.recap.removeDefault(),
+										toDo: legacyLesson.shape.toDo.removeDefault()
+									})
+								)
+								.max(200)
+						})
+					)
+					.max(100),
+				preparation: preparationSchema.extend({
+					framing: preparationSchema.shape.framing.removeDefault(),
+					nextSteps: preparationSchema.shape.nextSteps.removeDefault(),
+					sourceLinks: preparationSchema.shape.sourceLinks.removeDefault()
+				})
+			})
+			.superRefine((draft, ctx) => {
+				const checked = moduleDraftSchema.safeParse(draft);
+				if (!checked.success)
+					for (const issue of checked.error.issues)
+						ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
+			}),
 		expectedRevision: revisionSchema,
 		confirmRubricReplacement: z.boolean().default(false)
 	})
@@ -97,7 +130,7 @@ export const importContextSchema = z.strictObject({
 			revision: revisionSchema
 		})
 	),
-	module: moduleDraftSchema.safeExtend({ id: idSchema, revision: revisionSchema }).nullable(),
+	module: moduleDetailSchema.nullable(),
 	rubric: z
 		.strictObject({
 			assessments: rubricDraftSchema.shape.assessments,

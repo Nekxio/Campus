@@ -6,8 +6,11 @@ import {
 	type RubricDraft
 } from '#lib/domain/grading.js';
 import { fromDateInput, toDateInput } from '#lib/teaching/calendar.js';
+import { sectionPointsRule, type QuizMaximum } from '#lib/domain/rubric-points.js';
 
 export type RubricEditorInput = {
+	calculationMode: 'sections' | 'custom';
+	quizMaxima: QuizMaximum[];
 	assessments: RubricDraft['assessments'];
 	results: {
 		id: string;
@@ -30,7 +33,19 @@ export function savedDeadlineDates(data: RubricData): SavedDeadlineDates {
 	);
 }
 export function rubricToInput(data: RubricData): RubricEditorInput {
+	const rule = data.results.length === 1 ? data.results[0].rule : undefined;
+	const sectionPoints = rule?.kind === 'weighted' ? rule.sectionPoints : undefined;
 	return {
+		calculationMode:
+			sectionPoints || (!data.results.length && !data.assessments.length) ? 'sections' : 'custom',
+		quizMaxima: data.assessments
+			.filter((item) => item.kind === 'quiz')
+			.map((item) => ({
+				assessmentId: item.id,
+				maxPoints:
+					sectionPoints?.quizMaxima.find((maximum) => maximum.assessmentId === item.id)
+						?.maxPoints ?? Number.NaN
+			})),
 		assessments: data.assessments.map((assessment) => ({
 			...assessment,
 			groups: assessment.groups.map((group) => ({ ...group })),
@@ -60,6 +75,34 @@ export function rubricToInput(data: RubricData): RubricEditorInput {
 		}))
 	};
 }
+export function syncRubricSections(input: RubricEditorInput): RubricEditorInput {
+	const graded = input.assessments.filter((item) => item.purpose === 'graded');
+	return {
+		...input,
+		quizMaxima: input.assessments
+			.filter((item) => item.kind === 'quiz')
+			.map((item) => ({
+				assessmentId: item.id,
+				maxPoints:
+					input.quizMaxima.find((maximum) => maximum.assessmentId === item.id)?.maxPoints ??
+					Number.NaN
+			})),
+		results:
+			input.calculationMode !== 'sections'
+				? input.results
+				: !graded.length
+					? []
+					: [
+							input.results[0] ?? {
+								id: crypto.randomUUID(),
+								title: 'Note du module',
+								kind: 'weighted',
+								assessmentIds: [],
+								components: []
+							}
+						]
+	};
+}
 export function rubricToDomain(
 	input: RubricEditorInput,
 	dates: SavedDeadlineDates,
@@ -71,15 +114,27 @@ export function rubricToDomain(
 			id: result.id,
 			title: result.title,
 			rule:
-				result.kind === 'points_ratio'
-					? { kind: result.kind, assessmentIds: result.assessmentIds }
-					: {
-							kind: result.kind,
-							components: result.components.map(({ assessmentIds, weight }) => ({
-								assessmentIds,
-								weight
-							}))
-						}
+				input.calculationMode === 'sections'
+					? sectionPointsRule(
+							input.assessments,
+							input.quizMaxima.filter((maximum) =>
+								input.assessments.some(
+									(item) =>
+										item.id === maximum.assessmentId &&
+										item.kind === 'quiz' &&
+										item.purpose === 'graded'
+								)
+							)
+						)
+					: result.kind === 'points_ratio'
+						? { kind: result.kind, assessmentIds: result.assessmentIds }
+						: {
+								kind: result.kind,
+								components: result.components.map(({ assessmentIds, weight }) => ({
+									assessmentIds,
+									weight
+								}))
+							}
 		})),
 		contexts: input.contexts.map((context, contextIndex) => ({
 			...context,
@@ -104,6 +159,7 @@ export function rubricToDomain(
 }
 export function rubricInputPath(path: string) {
 	return path
+		.replace(/^results\.0\.rule\.sectionPoints\.quizMaxima/, 'quizMaxima')
 		.replace(/\.rule\.kind$/, '.kind')
 		.replace(/\.rule\./, '.')
 		.replace(/\.rule$/, '.kind');
@@ -111,6 +167,13 @@ export function rubricInputPath(path: string) {
 export function rubricEditorSchema(dates: () => SavedDeadlineDates) {
 	return z
 		.strictObject({
+			calculationMode: z.enum(['sections', 'custom']),
+			// An unused quiz maximum can remain blank in the compatible custom editor.
+			quizMaxima: z
+				.array(
+					z.strictObject({ assessmentId: z.string(), maxPoints: z.union([z.number(), z.nan()]) })
+				)
+				.max(100),
 			assessments: z.array(rubricAssessmentSchema).max(100),
 			results: z
 				.array(
@@ -146,12 +209,35 @@ export function rubricEditorSchema(dates: () => SavedDeadlineDates) {
 				.max(100)
 		})
 		.superRefine((input, context) => {
+			let missingQuizMaximum = false;
+			if (input.calculationMode === 'sections') {
+				input.quizMaxima.forEach((maximum, index) => {
+					if (
+						input.assessments.some(
+							(item) => item.id === maximum.assessmentId && item.purpose === 'graded'
+						) &&
+						(!Number.isInteger(maximum.maxPoints) ||
+							maximum.maxPoints < 1 ||
+							maximum.maxPoints > 1000000)
+					) {
+						missingQuizMaximum = true;
+						context.addIssue({
+							code: 'custom',
+							path: ['quizMaxima', index, 'maxPoints'],
+							message: 'Choisissez un maximum entier positif pour cette section Quiz.'
+						});
+					}
+				});
+			}
 			const dateIssues = new Set<string>();
 			const domain = rubricToDomain(input, dates(), (path, message) => {
 				dateIssues.add(path.join('.'));
 				context.addIssue({ code: 'custom', path, message });
 			});
-			const parsed = rubricDraftSchema.safeParse(domain);
+			// Generated weights are not editable errors while a quiz maximum is still blank.
+			const parsed = rubricDraftSchema.safeParse(
+				missingQuizMaximum ? { ...domain, results: [] } : domain
+			);
 			if (!parsed.success)
 				for (const issue of parsed.error.issues) {
 					if (dateIssues.has(issue.path.join('.'))) continue;

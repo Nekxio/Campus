@@ -42,6 +42,7 @@ function fixture(): ProposalReviewSelection {
 			contexts: [
 				{
 					id: contextId,
+					classId: crypto.randomUUID(),
 					expectedRevision: 2,
 					className: 'Classe fictive',
 					academicYear: '2026–2027',

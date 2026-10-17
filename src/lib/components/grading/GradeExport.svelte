@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { z } from 'zod';
+	import { onDestroy, onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CheckIcon from '@lucide/svelte/icons/circle-check';
@@ -15,6 +16,14 @@
 	let { data }: { data: GradeGridData } = $props();
 	const status = $derived(gradeExportStatus(data));
 	let pending = $state(false);
+	let hydrated = $state(false);
+	let disposed = false;
+	onDestroy(() => {
+		disposed = true;
+	});
+	onMount(() => {
+		hydrated = true;
+	});
 	let refreshing = $state(false);
 	let feedback = $state('');
 	let failed = $state(false);
@@ -37,6 +46,7 @@
 				{ cache: 'no-store' }
 			);
 			const payload = await response.json();
+			if (disposed || data.contextId !== contextId) return;
 			if (!response.ok) {
 				if (response.status === 409 || response.status === 404) staleContext = contextId;
 				const parsed = z.object({ message: z.string() }).safeParse(payload);
@@ -44,12 +54,13 @@
 				throw new Error(problem);
 			}
 			const { document } = z.strictObject({ document: finalGradeExportSchema }).parse(payload);
-			if (data.contextId !== contextId) return;
+			if (disposed || data.contextId !== contextId) return;
 			const { downloadGradePdf } = await import('#lib/client/grade-pdf.js');
-			if (data.contextId !== contextId) return;
+			if (disposed || data.contextId !== contextId) return;
 			await downloadGradePdf(document);
 			feedback = `PDF préparé pour les ${document.students.length} étudiants de ${document.className}.`;
 		} catch {
+			if (disposed || data.contextId !== contextId) return;
 			failed = true;
 			feedback = problem;
 		} finally {
@@ -98,7 +109,7 @@
 		<Button
 			type="button"
 			class="export-download min-h-11"
-			disabled={!ready || pending || refreshing}
+			disabled={!hydrated || !ready || pending || refreshing}
 			onclick={download}
 			aria-describedby="pdf-scope"
 		>

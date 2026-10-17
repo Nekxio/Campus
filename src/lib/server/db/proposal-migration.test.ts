@@ -24,7 +24,15 @@ it('upgrades the previous schema while retaining a legacy proposal and defaultin
 			studentId = crypto.randomUUID(),
 			contextId = crypto.randomUUID(),
 			proposalId = crypto.randomUUID();
-		await db.insert(tables.modules).values({ id: moduleId, title: 'Fictional migration' });
+		await client.execute({
+			sql: 'INSERT INTO module (id,title,preparation,created_at) VALUES (?,?,?,?)',
+			args: [
+				moduleId,
+				'Fictional migration',
+				JSON.stringify({ framing: '', nextSteps: '', sourceLinks: [] }),
+				1
+			]
+		});
 		await db
 			.insert(tables.classes)
 			.values({ id: classId, name: 'Demo', academicYear: '2026-2027' });

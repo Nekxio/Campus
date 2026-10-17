@@ -7,10 +7,11 @@ colors:
   'background': 'oklch(1 0 0)'
   'foreground': 'oklch(0.145 0 0)'
   'muted': 'oklch(0.97 0 0)'
-  'muted-foreground': 'oklch(0.556 0 0)'
+  'muted-foreground': 'oklch(0.5 0 0)'
   'border': 'oklch(0.922 0 0)'
   'input': 'oklch(0.922 0 0)'
-  'ring': 'oklch(0.708 0 0)'
+  'ring': 'oklch(0.145 0 0)'
+  'control-border': 'oklch(0.5 0 0)'
   'sidebar': 'oklch(0.985 0 0)'
   'sidebar-accent': 'oklch(0.97 0 0)'
   'destructive': 'oklch(0.577 0.245 27.325)'
@@ -115,9 +116,13 @@ components:
     backgroundColor: 'color-mix(in oklab, oklch(0.922 0 0) 50%, transparent)'
     textColor: '{colors.foreground}'
     typography: '{typography.body-small}'
-    rounded: '{rounded.3xl}'
+    rounded: '{rounded.lg}'
     padding: '0.25rem 0.75rem'
-    height: '2.75rem'
+    height: '2.5rem; 2.75rem for coarse pointers'
+  input-compact:
+    rounded: '{rounded.lg}'
+    padding: '0.25rem 0.5rem'
+    height: '2rem; 2.75rem for coarse pointers'
   navigation-item:
     textColor: '{colors.foreground}'
     typography: '{typography.body-small}'
@@ -168,6 +173,9 @@ components:
     rounded: '{rounded.3xl}'
     height: '2.75rem'
     width: '100%'
+  theme-toggle-selected:
+    backgroundColor: '{colors.primary}'
+    textColor: '{colors.primary-foreground}'
   preview-sheet:
     backgroundColor: '{colors.background}'
     textColor: '{colors.foreground}'
@@ -183,7 +191,7 @@ components:
 
 Coursely inherits its neutral shadcn-svelte luma foundation: a white work area, pale navigation, Inter and restrained Lucide line icons. The material is quiet and practical. Text, alignment, tonal state changes and consistent borders carry the hierarchy. This records the implemented system rather than introducing a new brand identity.
 
-The interface has compact information rows and enough space around headings and actions to make daily work legible. Controls retain the luma library’s soft rounded shapes; data containers use smaller corners and separators. Motion belongs to control state changes and opening or closing sheets. No bespoke logo or imagery has been approved; the product name is rendered as text.
+The interface has compact information rows and enough space around headings and actions to make daily work legible. Controls retain the luma library’s soft rounded shapes; text fields and native selects use 10px corners, while data containers use smaller corners and separators. Motion belongs to control state changes and opening or closing sheets. No bespoke logo or imagery has been approved; the product name is rendered as text.
 
 **Key Characteristics:**
 
@@ -209,12 +217,13 @@ The palette is achromatic except for destructive validation feedback. The frontm
 - **Mid-gray supporting text** (`muted-foreground`): descriptions, dates, counts and supporting labels.
 - **Fine divider** (`border`): table boundaries, preparation rows, header and sheet boundaries.
 - **Input surface source** (`input`): mixed at half opacity for the softly filled text field.
-- **Focus gray** (`ring`): keyboard border and ring feedback.
+- **Focus ink** (`ring`): the foreground alias used for solid keyboard outlines and focused field borders.
+- **Control boundary** (`control-border`): the supporting-text alias used for text fields, text areas, native selects and unchecked checkboxes. Invalid fields retain their destructive boundary.
 - **Validation red** (`destructive`): field error text, invalid border and invalid ring. It is a functional signal, not an additional brand accent.
 
 **The Neutral State Rule.** Use the existing neutral tokens for navigation, filters and preparation states. Reserve the destructive color for invalid input; state labels must remain readable without color.
 
-The sidebar footer offers Clair, Sombre and Système through a single-choice shadcn-svelte Toggle Group. `mode-watcher` defaults to the system preference, remembers the chosen mode in this browser and follows operating-system changes while Système is selected. Semantic tokens provide the same neutral hierarchy in both themes. Unused chart colors are not promoted into this system.
+The sidebar footer offers Clair, Sombre and Système through a compact icon button and a shadcn-svelte radio menu. `mode-watcher` defaults to the system preference, remembers the chosen mode in this browser and follows operating-system changes while Système is selected. Semantic tokens provide the same neutral hierarchy in both themes. Unused chart colors are not promoted into this system.
 
 The dark theme uses these existing overrides from `src/routes/layout.css`; component references keep their semantic names:
 
@@ -228,12 +237,13 @@ The dark theme uses these existing overrides from `src/routes/layout.css`; compo
 | `muted-foreground`   | `oklch(0.708 0 0)`          |
 | `border`             | `oklch(1 0 0 / 10%)`        |
 | `input`              | `oklch(1 0 0 / 15%)`        |
-| `ring`               | `oklch(0.556 0 0)`          |
+| `ring`               | `oklch(0.985 0 0)`          |
+| `control-border`     | `oklch(0.708 0 0)`          |
 | `sidebar`            | `oklch(0.205 0 0)`          |
 | `sidebar-accent`     | `oklch(0.269 0 0)`          |
 | `destructive`        | `oklch(0.704 0.191 22.216)` |
 
-Desktop, mobile navigation and grade-validation states have been checked in both themes. Real-device and screen-reader verification remains outstanding.
+The initial full review covered all 14 approved surface compositions and required F1–F4. After correction, an independent VERDICT PASS returned ship within the F1–F4 scope: all four findings resolved and no correction left open in that scope. It did not repeat the full audit. All 56 current captures were refreshed; the 112 cases at 320, 390, 768 and 1440px in light and dark recorded no horizontal overflow or page errors. Desktop and mobile dirty-navigation checks pass, as do lint, application/operator/browser type checks, the Workers build and 311 unit tests. Screen-reader, physical-device/software-keyboard, practical browser-zoom, real-passkey hardware and HTTPS acceptance remain outstanding; this is not WCAG certification.
 
 ## Typography
 
@@ -260,11 +270,17 @@ The desktop shell follows the approved dashboard-01 arrangement using the existi
 
 Horizontal main padding remains 1.25rem by default, 2rem at the small breakpoint (40rem), and 3rem at the extra-large breakpoint (80rem). Header padding is 1rem, becoming 1.5rem at the large breakpoint (64rem). The page starts with 2.25rem top padding, becoming 2.5rem at the small breakpoint. Sections use 2.25–2.5rem vertical spacing; row-level gaps are tighter. The class controls and actions wrap naturally when space is limited.
 
-The navigation becomes a left sheet below the medium breakpoint (48rem), with a trigger in the header and a width of 18rem. At the large breakpoint (64rem), the next intervention and preparation use a two-column grid (1.2fr to 1fr) with a 2.5rem gap, left border and inset for preparation. Below it they stack with a 2rem gap. The module table appears at that same large breakpoint; narrower views use divided rows with class, material status, module name and a notes action. This is the current teacher-home composition, not a mandatory template for every future screen.
+The navigation becomes a left sheet below the medium breakpoint (48rem), with a trigger in the header and a width of 18rem. The teacher home pairs the next intervention with a visual lesson month from the extra-large breakpoint (80rem), using a 1.35fr to 1fr grid with a 2.5rem gap. Below it the month is a closed disclosure and the next intervention remains first. The module table appears from the large breakpoint (64rem); narrower views use divided rows with the module, linked classes and preparation action. These are the approved home arrangements; each other surface keeps its own composition brief.
 
 Preview sheets occupy 75% of the viewport width, with a maximum width of 24rem (384px) from the small breakpoint (40rem / 640px) upward. The side-specific library selectors determine these rendered dimensions despite the broader caller width classes. Content scrolls within the sheet; header, content and footer use 1.5rem padding. The body supports widths from 320px, and sheets honor top and bottom safe-area insets.
 
-The grading context selectors stack below 64rem to keep module and class names readable beside the sidebar. Detailed correction reserves 0.25rem at the score list's scroll edges for its 3px focus ring. Its bounded desktop composition (at least 80rem wide and 36rem high) counts the inset's bottom margin once and uses a document-relative top offset; at 1440 × 900 the eight standard project criteria remain visible with the context and summary. Shorter work regions scroll internally while retaining the summary actions. These refinements preserve the palette, type scale, corner tokens and 44px control floor.
+The grading context selectors stack below 64rem to keep module and class names readable beside the sidebar. Detailed correction keeps score fields and their internal keyboard focus visible at the scroll edges. Criterion rows use 0.5rem vertical and 0.75rem horizontal padding; score fields use compact density on fine pointers. Its bounded desktop composition (at least 80rem wide and 36rem high) counts the inset's bottom margin once and uses a document-relative top offset; the context and summary stay visible while the criterion list scrolls internally as needed. Shorter work regions scroll internally while retaining the summary actions. These refinements preserve the palette, type scale, corner tokens and 44px touch target floor.
+
+Correction and proposal review keep their context and bottom summary outside the scrolling work body in that bounded desktop region. History, diagnostics and auxiliary panels remain reachable within it. At widths up to 63.99rem, criterion lists return to visible overflow and the document provides the reading flow. Summary issue counts stay concise; full calculation diagnostics belong in the work body.
+
+Shared module and rubric save bars follow the last field. On desktop they stick to the bottom of their editor; at widths up to 63.99rem or with a coarse pointer they stay in normal document flow. Their padding includes the bottom safe area. Fine-pointer layouts from 64rem reserve 8rem of scroll padding and field scroll margin so a focused field can clear the action bar.
+
+The student course and teacher publication preview use the same container-responsive renderer. Its five tabs become one row and its project references become an adjacent column when the renderer itself reaches 64rem, independently of the viewport or sidebar. Below that width the tabs use two columns with the last tab spanning both, and project references follow the active panel. The short deadline reminder precedes the tabs in both audiences.
 
 **The Reflow Rule.** When the available width narrows, stack the content and retain explicit field labels. The current module table becomes labeled rows rather than a horizontally clipped table.
 
@@ -275,7 +291,7 @@ The navigation and module table remain flat at rest. The outer desktop inset use
 ### Shadow Vocabulary
 
 - **Sheet elevation:** `0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)`, inherited from the installed Tailwind extra-large shadow.
-- **Control focus:** a 3px ring in the ring color at 30% opacity on buttons and inputs; tabs use 50%, and sidebar items use a 2px sidebar ring. These indicate focus rather than resting elevation.
+- **Control focus:** pointer and touch do not add an outer frame or shadow. Keyboard buttons and links use one 2px inset outline in their text color; text fields and native selects use their existing border in the ring color. Invalid borders keep the destructive token. Primitive and forms-plugin rings are cancelled.
 
 **The Flat Workspace Rule.** Use borders and pale surface changes to separate the working content. Use the small shadow only on the desktop application inset and the substantial shadow on overlays; dimmed backdrops belong to sheets.
 
@@ -295,11 +311,11 @@ Calm rounded actions with a clear filled primary and quiet alternatives.
 - **Outline:** white fill, divider-colored border and ink text; the hover and expanded state use the soft state surface.
 - **Ghost:** transparent at rest; a soft state surface appears on hover or expansion.
 - **Link:** charcoal text with underline on hover. Module-name links remove their horizontal padding to align with row text.
-- **States:** focus changes the border and shows the ring; active non-popup buttons move down 1px. Disabled controls have 50% opacity and no pointer interaction. State transitions use the library’s 150ms standard easing.
+- **States:** keyboard focus uses an internal outline or the field border; active non-popup buttons move down 1px. Disabled controls have 50% opacity and no pointer interaction. State transitions use the library’s 150ms standard easing.
 
 ### Badges
 
-Small non-interactive status labels (1.25rem high), with a medium-weight caption and optional small Lucide icon (0.75rem). Outlined labels indicate states such as valid or published; secondary labels use the soft state surface for states such as pending publication. Text carries the meaning.
+Small non-interactive status labels (1.25rem high), with a medium-weight caption and optional small Lucide icon (0.75rem). Outlined labels indicate states such as valid or published; secondary labels use the soft state surface for states such as pending publication. Text carries the meaning. Ordinary metadata uses a label above its value, with a tighter gap inside the pair. Counts, school years, file formats and calculation totals use plain text or semantic outputs instead of badges. An associated class is a fieldset legend followed by the class/year value; only an unsaved association retains an “À enregistrer” badge.
 
 ### Cards / Containers
 
@@ -307,15 +323,29 @@ The existing data container is the bordered module table rather than a stack of 
 
 ### Inputs / Fields
 
-Softly filled fields use the input token at 50% opacity, `3xl` corners and 0.25rem by 0.75rem padding. They are at least 44px high. Input text is 1rem below the medium breakpoint and 0.875rem above it; coarse-pointer devices keep 1rem text. Placeholder text uses supporting gray.
+Softly filled fields use the input token at 50% opacity, `lg` corners (10px) and 0.25rem by 0.75rem padding. Their visible boundary uses `control-border`; focused valid fields use `ring`, while invalid fields retain `destructive`. Ordinary fields are 40px high, with a 32px compact variant for scoring and dense rubric rows. Coarse-pointer fields retain a 44px minimum. Input text is 1rem below the medium breakpoint and 0.875rem above it; coarse-pointer devices keep 1rem text. Placeholder text uses supporting gray.
 
-Keyboard focus adds the ring and border change. Invalid inputs show a destructive border, 3px ring at 20% opacity and a French message connected to the field. Disabled inputs have 50% opacity. The grade preview uses numeric input mode with integer validation: an empty field remains ungraded, and an absent student’s field is disabled. These are demonstration states, not an absence scoring or persistence policy.
+Keyboard focus changes the existing field border; buttons and links use one internal 2px outline in their text color. Pointer and touch do not add an outer frame, and component/forms-plugin rings are cancelled. Invalid inputs retain a destructive border and a French message connected to the field. Disabled inputs have 50% opacity. Grading uses integer fields with maximums or ranges in the associated Formsnap description. An empty score remains distinct from zero; absence disables scoring without erasing raw points. The four assessment statuses retain their explicit text labels.
 
 Formsnap Fieldset groups use a single flex gap, defaulting to 0.5rem. Callers can replace it with the existing 1.5rem or 2rem spacing without cumulative child margins; ordinary Field and ElementField spacing remains unchanged. Student-roster action cells reserve 0.25rem around their 44px buttons, so keyboard rings stay clear of row dividers and clipped table corners. Compact rubric action cells reserve 56px and align controls along their lower edge when labels wrap.
 
+Validation summaries name the field and move to its actual input, opening the module section when necessary. Labels, descriptions and field errors remain connected through Formsnap. Search result counts use a polite live status near the filtered list.
+
+### Teaching Context and Saves
+
+The module name remains above the changing work section. Where a class context is selected, its class and academic year accompany it; return links retain that context and their useful section. Publication, rubric and grading destinations stay separate from the explicit save action.
+
+Creation and editing share four freely accessible sections: Informations, Préparation, Liens étudiants, and Classes et planning. Desktop section controls become a labeled native selector below 64rem. Creation hints belong only to the first draft. Private preparation and publishable lesson notes identify their audience at the field.
+
+The shared save bar pairs a polite saved/unsaved/pending status with a scope-named action such as Créer le brouillon, Enregistrer le module or Enregistrer le barème. A failed save or HTTP 409 retains the draft; refresh and replacement require an explicit choice. Correction points and the private semester comment have separate saves. Proposal review keeps Enregistré / Proposé / Retenu labels and separate point/comment decisions; stale references block acceptance.
+
+Class work keeps Étudiants and Modules associés shortcuts in narrow views. The two add-student triggers open the same editor, and closing it preserves its draft during the page visit. Modified class-details and module-attachment dialogs ask before abandoning their input. Their close actions retain French labels and restore focus.
+
+Notation starts with a compact work-year selector, followed by class on the left and its modules on the right. A missing class disables and empties the module selector and hides previous results. Multiple open years require an explicit persistent choice, with no date-based or newest-year default. The grade-grid PDF action remains below class/module selectors and before search filters, naming the whole-class scope. The individual PDF action sits in the selected student's summary. The annual dossier separates history/PDF rows from conservation and reviewed decisions. Closure is manual without a date prerequisite; its existing confirmation includes the next year and one continue/pause choice per module. Continued links remain stable, paused modules stay private, and annual student records are removed only after confirmation. The current rubric is not presented as a frozen historical copy. Archived results remain read-only.
+
 ### Navigation
 
-The pale rail uses text labels and 1rem Lucide icons with a 0.5rem gap. Items use `xl` corners, 0.5rem by 0.75rem padding and compact body text. The active item has a pale state fill and medium weight; hover and active press use the same tonal surface. Keyboard focus uses the 2px sidebar ring. On phones the same content opens in a labeled sheet; the sheet closes after a navigation choice. Coursely is a semibold text name, not a bespoke logo.
+The pale rail uses text labels and 1rem Lucide icons with a 0.5rem gap. Items use `xl` corners, 0.5rem by 0.75rem padding and compact body text. The active item has a pale state fill and medium weight; hover and active press use the same tonal surface. Keyboard focus adds one solid outline without stacking the sidebar ring. On phones the same content opens in a labeled sheet; the sheet closes after a navigation choice, and its close target is at least 44px. The home’s Modules destination follows the module-list anchor. Coursely is a semibold text name, not a bespoke logo.
 
 ### User Avatar
 
@@ -327,21 +357,31 @@ The shadcn-svelte dropdown opens to the right on desktop and prefers the bottom 
 
 ### Teacher Access
 
-`TeacherAccess.svelte` serves `/connexion` and `/activation` with the approved `auth-vertical` composition. A centered Coursely text wordmark sits above a column capped at 30rem (480px), without the authenticated sidebar. Activation connects three ordered steps: the invitation identity, a full-width key-creation action and automatic arrival at teacher home. The name and email come from the invitation API and remain read-only; the 40px avatar reuses the same initials helper as the sidebar. Returning teachers use the same column with one Me connecter action.
+`TeacherAccess.svelte` serves `/connexion` and `/activation` within the approved vertical access family. A centered Coursely text wordmark sits above a column capped at 30rem (480px), without the authenticated sidebar. Activation presents a compact wrapping row of three ordered steps: Invitation, Clé and Accueil. The current step uses ink and semibold text with `aria-current="step"`. Invitation identity precedes the full-width key-creation action; the name and email come from the invitation API and remain read-only, and the 40px avatar reuses the sidebar initials helper. Returning teachers use the same column with one Me connecter action and visible recovery guidance below it.
 
-The connected rail uses 32px circular markers, thin separators and the existing semantic tokens; only the ready key step receives the primary fill. Existing shadcn-svelte Button, Avatar, Alert, Separator, Skeleton and Spinner primitives carry the controls and feedback. French alerts update in place, and preparation, device confirmation and successful opening use a polite live status region. The passkey action remains disabled while preparation, a device request or opening is pending. Retryable failures retain an appropriate retry action; an invalid or expired invitation cannot proceed. Success opens `/` automatically without a further confirmation screen.
+The compact step row uses restrained 16px Lucide icons and a thin lower divider. Existing shadcn-svelte Button, Avatar, Alert, Skeleton and Spinner primitives carry the controls and feedback. French alerts update near the identity/action, and preparation, device confirmation and successful opening use a polite live status region. The passkey action remains disabled while preparation, a device request or opening is pending. Retryable failures retain an appropriate retry action; an invalid or expired invitation cannot proceed. Success opens `/` automatically without a further confirmation screen. The surface adds no new account type or access channel.
 
-The page uses `min-height: 100svh`, natural scrolling and safe-area padding. The column keeps 1.25rem side gutters; names, email addresses and button labels wrap. This surface compacts at 600px wide or 760px high and below without changing the global spacing or breakpoint system. It adds no entrance animation. The selected direction and final local verification are in [the Teacher Access surface brief](.impeccable/surfaces/src-lib-components-auth-teacheraccess-svelte.md). The fresh full review returned ship for all eleven current captures after Inter loading was corrected in the temporary validation copy. The captures cover light and dark desktop and phone layouts with simulated UI auth responses; the invitation fragment is removed through the resolved activation route with a fixed-path fallback. Real passkey, HTTPS, physical-device, VoiceOver and Lighthouse acceptance remains outstanding.
+The page uses `min-height: 100svh`, natural scrolling and safe-area padding. The column keeps 1.25rem side gutters; names, email addresses and button labels wrap. This surface compacts at 600px wide or 760px high and below without changing the global spacing or breakpoint system. It adds no entrance animation. The earlier vertical-access review is retained in [the Teacher Access surface brief](.impeccable/surfaces/src-lib-components-auth-teacheraccess-svelte.md); its eleven captures and ship verdict predate the compact-step changes, and their UI auth responses were simulated. The current sign-in and activation contracts belong to the [14 October coherence plan](docs/plans/2026-10-14-design-coherence.md), with supplied evidence in `.impeccable/review/coherence-20261014/`. Current fictional-fixture checks use the real authentication routes and teacher guards with a local virtual WebAuthn passkey, without a production auth seam. The invitation fragment is removed through the resolved activation route with a fixed-path fallback. Real passkey, HTTPS, physical-device, VoiceOver and Lighthouse acceptance remains outstanding.
 
 ### Class Tabs
 
-The class filter is a muted fully rounded track with 0.25rem padding. Each 44px trigger has 0.75rem horizontal padding. The selected tab is white with ink text; unselected tabs use ink at 60% opacity. Hover strengthens the text and keyboard focus adds a 3px ring.
+The class filter is a muted fully rounded track with 0.25rem padding. Each 44px trigger has 0.75rem horizontal padding. The selected tab is white with ink text; unselected tabs use ink at 60% opacity. Hover strengthens the text and keyboard focus adds one solid outline without an additional ring.
 
 Tab tracks use natural height rather than a fixed 36px box: the default 0.25rem padding surrounds the 44px triggers, while explicitly unpadded work-area tabs remain 44px tall. Wrapping keeps the same control height.
 
 ### Theme Toggle
 
-The sidebar footer places an outlined Toggle Group below the teacher-space description. Three equally sized icon controls use the existing Lucide sun, moon and monitor, with French accessible names and tooltip labels. The group fills the available width; each control is at least 44px high and wide. Outer corners use `3xl`, and a muted fill marks the selected mode. The installed primitive exposes a radio group and supports arrow-key focus, Space activation and visible focus. Exactly one mode stays selected, including when the selected control is clicked again.
+The sidebar footer and public header use a compact ghost icon button with a named menu for Clair, Sombre and Système. The sun or moon reflects the effective mode. The button is 32px on fine pointers and at least 44px on coarse pointers. Menu radio items keep French accessible names, one checked preference, keyboard navigation and a visible indicator. mode-watcher still owns persistence and system preference tracking.
+
+### Lesson Calendar
+
+The teacher-home month is a visual reference for already planned lessons. It uses the existing shadcn-svelte Calendar in read-only mode without month navigation or date selection, French labels, a Monday first day and Europe/Paris dates. A small ink dot marks a lesson day; its accessible date also says séance planifiée and the legend explains the dot. The month is closed by default below 80rem in a keyboard-operable disclosure. It is separate from editable planning and submission deadlines.
+
+### Student Course and Publication Preview
+
+The public class directory makes each course title an actionable link under the neutral class/year header. The shared course renderer presents a short Paris deadline reminder before Supports du cours, Consignes et barèmes, Échéances et remise, Ressources utiles, and Vu en cours / à faire. One panel is visible at a time. Project instructions and rubric links remain available beside or after it, and absent content uses an explicit empty state.
+
+The teacher preview renders the exact validated public projection with the same header, deadline and five panels; review controls remain outside that content. Changes to module information are named in the review rather than marked with ambiguous checks. Public pages expose no roster, individual grade or private comment and add no student account. When a retained publication has no class directory, its class-return link is omitted. Selected Drive/external links remain external, with new-tab meaning in their accessible label.
 
 ### Preview Sheets
 
@@ -349,17 +389,21 @@ Preparation, student and grading previews use the same right-attached sheet. Its
 
 The skip link becomes visible on focus and targets the main content. All interaction motion and smooth scrolling collapse under the reduced-motion preference (0.01ms animation and transition duration; one animation iteration; automatic scroll behavior).
 
-**The Touch Floor Rule.** Interactive buttons, navigation items, tabs and text inputs have a minimum height of 44px; informational badges remain compact.
+**The Touch Floor Rule.** Interactive buttons, navigation items, tabs and text inputs have a minimum height of 44px; informational badges remain compact. Tab tracks size naturally around those controls; clipped tables and score lists reserve space for the existing keyboard rings.
 
 ## Do's and Don'ts
 
 ### Do:
 
 - **Do** use the existing semantic OKLCH tokens and the Inter hierarchy.
-- **Do** preserve the 44px minimum control height, keyboard focus and reduced-motion behavior.
+- **Do** preserve the 44px minimum touch target height, keyboard focus and reduced-motion behavior.
 - **Do** pair preparation and validation states with explicit text, including French field errors.
 - **Do** reflow dense data into labeled rows at narrow widths and keep sheets usable within safe areas.
 - **Do** use the installed shadcn-svelte primitives and restrained Lucide SVG icons.
+- **Do** use one gap for Fieldset groups, reserve focus clearance around table actions and scroll edges, and stack grading selectors when their context names would be truncated.
+- **Do** keep context and return links readable, name each action by its save or decision scope, and retain drafts on errors and conflicts.
+- **Do** keep save actions in document flow on narrow or coarse-pointer layouts and reserve focus clearance on desktop.
+- **Do** identify private and publishable content at the relevant field and use the shared public renderer for publication review.
 
 ### Don't:
 
@@ -367,3 +411,5 @@ The skip link becomes visible on focus and targets the main content. All interac
 - **Don't** turn a status badge into an action or rely on color alone to communicate a state.
 - **Don't** replace the workspace’s flat borders with decorative card shadows.
 - **Don't** add ornamental animation or override the reduced-motion preference.
+- **Don't** describe a missing score as zero, combine point and comment decisions, or suggest that a filtered grade-grid PDF exports only visible students.
+- **Don't** add AI terminology to the product’s task labels or invent a successful save, publication or access state.

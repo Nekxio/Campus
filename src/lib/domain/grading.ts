@@ -7,6 +7,7 @@ import {
 	resultRuleSchema,
 	revisionSchema
 } from './contracts.js';
+import { sectionPointsRule } from './rubric-points.js';
 
 const label = z.string().trim().min(1, 'Renseignez un intitulé.').max(200);
 export const rubricAssessmentSchema = z.strictObject({
@@ -93,6 +94,37 @@ export const rubricDraftSchema = z
 			value.assessments.filter((v) => v.purpose === 'graded').map((v) => v.id)
 		);
 		for (const [i, result] of value.results.entries()) {
+			if (result.rule.kind === 'weighted' && result.rule.sectionPoints) {
+				const maxima = result.rule.sectionPoints.quizMaxima;
+				const quizIds = value.assessments
+					.filter((item) => item.purpose === 'graded' && item.kind === 'quiz')
+					.map((item) => item.id);
+				if (
+					maxima.length !== quizIds.length ||
+					new Set(maxima.map((item) => item.assessmentId)).size !== maxima.length ||
+					maxima.some((item) => !quizIds.includes(item.assessmentId))
+				)
+					issue(['results', i, 'rule'], 'Renseignez le maximum de chaque section Quiz.');
+				const expected = sectionPointsRule(value.assessments, maxima).components;
+				if (
+					value.results.length !== 1 ||
+					expected.length !== result.rule.components.length ||
+					expected.some((component, index) => {
+						const actual = result.rule.kind === 'weighted' && result.rule.components[index];
+						return (
+							!actual ||
+							actual.assessmentIds.length !== 1 ||
+							actual.assessmentIds[0] !== component.assessmentIds[0] ||
+							!Number.isFinite(component.weight) ||
+							Math.abs(actual.weight - component.weight) > 1e-8
+						);
+					})
+				)
+					issue(
+						['results', i, 'rule'],
+						'Les poids doivent correspondre aux maxima des sections notées.'
+					);
+			}
 			const components =
 				result.rule.kind === 'weighted'
 					? result.rule.components
@@ -126,7 +158,11 @@ export type RubricAssessment = RubricDraft['assessments'][number];
 export type RubricResult = RubricDraft['results'][number];
 export type RubricData = Omit<RubricDraft, 'contexts'> & {
 	module: { id: string; title: string; revision: number };
-	contexts: (RubricDraft['contexts'][number] & { className: string; academicYear: string })[];
+	contexts: (RubricDraft['contexts'][number] & {
+		classId: string | null;
+		className: string;
+		academicYear: string;
+	})[];
 };
 
 export const correctionWriteSchema = z
@@ -155,6 +191,7 @@ export type CorrectionWrite = z.infer<typeof correctionWriteSchema>;
 export type CorrectionRecord = Omit<CorrectionWrite, 'expectedRevision'> & {
 	assessmentId: string;
 	revision: number;
+	needsReview?: boolean;
 };
 export const semesterCommentWriteSchema = z.strictObject({
 	expectedRevision: z.int().nonnegative(),

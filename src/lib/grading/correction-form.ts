@@ -1,3 +1,4 @@
+import { sectionWeightLabel } from '#lib/domain/grade-export.js';
 import { z } from 'zod';
 import {
 	correctionWriteSchema,
@@ -207,27 +208,5 @@ export function makeCorrectionSchema(
 	});
 }
 export function assessmentWeights(assessment: RubricAssessment, rubric: RubricData) {
-	if (assessment.purpose === 'formative') return 'Formatif';
-	const weights = rubric.results.flatMap((result) => {
-		const components =
-			result.rule.kind === 'weighted'
-				? result.rule.components
-				: [{ assessmentIds: result.rule.assessmentIds, weight: 100 }];
-		const component = components.find((item) => item.assessmentIds.includes(assessment.id));
-		if (!component) return [];
-		const maximum = rubric.assessments
-			.filter((item) => component.assessmentIds.includes(item.id))
-			.reduce(
-				(sum, item) => sum + item.lines.reduce((points, line) => points + line.maxPoints, 0),
-				0
-			);
-		const weight = maximum
-			? (component.weight * assessment.lines.reduce((sum, line) => sum + line.maxPoints, 0)) /
-				maximum
-			: 0;
-		return [
-			`${rubric.results.length > 1 ? result.title + ' : ' : ''}${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(weight)} %`
-		];
-	});
-	return weights.join(' · ') || 'Hors résultat';
+	return sectionWeightLabel(assessment, rubric.results, rubric.assessments);
 }

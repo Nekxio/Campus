@@ -2,8 +2,13 @@ import { createProposalSchema } from '../../src/lib/domain/proposals.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { idSchema, revisionSchema } from '../../src/lib/domain/contracts.js';
-import { folderBindingSchema, localModuleSchema } from '../../src/lib/domain/local-module.js';
+import {
+	folderBindingSchema,
+	localModuleSchema,
+	localModuleUpdateSchema
+} from '../../src/lib/domain/local-module.js';
 import { moduleOperations } from './operations.js';
+import { patchModuleImportSchema } from '../../src/lib/domain/module-patch.js';
 
 export function createModuleMcp(operations: ReturnType<typeof moduleOperations>) {
 	const server = new McpServer({ name: 'coursely', version: '1.0.0' });
@@ -38,6 +43,29 @@ export function createModuleMcp(operations: ReturnType<typeof moduleOperations>)
 		idempotentHint: true,
 		openWorldHint: false
 	};
+	server.registerTool(
+		'patch_module_draft',
+		{
+			description:
+				'Preferred targeted update of the linked private draft. Read exact IDs and current revisions with get_import_context. Omitted fields and omitted array elements remain unchanged. Patch existing entities by their ID; supply complete fields for new UUIDs. Only IDs explicitly listed in remove are deleted. Never publishes or writes grades. The draft is visibly marked for teacher review. Retry identical input after a lost response; after HTTP409 reread and reconcile.',
+			inputSchema: {
+				folder,
+				expectedRevision: patchModuleImportSchema.shape.expectedRevision,
+				patch: patchModuleImportSchema.shape.patch,
+				rubric: patchModuleImportSchema.shape.rubric,
+				remove: patchModuleImportSchema.shape.remove
+			},
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: true,
+				idempotentHint: true,
+				openWorldHint: true
+			}
+		},
+		handler(({ folder, ...value }: { folder: string } & Parameters<typeof operations.patch>[1]) =>
+			operations.patch(folder, value)
+		)
+	);
 	server.registerTool(
 		'inspect_module_folder',
 		{
@@ -106,10 +134,10 @@ export function createModuleMcp(operations: ReturnType<typeof moduleOperations>)
 		'update_module_draft',
 		{
 			description:
-				'Update the linked private module using freshly read module and context revisions. Supply the complete desired draft, keeping existing IDs/local keys. Omitting an existing link/lesson removes it. Omit rubric to preserve it; including rubric requires an explicitly requested replacement and confirmRubricReplacement=true. Keeps raw scores, never clamps them; cannot publish or submit correction scores. HTTP409 retains local retry state; read latest data and reconcile before a new attempt.',
+				'Legacy complete-field update with stable local keys. Omitted collection elements are preserved. Prefer patch_module_draft for targeted field changes and explicit removals. Including rubric requires confirmRubricReplacement=true; retained raw points are never clamped. Never publishes. Retry identical input after lost responses; reconcile after HTTP409.',
 			inputSchema: {
 				folder,
-				draft: localModuleSchema,
+				draft: localModuleUpdateSchema,
 				expectedRevision: revisionSchema,
 				confirmRubricReplacement: z.boolean().default(false)
 			},

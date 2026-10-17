@@ -205,7 +205,7 @@ describe('Rubrics and precise grade calculations', () => {
 		expect(calculated.results[result.id].mark).toBeCloseTo(14.7);
 		expect(formatMark(calculated.results[result.id].mark)).toBe('14,7');
 	});
-	it('sums quiz raw points/maxima instead of averaging percentages, including absent quiz maxima', () => {
+	it('gives each normalized quiz equal weight, including an explicitly absent quiz at zero', () => {
 		const a = assessment('Quiz1', 5, 'quiz'),
 			b = assessment('Quiz2', 10, 'quiz');
 		const result: RubricResult = {
@@ -217,9 +217,9 @@ describe('Rubrics and precise grade calculations', () => {
 			[a.id]: calculateAssessment(a, correction(a, 4)),
 			[b.id]: calculateAssessment(b, correction(b, 7))
 		};
-		expect(calculateResult(result, [a, b], grades).mark).toBeCloseTo((20 * 11) / 15);
+		expect(calculateResult(result, [a, b], grades).mark).toBeCloseTo((16 + 14) / 2);
 		grades[b.id] = calculateAssessment(b, { ...correction(b, 7), status: 'absent_unjustified' });
-		expect(calculateResult(result, [a, b], grades).mark).toBeCloseTo((20 * 4) / 15);
+		expect(calculateResult(result, [a, b], grades).mark).toBeCloseTo((16 + 0) / 2);
 	});
 	it('keeps independent 60/80 dossiers and excludes formative activities without inventing an average', () => {
 		const a = assessment('Dossier1', 60),

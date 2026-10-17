@@ -1,65 +1,65 @@
-# Annual archive and purge
+# Manual annual archive and closure
 
-The teacher opens **Classes → Fin d’année** and deliberately selects a year. The approved
-`year-continuous` composition keeps a single dossier: final PDFs by module/class, records that
-purge removes, durable records it keeps, then separate archive and purge actions. No current year
-is preselected. This page requires the existing teacher session; MCP cannot archive or purge.
+The teacher opens **Classes → Fin d’année** and deliberately selects a year. `year-continuous`
+keeps one dossier: final PDFs, annual records that will be removed, durable teaching material retained,
+then the actions. No year is implicitly selected. There is no automatic closing date, minimum retention
+period enforced by the app or scheduled purge. These operations require a teacher session, never MCP.
 
 ## Archive and reopen
 
-**Archiver sans supprimer** removes the year's classes and contexts from active preparation,
-grading and agent import choices. Student records remain stored. Archived results, raw criterion
-points, comments, calendars and deadlines are available through **Consulter l’historique** in the
-dossier. Eligible complete PDFs remain exportable, using the same current rubric/calculation rules
-as Notation. Archive does not freeze a separate rubric copy. Shared module content and rubrics
-remain reusable. **Rouvrir l’année** restores work explicitly until the year has been purged.
-A year lifecycle record also protects a class that has no module.
+**Archiver sans supprimer** removes the year's classes and contexts from active preparation, grading
+and agent choices. Student records remain available read-only through **Consulter l’historique**;
+eligible final PDFs remain downloadable. Archive does not freeze a rubric copy. **Rouvrir l’année**
+restores work explicitly until closure has removed the annual records. A year lifecycle record also
+protects a class with no module.
 
-## Purge
+## Reviewed annual closure
 
-**Préparer la purge** opens a Formsnap/Superforms/Zod confirmation showing the selected year,
-class names and exact counts. The teacher must type that exact year and acknowledge keeping the
-necessary PDFs. Export availability does not imply that a file was saved. A formative-only module
-or an incomplete export is reported, without requiring every context to have a final grade.
+**Préparer la clôture** opens the existing Formsnap confirmation with the exact selected year,
+classes and counts. Choose **Reprendre** or **Mettre de côté** for every module. Reprise requires an
+explicit later academic year. Type the exact closing year and acknowledge retaining the necessary
+PDFs before **Clôturer**. The application cannot confirm that a downloaded file was kept.
 
-The transaction archives retained contexts, deletes selected-year classes, students, corrections,
-criterion-score records, submissions/lateness decisions, private comments, correction proposals
-and proposal-decision receipts. It retains modules, objectives, preparation, source references,
-selected links, rubrics, class/year labels on contexts, lessons, deadlines, publication snapshots
-and teacher/passkey/agent access. Published module links survive; deleted class directories do not.
-No local or Drive file is removed. The selected year cannot be reopened or accidentally recreated
-after purge. New-year classes reuse modules with empty rosters/results and explicit new dates.
+- Reprise creates empty annual classes and new contexts: no student, score, comment, planning or
+  deadline is copied. The existing public class and module URLs continue to resolve. The previously
+  reviewed public snapshot remains visible, including its old year/dates, until the teacher saves,
+  reviews and manually publishes the new promotion. Reprise itself never publishes a draft.
+- Mise de côté retains the entire private module and disables its old public module link. The module
+  remains findable on teacher home and may later be attached to a class. That recovery creates an empty
+  context; only a manual publication reactivates the retained module URL.
+- A continued class keeps its public directory identity; a class with no continued module loses its
+  directory. New-year classes with a conflicting existing name are rejected instead of merged silently.
 
-Retained context history stays reachable from the dossier after purge. It contains calendars and
-preparation, with no student roster or results. PDFs already downloaded are external archives;
-they cannot restore criterion-level data or be regenerated after student records are removed.
+One active module belongs to one class. Attaching it to another class makes an independent pedagogical
+copy with fresh rubric/resource identities, without grades, students, calendars or deadlines. Legacy
+multi-class contexts that make a continuation ambiguous are rejected, never converted by deleting notes.
 
-## Consistency, access and retries
+## Records and consistency
 
-Private reads and writes authorize the teacher before parsing inputs/reading data. Mutations also
-require the same Origin, strict input validation and a reviewed snapshot token. The snapshot covers
-classes/roster, correction bodies and points, comments/proposals/decisions, module/rubric/resources,
-calendars/deadlines and publications. Same-count changes invalidate it. A mismatched legacy
-class/year association fails closed. HTTP 409 requires explicit refresh and a new confirmation.
-Class, context and module revisions advance on lifecycle changes to invalidate stale editors and
-MCP imports. Existing shared-module updates keep their normal revision checks.
+The closure transaction archives old contexts and removes only the selected year's classes, students,
+corrections, criterion scores, submissions/delay decisions, comments, correction proposals and decision
+receipts. It retains modules, objectives, preparation, local source references, selected links, public
+instructions/exercises, rubrics, old calendars/deadlines, publication snapshots and teacher access.
+Old context history remains private without the removed roster/results. The closed year cannot be
+reopened or accidentally recreated. No file on the Mac, Teams, GitHub or Drive is deleted.
 
-A request UUID and input hash are stored with the decision in the same transaction. An identical
-retry returns the original receipt before checking the new state; a different body using that UUID
-is rejected. Receipts keep only teacher/request identity, year, action, timestamp and counts, never
-student names or private text. Client forms retain the exact sent command while a response is
-unknown. A failed transaction rolls back deletion, detachment and the receipt together.
-Responses are private/no-store and noindex. No new account, upload, backup or cloud permission is added.
+Teacher authorization precedes private reads and input parsing. Mutations require same origin, strict
+validation and the reviewed snapshot token. Changes to roster, points, comments, modules, calendars,
+publications or public-link bindings invalidate that token, even if counts stay equal. HTTP 409 requires
+an explicit refresh and new confirmation. Revisions invalidate stale manual and MCP drafts.
 
-## Schema and validation
+A request UUID, input hash and receipt are stored in the transaction. An identical retry returns the
+original receipt before checking the new state; a different input using that UUID is rejected. The
+receipt contains only identities, year, action, timestamp and counts. A failed transaction rolls back
+all closure, new contexts, link bindings and the receipt. Responses are private/no-store and noindex.
 
-`drizzle/0006_chunky_dakota_north.sql` adds `academic_year_lifecycle` and `annual_receipt`.
-It is generated offline and unapplied to Turso. Migrations and HTTPS deployment remain explicit
-operator actions. Local tests use disposable in-memory SQLite; browser acceptance uses an isolated
-loopback-only fictional copy, with no authentication seam in production source.
+## Schema and checks
 
-Targeted tests cover archive/reopen, zero-module classes, read-only/PDF access, stale writes and
-same-count changes, exact confirmation, year isolation, private-record cascades, preserved published
-modules, lost-response retries, altered-key rejection and full rollback. Browser validation covers
-Formsnap errors and labels, year switching, history/PDF, archive/reopen and the protected purge flow,
-plus light/dark desktop and mobile layouts. Real-device and screen-reader checks remain separate.
+Migration `0006` introduces annual lifecycle/receipts; `0008` adds durable public-link bindings and
+module pause/review metadata. They are versioned offline migrations. Existing/cloud databases have
+not been migrated by routine validation. Never purge real records in a test.
+
+Tests use disposable fictional databases and cover archive/reopen, year isolation, retry/rollback,
+continued empty classes, stable links, pause/recovery and manual republication. Browser scenarios use
+an isolated loopback copy. HTTPS, real passkeys, screen readers and physical phones require separate
+acceptance. Downloaded PDFs are external records and cannot restore criterion-level data after closure.

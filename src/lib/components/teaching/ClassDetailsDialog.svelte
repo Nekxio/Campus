@@ -4,6 +4,7 @@
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Form from '#lib/components/ui/form/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -52,6 +53,7 @@
 		}
 	);
 	const { form: classData, errors: classErrors } = classForm;
+	const initialYear = untrack(() => $classData.academicYear);
 	let pending = $state(false);
 	let error = $state.raw<TeachingRequestError | null>(null);
 
@@ -97,6 +99,21 @@
 		await onReload();
 		onClose();
 	}
+	let discardOpen = $state(false);
+	const dirty = $derived(
+		$classData.name !== (original?.name ?? '') || $classData.academicYear !== initialYear
+	);
+	function requestClose() {
+		if (pending) return;
+		if (dirty) discardOpen = true;
+		else onClose();
+	}
+	function guardClose(event: Event) {
+		if (pending || dirty) {
+			event.preventDefault();
+			if (!pending) requestClose();
+		}
+	}
 </script>
 
 <Dialog.Root
@@ -109,10 +126,10 @@
 		showCloseButton={false}
 		class="max-h-[calc(100dvh-2rem)] overflow-y-auto"
 		onEscapeKeydown={(event) => {
-			if (pending) event.preventDefault();
+			guardClose(event);
 		}}
 		onInteractOutside={(event) => {
-			if (pending) event.preventDefault();
+			guardClose(event);
 		}}
 	>
 		<Dialog.Header>
@@ -186,7 +203,7 @@
 			<ClassMutationFeedback {error} {pending} onReload={reload} />
 			<p role="status" class="sr-only">{pending ? 'Enregistrement en cours…' : ''}</p>
 			<Dialog.Footer>
-				<Button variant="outline" class="min-h-11" disabled={pending} onclick={onClose}
+				<Button variant="outline" class="min-h-11" disabled={pending} onclick={requestClose}
 					>Annuler</Button
 				>
 				<Button type="submit" class="min-h-11" disabled={pending}>
@@ -196,3 +213,18 @@
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
+
+<AlertDialog.Root bind:open={discardOpen}
+	><AlertDialog.Content
+		><AlertDialog.Header
+			><AlertDialog.Title>Abandonner les modifications ?</AlertDialog.Title><AlertDialog.Description
+				>Votre saisie n’est pas enregistrée. Vous pouvez continuer à modifier ou l’abandonner
+				explicitement.</AlertDialog.Description
+			></AlertDialog.Header
+		><AlertDialog.Footer
+			><AlertDialog.Cancel>Continuer à modifier</AlertDialog.Cancel><AlertDialog.Action
+				onclick={onClose}>Abandonner la saisie</AlertDialog.Action
+			></AlertDialog.Footer
+		></AlertDialog.Content
+	></AlertDialog.Root
+>

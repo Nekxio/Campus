@@ -426,7 +426,9 @@
 		commentOpen = !commentOpen;
 		if (commentOpen) {
 			await tick();
-			document.getElementById('proposal-comment-comparison')?.scrollIntoView({ block: 'nearest' });
+			const comparison = document.getElementById('proposal-comment-comparison');
+			comparison?.focus({ preventScroll: true });
+			comparison?.scrollIntoView({ block: 'nearest' });
 		}
 	}
 	beforeNavigate((navigation) => {
@@ -478,7 +480,7 @@
 			>
 		</div>
 		<Button
-			href={resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}
+			href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}?retour=notation&contexte=${selection.contextId}`}
 			variant="ghost"
 			class="min-h-11"
 			disabled={!!pending || validating}>Voir le barème</Button
@@ -648,196 +650,286 @@
 				Les champs de points sont désactivés pendant l’absence. Choisissez un statut sans absence
 				pour examiner et valider les points retenus.
 			</p>{/if}
-		<form
-			id="proposal-points-form"
-			novalidate
-			onsubmit={acceptPoints}
-			aria-busy={pending === 'accept_points'}
-			class="points-form min-w-0"
-		>
-			<Tabs.Root
-				value={activeGroup}
-				onValueChange={(value) => (selectedGroup = value)}
-				class="min-w-0 gap-2"
+		<div class="proposal-work">
+			<form
+				id="proposal-points-form"
+				novalidate
+				onsubmit={acceptPoints}
+				aria-busy={pending === 'accept_points'}
+				class="points-form min-w-0"
 			>
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<h2 class="text-xl font-semibold tracking-tight wrap-anywhere">
-						{assessment.groups.find((group) => group.id === activeGroup)?.title}
-					</h2>
-					<Tabs.List
-						aria-label="Groupes de critères"
-						class="h-auto max-w-full flex-wrap justify-start"
-						>{#each assessment.groups as group (group.id)}<Tabs.Trigger
-								value={group.id}
-								class="min-h-11 whitespace-normal">{group.title}</Tabs.Trigger
-							>{/each}</Tabs.List
-					>
-				</div>
-				{#each assessment.groups as group (group.id)}<Tabs.Content value={group.id} class="min-w-0">
-						<div
-							class="criteria-scroll"
-							role="region"
-							aria-label={`Comparaison des points de ${group.title}`}
-							tabindex="-1"
+				<Tabs.Root
+					value={activeGroup}
+					onValueChange={(value) => (selectedGroup = value)}
+					class="min-w-0 gap-2"
+				>
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<h2 class="text-xl font-semibold tracking-tight wrap-anywhere">
+							{assessment.groups.find((group) => group.id === activeGroup)?.title}
+						</h2>
+						<Tabs.List
+							aria-label="Groupes de critères"
+							class="h-auto max-w-full flex-wrap justify-start"
+							>{#each assessment.groups as group (group.id)}<Tabs.Trigger
+									value={group.id}
+									class="min-h-11 whitespace-normal">{group.title}</Tabs.Trigger
+								>{/each}</Tabs.List
+						>
+					</div>
+					{#each assessment.groups as group (group.id)}<Tabs.Content
+							value={group.id}
+							class="min-w-0"
 						>
 							<div
-								role="table"
-								aria-label={`Enregistré, proposé et retenu · ${group.title}`}
-								class="comparison-table"
+								class="criteria-scroll"
+								role="region"
+								aria-label={`Comparaison des points de ${group.title}`}
+								tabindex="-1"
 							>
-								<div role="rowgroup" class="comparison-head">
-									<div role="row" class="comparison-header">
-										<span role="columnheader">Critère</span><span role="columnheader"
-											>Repère du barème</span
-										><span role="columnheader">Enregistré</span><span role="columnheader"
-											>Proposé</span
-										><span role="columnheader">Retenu</span>
-									</div>
-								</div>
-								<Form.Field
-									{form}
-									name="scores"
-									role="rowgroup"
-									class="comparison-rows flex flex-col gap-0"
+								<div
+									role="table"
+									aria-label={`Enregistré, proposé et retenu · ${group.title}`}
+									class="comparison-table"
 								>
-									{#each assessment.lines.filter((line) => line.groupId === group.id) as line (line.id)}{@const index =
-											current.scores.findIndex((score) => score.lineId === line.id)}
-										{#if index >= 0}<ProposalScore
-												{form}
-												{index}
-												{line}
-												recorded={record?.scores.find((score) => score.lineId === line.id)
-													?.points ?? null}
-												proposed={proposal.payload?.scores.find((score) => score.lineId === line.id)
-													?.points}
-												initial={initial.points.scores.find((score) => score.lineId === line.id)
-													?.points ?? ''}
-												disabled={absent ||
-													!!pending ||
-													proposal.state !== 'pending' ||
-													proposal.legacy}
-											/>
-										{:else}<div role="row" class="border-b py-3">
-												<div role="cell">
-													{line.label} · Critère ajouté au barème. Actualisez les références pour retrouver
-													votre saisie.
-												</div>
-											</div>{/if}
-									{/each}
-								</Form.Field>
-								<div role="rowgroup" class="comparison-footer">
-									<div role="row" class="comparison-total">
-										<span role="rowheader" class="total-label" aria-colspan={2}
-											>Total {group.title}</span
-										><span role="cell">{groupTotal(group.id, 'recorded')}</span><span role="cell"
-											>{groupTotal(group.id, 'proposed')}</span
-										><span role="cell">{groupTotal(group.id, 'retained')}</span>
+									<div role="rowgroup" class="comparison-head">
+										<div role="row" class="comparison-header">
+											<span role="columnheader">Critère</span><span role="columnheader"
+												>Repère du barème</span
+											><span role="columnheader">Enregistré</span><span role="columnheader"
+												>Proposé</span
+											><span role="columnheader">Retenu</span>
+										</div>
+									</div>
+									<Form.Field
+										{form}
+										name="scores"
+										role="rowgroup"
+										class="comparison-rows flex flex-col gap-0"
+									>
+										{#each assessment.lines.filter((line) => line.groupId === group.id) as line (line.id)}{@const index =
+												current.scores.findIndex((score) => score.lineId === line.id)}
+											{#if index >= 0}<ProposalScore
+													{form}
+													{index}
+													{line}
+													recorded={record?.scores.find((score) => score.lineId === line.id)
+														?.points ?? null}
+													proposed={proposal.payload?.scores.find(
+														(score) => score.lineId === line.id
+													)?.points}
+													initial={initial.points.scores.find((score) => score.lineId === line.id)
+														?.points ?? ''}
+													disabled={absent ||
+														!!pending ||
+														proposal.state !== 'pending' ||
+														proposal.legacy}
+												/>
+											{:else}<div role="row" class="border-b py-3">
+													<div role="cell">
+														{line.label} · Critère ajouté au barème. Actualisez les références pour retrouver
+														votre saisie.
+													</div>
+												</div>{/if}
+										{/each}
+									</Form.Field>
+									<div role="rowgroup" class="comparison-footer">
+										<div role="row" class="comparison-total">
+											<span role="rowheader" class="total-label" aria-colspan={2}
+												>Total {group.title}</span
+											><span role="cell">{groupTotal(group.id, 'recorded')}</span><span role="cell"
+												>{groupTotal(group.id, 'proposed')}</span
+											><span role="cell">{groupTotal(group.id, 'retained')}</span>
+										</div>
 									</div>
 								</div>
+								<p class="pt-2 text-xs text-muted-foreground">
+									Points entiers. Un champ vide reste non noté. Les critères non proposés conservent
+									leurs points enregistrés.
+								</p>
 							</div>
-							<p class="pt-2 text-xs text-muted-foreground">
-								Points entiers. Un champ vide reste non noté. Les critères non proposés conservent
-								leurs points enregistrés.
+						</Tabs.Content>{/each}
+				</Tabs.Root>
+			</form>
+			<aside class="proposal-context" aria-label="Impact et commentaire privé">
+				<div class="result-summary flex min-w-0 flex-col gap-1">
+					<h2 class="text-base font-semibold">Bilan des évaluations</h2>
+					<div class="desktop-results">
+						<Table.Root class="table-fixed"
+							><Table.Caption class="sr-only"
+								>Comparaison des résultats enregistrés, proposés et retenus</Table.Caption
+							><Table.Header
+								><Table.Row
+									><Table.Head>Résultat</Table.Head><Table.Head>Enregistré</Table.Head><Table.Head
+										>Proposé</Table.Head
+									><Table.Head>Retenu</Table.Head></Table.Row
+								></Table.Header
+							><Table.Body>
+								<Table.Row
+									><Table.Cell
+										>{assessment.title} · {assessmentWeights(assessment, rubric)}</Table.Cell
+									><Table.Cell>{gradeLabel(recorded.assessments[assessment.id], true)}</Table.Cell
+									><Table.Cell>{gradeLabel(proposed.assessments[assessment.id], true)}</Table.Cell
+									><Table.Cell>{gradeLabel(retained.assessments[assessment.id], true)}</Table.Cell
+									></Table.Row
+								>
+								{#each rubric.results as result (result.id)}<Table.Row
+										><Table.Cell>{result.title}</Table.Cell><Table.Cell
+											>{gradeLabel(recorded.results[result.id])}</Table.Cell
+										><Table.Cell>{gradeLabel(proposed.results[result.id])}</Table.Cell><Table.Cell
+											>{gradeLabel(retained.results[result.id])}</Table.Cell
+										></Table.Row
+									>{/each}
+							</Table.Body></Table.Root
+						>
+					</div>
+					<div class="mobile-results flex flex-col gap-3">
+						{#each [{ id: assessment.id, title: assessment.title, withPoints: true }, ...rubric.results.map( (result) => ({ id: result.id, title: result.title, withPoints: false }) )] as item (item.id)}<div
+								class="flex flex-col gap-1"
+							>
+								<h3 class="text-sm font-medium wrap-anywhere">{item.title}</h3>
+								<dl
+									class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm tabular-nums"
+								>
+									<dt class="text-muted-foreground">Enregistré</dt>
+									<dd>
+										{gradeLabel(
+											item.withPoints ? recorded.assessments[item.id] : recorded.results[item.id],
+											item.withPoints
+										)}
+									</dd>
+									<dt class="text-muted-foreground">Proposé</dt>
+									<dd>
+										{gradeLabel(
+											item.withPoints ? proposed.assessments[item.id] : proposed.results[item.id],
+											item.withPoints
+										)}
+									</dd>
+									<dt class="text-muted-foreground">Retenu</dt>
+									<dd>
+										{gradeLabel(
+											item.withPoints ? retained.assessments[item.id] : retained.results[item.id],
+											item.withPoints
+										)}
+									</dd>
+								</dl>
+							</div>{/each}
+					</div>
+					<p class="text-xs wrap-anywhere text-muted-foreground">
+						{rubric.assessments
+							.filter((item) => item.id !== assessment.id)
+							.map(
+								(item) =>
+									`${item.title} · ${gradeLabel(recorded.assessments[item.id], true)} · ${assessmentWeights(item, rubric)}`
+							)
+							.join(' ; ')}
+					</p>
+					{#if !rubric.results.length}<p class="text-xs text-muted-foreground">
+							Aucun résultat de module défini. Les évaluations restent indépendantes.
+						</p>{:else}<p class="text-xs text-muted-foreground">
+							{rubric.results
+								.map(
+									(result) =>
+										`${rubric.results.length > 1 ? result.title + ' : ' : ''}${result.rule.kind === 'points_ratio' ? 'Somme des points, puis conversion sur 20' : 'Notes normalisées puis pondérées'}`
+								)
+								.join(' · ')}. Les évaluations formatives sont exclues des résultats.
+						</p>{/if}
+				</div>
+				{#if proposal.commentState !== 'none'}<section
+						class="comment-strip flex flex-wrap items-center justify-between gap-3 border-y py-2"
+						aria-label="Proposition de commentaire de semestre"
+					>
+						<div class="comment-copy flex min-w-0 flex-col gap-1">
+							<h2 class="text-sm font-medium">Commentaire de semestre</h2>
+							<p class="comment-excerpt text-xs wrap-anywhere text-muted-foreground">
+								{proposal.commentState === 'accepted'
+									? 'Commentaire retenu enregistré.'
+									: proposal.commentState === 'kept'
+										? 'Votre commentaire enregistré est conservé.'
+										: `Proposé : « ${proposal.payload?.semesterComment ?? ''} »`}
 							</p>
 						</div>
-					</Tabs.Content>{/each}
-			</Tabs.Root>
-		</form>
-		{#if proposal.commentState !== 'none'}<section
-				class="comment-strip flex flex-wrap items-center justify-between gap-3 border-y py-2"
-				aria-label="Proposition de commentaire de semestre"
-			>
-				<div class="comment-copy flex min-w-0 flex-col gap-1">
-					<h2 class="text-sm font-medium">Commentaire de semestre</h2>
-					<p class="comment-excerpt text-xs wrap-anywhere text-muted-foreground">
-						{proposal.commentState === 'accepted'
-							? 'Commentaire retenu enregistré.'
-							: proposal.commentState === 'kept'
-								? 'Votre commentaire enregistré est conservé.'
-								: `Proposé : « ${proposal.payload?.semesterComment ?? ''} »`}
-					</p>
-				</div>
-				<div class="flex flex-wrap items-center gap-2">
-					<Button
-						type="button"
-						variant="ghost"
-						class="min-h-11"
-						aria-expanded={commentOpen}
-						aria-controls="proposal-comment-comparison"
-						onclick={toggleComment}
-						>{commentOpen ? 'Refermer le commentaire' : 'Examiner le commentaire'}</Button
-					>{#if proposal.commentState === 'pending'}<Button
-							type="button"
-							variant="outline"
-							class="min-h-11"
-							disabled={!!pending || validating || commentBlocked}
-							onclick={() => acceptComment()}
-							>{#if pending === 'accept_comment'}<Spinner data-icon="inline-start" />{/if}Reprendre
-							le commentaire</Button
-						>{/if}
-				</div>
-			</section>{/if}
-		{#if commentOpen}<section
-				id="proposal-comment-comparison"
-				class="flex flex-col gap-3 border-b pb-4"
-				aria-label="Comparaison du commentaire"
-			>
-				<div class="comment-reference grid gap-4">
-					<div class="flex min-w-0 flex-col gap-1">
-						<h3 class="text-sm font-medium">Enregistré</h3>
-						<p class="max-w-prose text-sm wrap-anywhere whitespace-pre-wrap text-muted-foreground">
-							{review.student.comment.content || 'Aucun commentaire enregistré.'}
-						</p>
-					</div>
-					<div class="flex min-w-0 flex-col gap-1">
-						<h3 class="text-sm font-medium">Proposé</h3>
-						<p class="max-w-prose text-sm wrap-anywhere whitespace-pre-wrap text-muted-foreground">
-							{proposal.payload?.semesterComment || 'Commentaire proposé vide.'}
-						</p>
-					</div>
-				</div>
-				<form
-					id="proposal-comment-form"
-					novalidate
-					onsubmit={acceptComment}
-					aria-busy={pending === 'accept_comment'}
-				>
-					<Field.FieldGroup>
-						<CorrectionField
-							form={commentForm}
-							name="content"
-							id="proposal-retained-comment"
-							label="Commentaire retenu"
-							multiline
-							maxlength={10000}
-							disabled={!!pending ||
-								validating ||
-								proposal.commentState !== 'pending' ||
-								proposal.legacy}
-							description="Ajustez le texte puis reprenez-le explicitement. La validation des points n’enregistre pas ce commentaire."
-						/>
-						{#if proposal.commentState === 'pending'}<div class="flex flex-wrap items-center gap-2">
-								<Button
-									type="submit"
-									variant="outline"
-									class="min-h-11"
-									disabled={!!pending || validating || commentBlocked}
-									>Reprendre le commentaire</Button
-								><Button
-									type="button"
-									variant="ghost"
-									class="min-h-11"
-									disabled={!!pending || validating || conflict || proposal.legacy}
-									onclick={() =>
-										execute({ action: 'keep_comment', expectedRevision: proposal.revision })}
-									>Conserver mon commentaire</Button
-								>{#if commentDirty}<span class="text-xs text-muted-foreground"
-										>Texte retenu modifié</span
-									>{/if}
-							</div>{/if}
-					</Field.FieldGroup>
-				</form>
-			</section>{/if}
+						<div class="flex flex-wrap items-center gap-2">
+							<Button
+								type="button"
+								variant="ghost"
+								class="min-h-11"
+								aria-expanded={commentOpen}
+								aria-controls="proposal-comment-comparison"
+								onclick={toggleComment}
+								>{commentOpen ? 'Refermer le commentaire' : 'Examiner le commentaire'}</Button
+							>
+						</div>
+					</section>{/if}
+				{#if commentOpen}<section
+						id="proposal-comment-comparison"
+						tabindex="-1"
+						class="flex flex-col gap-3 border-b pb-4"
+						aria-label="Comparaison du commentaire"
+					>
+						<div class="comment-reference grid gap-4">
+							<div class="flex min-w-0 flex-col gap-1">
+								<h3 class="text-sm font-medium">Enregistré</h3>
+								<p
+									class="max-w-prose text-sm wrap-anywhere whitespace-pre-wrap text-muted-foreground"
+								>
+									{review.student.comment.content || 'Aucun commentaire enregistré.'}
+								</p>
+							</div>
+							<div class="flex min-w-0 flex-col gap-1">
+								<h3 class="text-sm font-medium">Proposé</h3>
+								<p
+									class="max-w-prose text-sm wrap-anywhere whitespace-pre-wrap text-muted-foreground"
+								>
+									{proposal.payload?.semesterComment || 'Commentaire proposé vide.'}
+								</p>
+							</div>
+						</div>
+						<form
+							id="proposal-comment-form"
+							novalidate
+							onsubmit={acceptComment}
+							aria-busy={pending === 'accept_comment'}
+						>
+							<Field.FieldGroup>
+								<CorrectionField
+									form={commentForm}
+									name="content"
+									id="proposal-retained-comment"
+									label="Commentaire retenu"
+									multiline
+									maxlength={10000}
+									disabled={!!pending ||
+										validating ||
+										proposal.commentState !== 'pending' ||
+										proposal.legacy}
+									description="Ajustez le texte puis reprenez-le explicitement. La validation des points n’enregistre pas ce commentaire."
+								/>
+								{#if proposal.commentState === 'pending'}<div
+										class="flex flex-wrap items-center gap-2"
+									>
+										<Button
+											type="submit"
+											variant="outline"
+											class="min-h-11"
+											disabled={!!pending || validating || commentBlocked}
+											>Reprendre le commentaire</Button
+										><Button
+											type="button"
+											variant="ghost"
+											class="min-h-11"
+											disabled={!!pending || validating || conflict || proposal.legacy}
+											onclick={() =>
+												execute({ action: 'keep_comment', expectedRevision: proposal.revision })}
+											>Conserver mon commentaire</Button
+										>{#if commentDirty}<span class="text-xs text-muted-foreground"
+												>Texte retenu modifié</span
+											>{/if}
+									</div>{/if}
+							</Field.FieldGroup>
+						</form>
+					</section>{/if}
+			</aside>
+		</div>
 		{#if diagnosticCount || detached.length}<details class="diagnostics border-t pt-2">
 				<summary
 					class="min-h-11 cursor-pointer py-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -868,86 +960,6 @@
 		class="bottom-summary border-t bg-background pt-2"
 		aria-label="Bilan et décision sur la proposition"
 	>
-		<div class="result-summary flex min-w-0 flex-col gap-1">
-			<h2 class="text-base font-semibold">Bilan des évaluations</h2>
-			<div class="desktop-results">
-				<Table.Root class="table-fixed"
-					><Table.Caption class="sr-only"
-						>Comparaison des résultats enregistrés, proposés et retenus</Table.Caption
-					><Table.Header
-						><Table.Row
-							><Table.Head>Résultat</Table.Head><Table.Head>Enregistré</Table.Head><Table.Head
-								>Proposé</Table.Head
-							><Table.Head>Retenu</Table.Head></Table.Row
-						></Table.Header
-					><Table.Body>
-						<Table.Row
-							><Table.Cell>{assessment.title} · {assessmentWeights(assessment, rubric)}</Table.Cell
-							><Table.Cell>{gradeLabel(recorded.assessments[assessment.id], true)}</Table.Cell
-							><Table.Cell>{gradeLabel(proposed.assessments[assessment.id], true)}</Table.Cell
-							><Table.Cell>{gradeLabel(retained.assessments[assessment.id], true)}</Table.Cell
-							></Table.Row
-						>
-						{#each rubric.results as result (result.id)}<Table.Row
-								><Table.Cell>{result.title}</Table.Cell><Table.Cell
-									>{gradeLabel(recorded.results[result.id])}</Table.Cell
-								><Table.Cell>{gradeLabel(proposed.results[result.id])}</Table.Cell><Table.Cell
-									>{gradeLabel(retained.results[result.id])}</Table.Cell
-								></Table.Row
-							>{/each}
-					</Table.Body></Table.Root
-				>
-			</div>
-			<div class="mobile-results flex flex-col gap-3">
-				{#each [{ id: assessment.id, title: assessment.title, withPoints: true }, ...rubric.results.map( (result) => ({ id: result.id, title: result.title, withPoints: false }) )] as item (item.id)}<div
-						class="flex flex-col gap-1"
-					>
-						<h3 class="text-sm font-medium wrap-anywhere">{item.title}</h3>
-						<dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm tabular-nums">
-							<dt class="text-muted-foreground">Enregistré</dt>
-							<dd>
-								{gradeLabel(
-									item.withPoints ? recorded.assessments[item.id] : recorded.results[item.id],
-									item.withPoints
-								)}
-							</dd>
-							<dt class="text-muted-foreground">Proposé</dt>
-							<dd>
-								{gradeLabel(
-									item.withPoints ? proposed.assessments[item.id] : proposed.results[item.id],
-									item.withPoints
-								)}
-							</dd>
-							<dt class="text-muted-foreground">Retenu</dt>
-							<dd>
-								{gradeLabel(
-									item.withPoints ? retained.assessments[item.id] : retained.results[item.id],
-									item.withPoints
-								)}
-							</dd>
-						</dl>
-					</div>{/each}
-			</div>
-			<p class="text-xs wrap-anywhere text-muted-foreground">
-				{rubric.assessments
-					.filter((item) => item.id !== assessment.id)
-					.map(
-						(item) =>
-							`${item.title} · ${gradeLabel(recorded.assessments[item.id], true)} · ${assessmentWeights(item, rubric)}`
-					)
-					.join(' ; ')}
-			</p>
-			{#if !rubric.results.length}<p class="text-xs text-muted-foreground">
-					Aucun résultat de module défini. Les évaluations restent indépendantes.
-				</p>{:else}<p class="text-xs text-muted-foreground">
-					{rubric.results
-						.map(
-							(result) =>
-								`${rubric.results.length > 1 ? result.title + ' : ' : ''}${result.rule.kind === 'points_ratio' ? 'Somme des points, puis conversion sur 20' : 'Notes normalisées puis pondérées'}`
-						)
-						.join(' · ')}. Les évaluations formatives sont exclues des résultats.
-				</p>{/if}
-		</div>
 		<div class="decision flex min-w-0 flex-col gap-2">
 			<p class="text-xs wrap-anywhere text-muted-foreground">
 				{proposal.state === 'accepted'
@@ -1019,6 +1031,42 @@
 >
 
 <style>
+	.proposal-work {
+		display: grid;
+		min-width: 0;
+		gap: 1.5rem;
+	}
+	.proposal-context {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+	@media (min-width: 80rem) {
+		.proposal-work {
+			grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr);
+		}
+		.proposal-context {
+			border-left: 1px solid var(--border);
+			padding-left: 1.25rem;
+		}
+		.proposal-context .comment-reference {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+	@media (min-width: 80rem) and (min-height: 36rem) {
+		.proposal-work {
+			flex: 1;
+			min-height: 0;
+		}
+		.proposal-context {
+			overflow-y: auto;
+			overscroll-behavior-y: contain;
+			padding-block: 0.25rem;
+			padding-right: 0.25rem;
+		}
+	}
+
 	.proposal-review {
 		padding-bottom: env(safe-area-inset-bottom);
 	}
@@ -1192,7 +1240,7 @@
 		}
 		.bottom-summary {
 			display: grid;
-			grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.3fr);
+			grid-template-columns: minmax(0, 1fr);
 			gap: 1.5rem;
 		}
 		.decision {

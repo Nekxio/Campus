@@ -76,10 +76,13 @@ async function current() {
 async function manuallyChange(points = 6) {
 	const student = await current();
 	const c = student.corrections.find((c) => c.assessmentId === ids.project)!;
-	const { assessmentId, revision, ...fields } = c;
-	return saveCorrection(db, ids.currentContext, student.id, assessmentId, {
-		...fields,
-		expectedRevision: revision,
+	return saveCorrection(db, ids.currentContext, student.id, c.assessmentId, {
+		status: c.status,
+		submissionUrl: c.submissionUrl,
+		submittedAt: c.submittedAt,
+		latenessDecision: c.latenessDecision,
+		rubricRevision: c.rubricRevision,
+		expectedRevision: c.revision,
 		scores: c.scores.map((s) => ({ ...s, points }))
 	});
 }

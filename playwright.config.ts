@@ -5,7 +5,8 @@ export default defineConfig({
 	workers: 1,
 	fullyParallel: false,
 	retries: 0,
-	timeout: 90000,
+	// Each scenario includes an isolated cold Vite/Workers startup, then real WebAuthn and UI work.
+	timeout: 240000,
 	expect: { timeout: 15000 },
 	outputDir: '.playwright-mcp/browser-tests/results',
 	reporter: [

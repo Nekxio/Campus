@@ -47,7 +47,7 @@ beforeEach(async () => {
 	await createDatabase(client)
 		.insert(user)
 		.values({ id: 'teacher', name: 'Teacher Demo', email: 'teacher@example.test' });
-	auth = createAuth(
+	auth = await createAuth(
 		{ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') },
 		client
 	);

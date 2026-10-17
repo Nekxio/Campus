@@ -23,8 +23,8 @@
 	);
 </script>
 
-<header class="flex h-12 shrink-0 items-center border-b">
-	<div class="flex w-full min-w-0 items-center gap-1 px-4 lg:gap-2 lg:px-6">
+<header class="teacher-header flex h-12 shrink-0 items-center border-b bg-background">
+	<div class="header-controls flex w-full min-w-0 items-center gap-1 px-4 lg:gap-2 lg:px-6">
 		<Sidebar.Trigger
 			id="sidebar-toggle"
 			class="-ms-1 size-11"
@@ -42,3 +42,20 @@
 		{#if demo}<Badge variant="outline" class="ms-auto shrink-0">Données fictives</Badge>{/if}
 	</div>
 </header>
+
+<style>
+	@media (max-width: 767px) {
+		.teacher-header {
+			position: sticky;
+			top: 0;
+			z-index: 20;
+			height: calc(3rem + env(safe-area-inset-top, 0px));
+			padding-top: env(safe-area-inset-top, 0px);
+		}
+		.header-controls {
+			/* Include the trigger's negative inline margin in the safe-area clearance. */
+			padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 0.25rem));
+			padding-right: max(1rem, env(safe-area-inset-right, 0px));
+		}
+	}
+</style>

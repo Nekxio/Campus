@@ -127,7 +127,7 @@ describe('Saved final grade export', () => {
 		const document = await getFinalGradeExport(db, ids.currentContext);
 		expect(document.students).toHaveLength(12);
 		expect(document.students.every((student) => student.marks[0] === 20)).toBe(true);
-		expect(Object.keys(document.students[0]).sort()).toEqual(['marks', 'name']);
+		expect(Object.keys(document.students[0]).sort()).toEqual(['marks', 'name', 'sectionMarks']);
 		const grid = await getGradeGrid(db, ids.module, ids.currentContext);
 		const current = grid.students[0].corrections.find((c) => c.assessmentId === ids.oral)!;
 		await saveCorrection(db, ids.currentContext, grid.students[0].id, ids.oral, {

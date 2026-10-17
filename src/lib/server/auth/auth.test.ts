@@ -28,7 +28,7 @@ let auth: Auth;
 beforeEach(async () => {
 	client = createClient({ url: ':memory:' });
 	await migrate(createDatabase(client), { migrationsFolder: './drizzle' });
-	auth = createAuth(
+	auth = await createAuth(
 		{ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') },
 		client
 	);

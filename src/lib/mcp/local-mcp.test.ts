@@ -97,7 +97,10 @@ beforeEach(async () => {
 	const address = apiServer.address();
 	if (!address || typeof address === 'string') throw new Error('Missing fictional API address');
 	const origin = 'http://127.0.0.1:' + address.port;
-	auth = createAuth({ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') }, sql);
+	auth = await createAuth(
+		{ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') },
+		sql
+	);
 	const key = await issueAgentKey(auth, sql, 'teacher@example.test', 'MCP fictional', 1, true);
 	config = agentConnectionSchema.parse({
 		version: 1,
@@ -293,7 +296,7 @@ describe('Local folder import workflow', () => {
 		expect(JSON.stringify(unavailable.content)).toContain('Agent setup is required');
 		await client.close();
 	}, 20000);
-	it('runs all seven tools over real stdio and HTTP, depositing proposals separately from scores', async () => {
+	it('runs the eight tools over real stdio and HTTP, depositing proposals separately from scores', async () => {
 		const privateFile = join(temp, 'agent-test.json');
 		await writeFile(privateFile, JSON.stringify(config), { mode: 0o600 });
 		const require = createRequire(import.meta.url);
@@ -312,6 +315,7 @@ describe('Local folder import workflow', () => {
 		await client.connect(transport);
 		const listed = await client.listTools();
 		expect(listed.tools.map((t) => t.name)).toEqual([
+			'patch_module_draft',
 			'inspect_module_folder',
 			'get_import_context',
 			'bind_module_folder',
@@ -342,6 +346,24 @@ describe('Local folder import workflow', () => {
 		});
 		expect(updated.isError, JSON.stringify(updated.content)).not.toBe(true);
 		expect((await getModule(db, receipt.moduleId)).title).toBe('Updated through stdio');
+		const beforePatch = await operations.context(folder);
+		const patchArguments = {
+			folder,
+			expectedRevision: beforePatch.module!.revision,
+			patch: { preparation: { nextSteps: 'Targeted stdio edit' } }
+		};
+		const patched = await client.callTool({
+			name: 'patch_module_draft',
+			arguments: patchArguments
+		});
+		expect(patched.isError, JSON.stringify(patched.content)).not.toBe(true);
+		const patchedModule = await getModule(db, receipt.moduleId);
+		expect(patchedModule.resources).toEqual(beforePatch.module!.resources);
+		expect(patchedModule.preparation.framing).toEqual(beforePatch.module!.preparation.framing);
+		expect(
+			(await client.callTool({ name: 'patch_module_draft', arguments: patchArguments }))
+				.structuredContent
+		).toEqual(patched.structuredContent);
 		const contextId = remote.module!.contexts[0].id;
 		const read = await client.callTool({
 			name: 'get_correction_context',

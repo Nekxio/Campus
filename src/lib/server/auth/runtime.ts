@@ -8,15 +8,16 @@ import type { Client } from '@libsql/client/web';
 export async function withAuth<T>(
 	operation: (auth: Auth, client: Client, origin: string) => Promise<T>
 ): Promise<T> {
-	let client: Client;
+	let client: Client | undefined;
 	let auth: Auth;
 	let origin: string;
 	try {
 		const settings = { ORIGIN, BETTER_AUTH_SECRET };
 		origin = authOrigin(settings);
 		client = createTursoClient(TURSO_DATABASE_URL, TURSO_AUTH_TOKEN);
-		auth = createAuth(settings, client);
+		auth = await createAuth(settings, client);
 	} catch {
+		client?.close();
 		error(503, 'La connexion privée doit être configurée.');
 	}
 	try {

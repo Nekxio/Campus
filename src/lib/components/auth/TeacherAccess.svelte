@@ -14,7 +14,6 @@
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as Avatar from '#lib/components/ui/avatar/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { Skeleton } from '#lib/components/ui/skeleton/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { cn } from '#lib/utils.js';
@@ -210,8 +209,14 @@
 	<div role="status" aria-live="polite" aria-atomic="true">
 		{#if progress}
 			<p class="progress">{progress}</p>
-		{:else if identity}
-			<span class="sr-only">Invitation vérifiée. Vous pouvez créer votre clé d’accès.</span>
+		{:else if !activeIssue && mounted && supported}
+			<p class="progress">
+				{mode === 'activation'
+					? identity
+						? 'Invitation vérifiée. Vous pouvez créer votre clé d’accès.'
+						: 'Vérification de l’invitation nécessaire.'
+					: 'Prêt à demander la confirmation de votre appareil.'}
+			</p>
 		{/if}
 	</div>
 {/snippet}
@@ -222,6 +227,23 @@
 	</header>
 
 	<main class="access-main">
+		{#if mode === 'activation'}<ol class="compact-steps" aria-label="Activation de votre espace">
+				<li aria-current={!identity ? 'step' : undefined}>
+					<UserRoundIcon
+						class="size-4"
+						aria-hidden="true"
+					/>Invitation{#if identity}<CircleCheckIcon class="size-4" aria-label="Vérifiée" />{/if}
+				</li>
+				<li
+					class={cn(identity && !opening && 'current')}
+					aria-current={identity && !opening ? 'step' : undefined}
+				>
+					<KeyRoundIcon class="size-4" aria-hidden="true" />Clé
+				</li>
+				<li aria-current={opening ? 'step' : undefined}>
+					<HomeIcon class="size-4" aria-hidden="true" />Accueil
+				</li>
+			</ol>{/if}
 		<h1>{mode === 'activation' ? 'Activer mon espace enseignant' : 'Connexion à mon espace'}</h1>
 		<p class="intro">
 			{#if mode === 'activation'}
@@ -248,99 +270,55 @@
 		</noscript>
 
 		{#if mode === 'activation'}
-			<ol class="sequence" aria-label="Activation de votre espace">
-				<li class="step">
-					<div class="step-rail" aria-hidden="true">
-						<span class="marker">
-							{#if identity}
-								<CircleCheckIcon class="size-4" />
-							{:else}
-								<UserRoundIcon class="size-4" />
-							{/if}
-						</span>
-						<Separator orientation="vertical" class="mx-auto mt-2 mb-2 flex-1" />
+			<section class="invitation-identity" aria-labelledby="invitation-title">
+				<h2 id="invitation-title">Votre invitation</h2>
+				{#if identity}<div class="identity">
+						<Avatar.Root class="size-10 shrink-0" aria-hidden="true"
+							><Avatar.Fallback>{getInitials(identity.name)}</Avatar.Fallback></Avatar.Root
+						>
+						<div class="min-w-0">
+							<p class="identity-name">{identity.name}</p>
+							<p class="identity-email">{identity.email}</p>
+						</div>
 					</div>
-					<div class="step-body">
-						<h2>Votre invitation</h2>
-						{#if identity}
-							<div class="identity">
-								<Avatar.Root class="size-10 shrink-0" aria-hidden="true">
-									<Avatar.Fallback>{getInitials(identity.name)}</Avatar.Fallback>
-								</Avatar.Root>
-								<div class="min-w-0">
-									<p class="identity-name">{identity.name}</p>
-									<p class="identity-email">{identity.email}</p>
-								</div>
-							</div>
-						{:else if preparing || !mounted}
-							<div class="identity" aria-hidden="true">
-								<Skeleton class="size-10 shrink-0 rounded-full" />
-								<div class="flex min-w-0 flex-1 flex-col gap-2">
-									<Skeleton class="h-4 w-3/5" />
-									<Skeleton class="h-4 w-4/5" />
-								</div>
-							</div>
-						{:else}
-							<p class="explanation invitation-pending">
-								Votre invitation doit être vérifiée avant de créer une clé d’accès.
-							</p>
-						{/if}
-						<Separator class="mt-6" />
-						{#if canRetryInvitation}
-							<Button
-								variant="outline"
-								class="mt-4 h-auto min-h-11 w-full py-3"
-								disabled={preparing || busy || opening}
-								onclick={verifyInvitation}
-							>
-								<span class="min-w-0 whitespace-normal">Réessayer la vérification</span>
-							</Button>
-						{/if}
+					<p class="explanation identity-help">Identité de l’invitation · non modifiable</p>
+				{:else if preparing || !mounted}<div class="identity" aria-hidden="true">
+						<Skeleton class="size-10 shrink-0 rounded-full" />
+						<div class="flex min-w-0 flex-1 flex-col gap-2">
+							<Skeleton class="h-4 w-3/5" /><Skeleton class="h-4 w-4/5" />
+						</div>
 					</div>
-				</li>
-				<li class="step">
-					<div class="step-rail" aria-hidden="true">
-						<span class={cn('marker', identity && !unavailable && supported && 'active')}>
-							<KeyRoundIcon class="size-4" />
-						</span>
-						<Separator orientation="vertical" class="mx-auto mt-2 mb-2 flex-1" />
-					</div>
-					<div class="step-body">
-						<h2>Créer votre clé d’accès</h2>
-						<p class="explanation">
-							Votre appareil ou votre gestionnaire de clés d’accès vous demandera de confirmer votre
-							identité.
-						</p>
-						{@render primaryAction()}
-					</div>
-				</li>
-				<li class="step next">
-					<div class="step-rail" aria-hidden="true">
-						<span class="marker"><HomeIcon class="size-4" /></span>
-					</div>
-					<div class="step-body">
-						<h2>Votre accueil enseignant</h2>
-						<p class="explanation">
-							Il s’ouvrira automatiquement après la création. Pour revenir, votre clé d’accès
-							suffira.
-						</p>
-					</div>
-				</li>
-			</ol>
-			<div class="existing-access">
-				<Button variant="link" href={resolve('/connexion')} class="h-auto min-h-11 max-w-full">
-					<span class="min-w-0 whitespace-normal">J’ai déjà une clé d’accès</span>
-				</Button>
-			</div>
-		{:else}
-			<div class="sign-in-action">
-				{@render primaryAction()}
-				<p class="explanation sign-in-help">
-					Votre appareil ou votre gestionnaire de clés d’accès vous demandera de confirmer votre
-					identité.
-				</p>
-			</div>
+				{:else}<p class="explanation">
+						Votre invitation doit être vérifiée avant de créer une clé d’accès.
+					</p>{/if}
+				{#if canRetryInvitation}<Button
+						variant="outline"
+						class="mt-4 h-auto min-h-11 w-full py-3"
+						disabled={preparing || busy || opening}
+						onclick={verifyInvitation}>Réessayer la vérification</Button
+					>{/if}
+			</section>
 		{/if}
+		<div class="access-action">{@render primaryAction()}</div>
+		<section class="access-help" aria-labelledby="access-help-title">
+			<h2 id="access-help-title">
+				{mode === 'activation' ? 'Invitation, clé d’accès, accueil' : 'Votre clé d’accès'}
+			</h2>
+			<p class="explanation">
+				Votre appareil ou votre gestionnaire de clés d’accès vous demandera de confirmer votre
+				identité.
+			</p>
+			<p class="explanation">
+				{mode === 'activation'
+					? 'Votre accueil s’ouvrira automatiquement après la création. Votre clé d’accès suffira pour revenir.'
+					: 'Utilisez l’appareil sur lequel votre clé est disponible. Une invitation est nécessaire pour activer votre accès.'}
+			</p>
+		</section>
+		{#if mode === 'activation'}<div class="existing-access">
+				<Button variant="link" href={resolve('/connexion')} class="h-auto min-h-11 max-w-full"
+					><span class="min-w-0 whitespace-normal">J’ai déjà une clé d’accès</span></Button
+				>
+			</div>{/if}
 	</main>
 
 	<footer class="access-footer">Espace enseignant</footer>
@@ -351,227 +329,127 @@
 		display: flex;
 		min-height: 100svh;
 		flex-direction: column;
-		padding-right: env(safe-area-inset-right, 0px);
-		padding-left: env(safe-area-inset-left, 0px);
+		padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
 	}
-
 	.access-header {
 		flex: none;
 		padding: calc(2.25rem + env(safe-area-inset-top, 0px)) 1.25rem 2.25rem;
 		text-align: center;
 	}
-
 	.wordmark {
 		font-size: 1.25rem;
 		font-weight: 600;
 		line-height: 1.75rem;
 		letter-spacing: -0.025em;
 	}
-
 	.access-main {
 		width: calc(100% - 2.5rem);
 		max-width: 30rem;
-		margin: 4.1875rem auto 3rem;
+		margin: 3rem auto;
 	}
-
 	h1 {
 		margin: 0 0 1rem;
 		font-size: 2.25rem;
 		font-weight: 600;
-		line-height: 2.5rem;
+		line-height: 1.15;
 		letter-spacing: -0.025em;
 		text-wrap: balance;
 	}
-
+	h2 {
+		margin: 0 0 0.75rem;
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.5;
+	}
 	.intro,
 	.explanation,
 	.progress {
 		color: var(--muted-foreground);
 		font-size: 0.875rem;
-		line-height: 1.375rem;
+		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
-
 	.intro {
 		max-width: 43ch;
-		margin: 0 0 2.5rem;
+		margin-bottom: 2rem;
 	}
-
-	.sequence {
-		margin: 0;
-		padding: 0;
+	.explanation {
+		margin: 0 0 0.75rem;
+	}
+	.progress {
+		margin: 0.75rem 0 0;
+		min-height: 1.5rem;
+	}
+	.compact-steps {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem 1.5rem;
 		list-style: none;
+		padding: 0 0 1.25rem;
+		margin: 0 0 1.5rem;
+		border-bottom: 1px solid var(--border);
 	}
-
-	.step {
-		display: grid;
-		grid-template-columns: 2rem minmax(0, 1fr);
-		gap: 1.25rem;
-	}
-
-	.step-rail {
+	.compact-steps li {
 		display: flex;
-		flex-direction: column;
 		align-items: center;
-	}
-
-	.marker {
-		display: flex;
-		width: 2rem;
-		height: 2rem;
-		flex: none;
-		align-items: center;
-		justify-content: center;
-		border: 1px solid var(--border);
-		border-radius: 50%;
-		background: var(--background);
+		gap: 0.5rem;
+		font-size: 0.875rem;
 		color: var(--muted-foreground);
 	}
-
-	.marker.active {
-		border-color: var(--primary);
-		background: var(--primary);
-		color: var(--primary-foreground);
-	}
-
-	.step-body {
-		min-width: 0;
-		padding-bottom: 1.75rem;
-	}
-
-	h2 {
-		margin: 0.25rem 0 1rem;
-		font-size: 1rem;
+	.compact-steps li[aria-current='step'] {
+		color: var(--foreground);
 		font-weight: 600;
-		line-height: 1.5rem;
-		letter-spacing: -0.015em;
 	}
-
+	.invitation-identity {
+		margin-bottom: 1.5rem;
+	}
 	.identity {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 	}
-
 	.identity-name,
 	.identity-email {
 		margin: 0;
 		font-size: 0.875rem;
-		line-height: 1.25rem;
+		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
-
 	.identity-name {
-		margin-bottom: 0.125rem;
-		font-weight: 500;
+		font-weight: 600;
 	}
-
 	.identity-email {
 		color: var(--muted-foreground);
 	}
-
-	.explanation {
-		max-width: 41ch;
-		margin: 0 0 1.25rem;
+	.identity-help {
+		margin-top: 0.75rem;
 	}
-
-	.invitation-pending {
-		margin-bottom: 0;
+	.access-help {
+		border-top: 1px solid var(--border);
+		margin-top: 2rem;
+		padding-top: 1.5rem;
 	}
-
-	.progress {
-		margin: 0.75rem 0 0;
-	}
-
-	.next h2 {
-		margin-bottom: 0.5rem;
-		color: var(--muted-foreground);
-		font-weight: 500;
-	}
-
-	.next .step-body {
-		padding-bottom: 0;
-	}
-
-	.next .explanation {
-		margin-bottom: 0;
-	}
-
 	.existing-access {
 		margin-top: 1.5rem;
 		text-align: center;
 	}
-
-	.sign-in-help {
-		max-width: 43ch;
-		margin: 1.25rem 0 0;
-	}
-
 	.access-footer {
 		margin-top: auto;
 		padding: 1.5rem 1.25rem calc(1.75rem + env(safe-area-inset-bottom, 0px));
 		color: var(--muted-foreground);
 		font-size: 0.75rem;
-		line-height: 1rem;
 		text-align: center;
 	}
-
-	@media (max-width: 600px) {
+	@media (max-width: 600px), (max-height: 760px) {
 		.access-header {
 			padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
 			padding-bottom: 1.5rem;
 		}
-
-		.access-main {
-			margin-top: 2rem;
-		}
-
-		h1 {
-			font-size: 1.875rem;
-			line-height: 2.25rem;
-		}
-
-		.intro {
-			margin-bottom: 1.75rem;
-		}
-
-		.step {
-			gap: 1rem;
-		}
-
-		.step-body {
-			padding-bottom: 1.5rem;
-		}
-
-		h2 {
-			margin-bottom: 0.75rem;
-		}
-
-		.explanation {
-			margin-bottom: 1rem;
-		}
-	}
-
-	@media (max-height: 760px) {
-		.access-header {
-			padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
-			padding-bottom: 1.5rem;
-		}
-
 		.access-main {
 			margin-top: 1.5rem;
 		}
-
-		.intro {
-			margin-bottom: 1.75rem;
-		}
-
-		.step-body {
-			padding-bottom: 1.25rem;
-		}
-
-		.access-footer {
-			padding-top: 0.75rem;
+		h1 {
+			font-size: 1.875rem;
 		}
 	}
 </style>

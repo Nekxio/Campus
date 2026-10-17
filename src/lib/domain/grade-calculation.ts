@@ -90,7 +90,21 @@ export function calculateAssessment(
 			rawPoints: partial,
 			issues: missing.map((line) => `${line.label} : points manquants.`)
 		};
-	const rawMark = (20 * partial) / maxPoints;
+	// Each line of a Quiz section is one Wayground quiz, with its own question count.
+	// Normalize before averaging: a longer quiz must not carry more weight.
+	if (correction.needsReview)
+		return {
+			...base,
+			rawPoints: partial,
+			issues: ['Barème modifié : vérifiez et enregistrez à nouveau cette évaluation.']
+		};
+	const rawMark =
+		assessment.kind === 'quiz'
+			? assessment.lines.reduce(
+					(sum, line) => sum + (20 * awarded.get(line.id)!) / line.maxPoints,
+					0
+				) / assessment.lines.length
+			: (20 * partial) / maxPoints;
 	const project = assessment.kind === 'project';
 	if (project && dueAt && !correction.submittedAt && correction.latenessDecision === 'automatic')
 		return {
@@ -103,7 +117,12 @@ export function calculateAssessment(
 		project && dueAt && correction.submittedAt
 			? calendarLateness(dueAt, correction.submittedAt)
 			: 0;
-	const penalty = project && correction.latenessDecision === 'automatic' ? latenessDays : 0;
+	const penalty =
+		project && correction.latenessDecision === 'automatic'
+			? latenessDays > 5
+				? rawMark
+				: latenessDays
+			: 0;
 	return {
 		...base,
 		state: 'ready',
@@ -159,8 +178,12 @@ export function calculateResult(
 					state: grade.state,
 					issues: [assessment.title + ' : ' + grade.issues.join(' ')]
 				};
-			maximum += grade.maxPoints;
-			points += (grade.mark! / 20) * grade.maxPoints;
+			const equalQuizWeight = component.assessmentIds.every(
+				(assessmentId) => assessments.find((item) => item.id === assessmentId)?.kind === 'quiz'
+			);
+			const share = result.rule.kind === 'weighted' || equalQuizWeight ? 1 : grade.maxPoints;
+			maximum += share;
+			points += (grade.mark! / 20) * share;
 		}
 		if (!maximum) return { ...base, state: 'invalid', issues: ['Maximum de composante nul.'] };
 		total += (((20 * points) / maximum) * component.weight) / 100;

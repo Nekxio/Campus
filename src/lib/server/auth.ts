@@ -1,3 +1,10 @@
+import { jwt } from 'better-auth/plugins/jwt';
+import {
+	remoteOAuth,
+	teachingOAuthClaims,
+	nativeOAuthPaths,
+	loopbackRedirect
+} from './mcp/oauth.js';
 import { apiKey } from '@better-auth/api-key';
 import { agentConfigId } from '../domain/module-import.js';
 import type { Client } from '@libsql/client/web';
@@ -16,19 +23,75 @@ import {
 } from './auth/invitations.js';
 import { consumeRateLimit } from './auth/rate-limit.js';
 
-export function createAuth(settings: AuthSettings, client: Client) {
+export async function createAuth(settings: AuthSettings, client: Client) {
 	const origin = authOrigin(settings);
-	return betterAuth({
+	const auth = betterAuth({
 		appName: 'Coursely',
 		baseURL: origin,
 		secret: settings.BETTER_AUTH_SECRET,
 		trustedOrigins: [origin],
 		hooks: {
 			before: createAuthMiddleware(async (ctx) => {
-				const claimedOrigin = ctx.headers?.get('origin');
+				if (ctx.path === '/oauth2/register') {
+					const body = ctx.body;
+					if (
+						body?.token_endpoint_auth_method !== 'none' ||
+						!Array.isArray(body.redirect_uris) ||
+						body.redirect_uris.length !== 1 ||
+						!body.redirect_uris.every((uri: string) => loopbackRedirect(uri)) ||
+						body.jwks_uri ||
+						body.jwks ||
+						body.client_uri ||
+						body.logo_uri ||
+						body.software_statement ||
+						body.token_endpoint_auth_signing_alg ||
+						body.dpop_bound_access_tokens ||
+						body.require_pkce === false ||
+						(typeof body.client_name === 'string' &&
+							(body.client_name.length > 100 ||
+								Array.from(body.client_name as string).some(
+									(character) => character.codePointAt(0)! < 32 || character.codePointAt(0) === 127
+								)))
+					)
+						throw new APIError('BAD_REQUEST', {
+							error: 'invalid_client_metadata',
+							message: 'Seuls les clients publics à retour loopback sont permis.'
+						});
+				}
 				if (
+					ctx.path === '/oauth2/authorize' &&
+					(ctx.query?.claims || ctx.query?.request || ctx.query?.request_uri)
+				)
+					throw new APIError('BAD_REQUEST', {
+						error: 'invalid_request',
+						message: 'Demande OAuth non prise en charge.'
+					});
+				if (
+					ctx.path === '/oauth2/authorize' &&
+					(ctx.query?.resource !== origin + '/mcp' ||
+						ctx.query?.code_challenge_method !== 'S256' ||
+						!ctx.query?.code_challenge)
+				)
+					throw new APIError('BAD_REQUEST', {
+						error: 'invalid_request',
+						message: 'Ressource et PKCE S256 requis.'
+					});
+				if (ctx.path === '/oauth2/token' && ctx.body?.resource !== origin + '/mcp')
+					throw new APIError('BAD_REQUEST', {
+						error: 'invalid_target',
+						message: 'Ressource MCP exacte requise.'
+					});
+				const claimedOrigin = ctx.headers?.get('origin');
+				// OAuth starts with a top-level navigation from the client site.
+				// Writes and browser fetches keep the normal same-origin requirement.
+				const authorizationNavigation =
+					ctx.path === '/oauth2/authorize' &&
+					ctx.request?.method === 'GET' &&
+					ctx.headers?.get('sec-fetch-mode') === 'navigate';
+				if (
+					(ctx.headers?.get('sec-fetch-site') === 'cross-site' && !authorizationNavigation) ||
 					(claimedOrigin && claimedOrigin !== origin) ||
-					(ctx.request?.method === 'POST' && !claimedOrigin)
+					(ctx.request?.method === 'POST' && !claimedOrigin && !nativeOAuthPaths.has(ctx.path))
 				)
 					throw new APIError('FORBIDDEN', { message: 'Origine refusée.' });
 			})
@@ -67,6 +130,9 @@ export function createAuth(settings: AuthSettings, client: Client) {
 		},
 		telemetry: { enabled: false },
 		plugins: [
+			jwt({ jwt: { issuer: origin + '/api/auth', audience: origin + '/mcp' } }),
+			remoteOAuth(origin),
+			teachingOAuthClaims(client),
 			apiKey({
 				configId: agentConfigId,
 				references: 'user',
@@ -135,6 +201,8 @@ export function createAuth(settings: AuthSettings, client: Client) {
 			})
 		]
 	});
+	await auth.$context;
+	return auth;
 }
-export type Auth = ReturnType<typeof createAuth>;
+export type Auth = Awaited<ReturnType<typeof createAuth>>;
 export type AuthSession = Auth['$Infer']['Session'];

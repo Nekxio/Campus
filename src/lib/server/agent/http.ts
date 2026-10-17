@@ -73,6 +73,18 @@ export function agentWrite<S extends z.ZodType>(
 				parsed.data.rubric
 			)
 				requireRubricPermission(principal.permissions);
+			const removals =
+				parsed.data && typeof parsed.data === 'object' && 'remove' in parsed.data
+					? parsed.data.remove
+					: null;
+			if (
+				removals &&
+				typeof removals === 'object' &&
+				['assessments', 'groups', 'lines', 'results', 'deadlineAssessments'].some(
+					(key) => key in removals
+				)
+			)
+				requireRubricPermission(principal.permissions);
 			return operation(db, principal.teacherId, parsed.data);
 		});
 }

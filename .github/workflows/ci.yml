@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 env:
   CI: true
   WRANGLER_SEND_METRICS: false
@@ -22,11 +18,22 @@ jobs:
     name: Quality checks
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # Superseded checks may stop; this never cancels the separate deployment job.
+    concurrency:
+      group: ci-quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Record the checked commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -63,6 +70,9 @@ jobs:
 
       - name: Build for Cloudflare Workers
         run: pnpm build
+
+      - name: Check the Workers Free bundle without uploading
+        run: pnpm worker:dry-run
 
       - name: Check the Cloudflare preview
         shell: bash
@@ -137,3 +147,82 @@ jobs:
 
           cat "$RUNNER_TEMP/coursely-preview.log"
           exit 1
+
+  deploy:
+    name: Deploy mds
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Nekxio/Coursely' && needs.quality.result == 'success' && vars.COURSELY_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # No GitHub environment is required for this private repository.
+    # New checks cannot cancel a running deploy. Stale pending commits are skipped below.
+    concurrency:
+      group: coursely-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: false
+      WRANGLER_LOG_PATH: /tmp/coursely-wrangler.log
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require successful checks of this push commit
+        run: pnpm exec tsx scripts/production.ts validate-release
+        env:
+          COURSELY_CHECKED_SHA: ${{ needs.quality.outputs.commit }}
+          COURSELY_QUALITY_RESULT: ${{ needs.quality.result }}
+          COURSELY_PRODUCTION_ENABLED: ${{ vars.COURSELY_PRODUCTION_ENABLED }}
+
+      - name: Build without production secrets
+        run: pnpm build
+
+      - name: Prepare exact production target
+        run: pnpm production:prepare
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          COURSELY_PRODUCTION_ORIGIN: ${{ vars.COURSELY_PRODUCTION_ORIGIN }}
+
+      - name: Validate the production package without uploading
+        run: pnpm worker:dry-run .wrangler/production/wrangler.json
+
+      - name: Check that main has not advanced
+        id: current
+        run: pnpm exec tsx scripts/production.ts check-current-main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Deploy the tested current main commit
+        if: steps.current.outputs.current == 'true'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$RUNNER_TEMP/coursely-production-secrets.json"' EXIT
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is required'; exit 1; }
+          pnpm exec tsx scripts/production.ts secrets
+          pnpm exec wrangler deploy --config .wrangler/production/wrangler.json --secrets-file "$RUNNER_TEMP/coursely-production-secrets.json"
+
+      - name: Remove ephemeral secrets on all outcomes
+        if: always()
+        run: rm -f "$RUNNER_TEMP/coursely-production-secrets.json"

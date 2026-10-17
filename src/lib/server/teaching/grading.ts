@@ -135,8 +135,9 @@ export async function getRubric(
 		results: outputs.map(({ id, title, rule }) => ({ id, title, rule })),
 		contexts: contextRows
 			.filter((v) => v.classId)
-			.map(({ id, className, academicYear, revision }) => ({
+			.map(({ id, classId, className, academicYear, revision }) => ({
 				id,
+				classId,
 				className,
 				academicYear,
 				expectedRevision: revision,
@@ -190,6 +191,35 @@ export async function replaceRubric(
 ) {
 	const draft = validated(rubricUpdateSchema, value);
 	return db.transaction(async (tx) => {
+		const previous = await getRubric(tx, moduleId);
+		const numericShape = (assessment: RubricDraft['assessments'][number], rubric: RubricDraft) =>
+			JSON.stringify({
+				kind: assessment.kind,
+				purpose: assessment.purpose,
+				quizMaximum: rubric.results.flatMap((result) =>
+					result.rule.kind === 'weighted' && result.rule.sectionPoints
+						? result.rule.sectionPoints.quizMaxima
+								.filter((item) => item.assessmentId === assessment.id)
+								.map((item) => item.maxPoints)
+						: []
+				),
+				lines: assessment.lines
+					.map((line) => [line.id, line.maxPoints])
+					.sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+			});
+		const changedIds = draft.assessments
+			.filter((assessment) => {
+				const old = previous.assessments.find((item) => item.id === assessment.id);
+				return old && numericShape(old, previous) !== numericShape(assessment, draft);
+			})
+			.map((assessment) => assessment.id);
+		if (changedIds.length)
+			await tx
+				.update(corrections)
+				.set({ needsReview: true })
+				.where(
+					and(eq(corrections.moduleId, moduleId), inArray(corrections.assessmentId, changedIds))
+				);
 		const [claimed] = await tx
 			.update(modules)
 			.set({ revision: sql`${modules.revision} + 1` })
@@ -364,7 +394,8 @@ async function readStudents(
 					status,
 					submittedAt,
 					submissionUrl,
-					latenessDecision
+					latenessDecision,
+					needsReview
 				}) => ({
 					assessmentId,
 					revision,
@@ -373,6 +404,7 @@ async function readStudents(
 					submittedAt: submittedAt?.toISOString() ?? null,
 					submissionUrl,
 					latenessDecision,
+					needsReview,
 					scores: allScores
 						.filter(
 							(v) =>
@@ -507,6 +539,7 @@ export async function saveCorrection(
 		if ((existing?.revision ?? 0) !== input.expectedRevision) conflict();
 		const values = {
 			status: input.status,
+			needsReview: false,
 			submissionUrl: input.submissionUrl,
 			submittedAt: input.submittedAt ? new Date(input.submittedAt) : null,
 			latenessDecision: input.latenessDecision

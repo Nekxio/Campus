@@ -9,9 +9,11 @@ import { createClient, type Client } from '@libsql/client';
 import { migrate } from 'drizzle-orm/libsql/migrator';
 import { createDatabase } from '../src/lib/server/db/index.js';
 import { seedPublicationFixtures } from '../src/lib/server/db/testing/publication-fixtures.js';
+import { seedGradingSelectionFixtures } from '../src/lib/server/db/testing/grading-selection-fixtures.js';
 import { issueInvitation } from '../src/lib/server/auth/invitations.js';
 import {
 	getGradeGrid,
+	getRubric,
 	saveCorrection,
 	saveSemesterComment
 } from '../src/lib/server/teaching/grading.js';
@@ -42,6 +44,8 @@ export type FixtureSessionState = {
 };
 export type FixtureOperation =
 	| 'complete-class'
+	| 'grading-selection'
+	| 'read-independent-rubric'
 	| 'conflict-correction'
 	| 'conflict-module'
 	| 'probe-adapter'
@@ -112,6 +116,10 @@ async function main() {
 		[
 			join(sourceRoot, 'node_modules/vite/bin/vite.js'),
 			'dev',
+			'--configLoader',
+			'runner',
+			'--config',
+			'vite.fixture.config.mjs',
 			'--host',
 			'127.0.0.1',
 			'--port',
@@ -238,6 +246,10 @@ async function main() {
 					refused = true;
 				}
 				value = refused;
+			} else if (message.operation === 'grading-selection') {
+				value = await seedGradingSelectionFixtures(db, ids.module);
+			} else if (message.operation === 'read-independent-rubric') {
+				value = await getRubric(db, ids.secondModule);
 			} else if (message.operation === 'conflict-module') {
 				const module = await getModule(db, ids.module);
 				await updateModule(db, ids.module, {

@@ -34,7 +34,13 @@ async function action(kind: AnnualAction['action'], year = '2026-2027'): Promise
 		reviewToken: data.selected!.reviewToken,
 		requestId: crypto.randomUUID(),
 		typedYear: kind === 'purge' ? year : '',
-		pdfsKept: kind === 'purge'
+		pdfsKept: kind === 'purge',
+		moduleChoices:
+			kind === 'purge'
+				? [...new Set(data.selected!.contexts.map((context) => context.moduleId))].map(
+						(moduleId) => ({ moduleId, decision: 'pause' as const })
+					)
+				: undefined
 	};
 }
 async function completeClass() {
@@ -211,7 +217,7 @@ describe('Annual lifecycle', () => {
 			.where(eq(t.teachingContexts.id, ids.currentContext));
 		await expect(getAnnualData(db, '2025-2026')).rejects.toMatchObject({ status: 409 });
 	});
-	it('preserves a valid published course but removes its class directory, score and decision graph', async () => {
+	it('preserves the pedagogical snapshot privately when pausing and removes the class and private graph', async () => {
 		await db
 			.update(t.modules)
 			.set({ description: 'Fictional published module', objectives: ['Understand the demo'] })
@@ -240,9 +246,12 @@ describe('Annual lifecycle', () => {
 			});
 		const before = await getPublicModule(db, ids.currentContext);
 		await decideAnnualYear(db, ids.teacher, await action('purge'));
-		const after = await getPublicModule(db, ids.currentContext);
+		await expect(getPublicModule(db, ids.currentContext)).rejects.toMatchObject({ status: 404 });
+		const [after] = await db
+			.select()
+			.from(t.modulePublications)
+			.where(eq(t.modulePublications.contextId, ids.currentContext));
 		expect(after.snapshot).toEqual(before.snapshot);
-		expect(after.classPath).toBeNull();
 		await expect(getPublicClass(db, ids.currentClass)).rejects.toMatchObject({ status: 404 });
 		expect(
 			await db

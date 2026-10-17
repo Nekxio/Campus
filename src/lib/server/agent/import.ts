@@ -5,6 +5,7 @@ import type { Database } from '../db/index.js';
 import { agentImports, classes, modules } from '../db/schema.js';
 import { createModule, getModule, listModules, updateModule } from '../teaching/service.js';
 import { getRubric, replaceRubric } from '../teaching/grading.js';
+import { patchModule } from './patch.js';
 import {
 	createModuleImportSchema,
 	updateModuleImportSchema,
@@ -35,7 +36,19 @@ export async function readImportContext(db: Database, moduleId?: string) {
 		classes: classList,
 		module,
 		rubric: rubric
-			? { assessments: rubric.assessments, results: rubric.results, contexts: rubric.contexts }
+			? {
+					assessments: rubric.assessments,
+					results: rubric.results,
+					contexts: rubric.contexts.map(
+						({ id, expectedRevision, className, academicYear, deadlines }) => ({
+							id,
+							expectedRevision,
+							className,
+							academicYear,
+							deadlines
+						})
+					)
+				}
 			: null
 	};
 }
@@ -50,6 +63,25 @@ export async function importModule(
 	).safeParse(value);
 	if (!parsed.success) error(422, 'Import invalide. Vérifiez les informations du module.');
 	const input = parsed.data;
+	if (action === 'update') {
+		const update = updateModuleImportSchema.parse(value);
+		const legacyFingerprint = await importFingerprint({ action, input });
+		const [legacy] = await db
+			.select()
+			.from(agentImports)
+			.where(
+				and(eq(agentImports.teacherId, teacherId), eq(agentImports.requestId, update.requestId))
+			);
+		if (legacy?.fingerprint === legacyFingerprint) return importReceiptSchema.parse(legacy.receipt);
+		return patchModule(db, teacherId, {
+			version: 2,
+			requestId: update.requestId,
+			moduleId: update.moduleId,
+			expectedRevision: update.expectedRevision,
+			patch: update.draft,
+			rubric: update.rubric
+		});
+	}
 	const fingerprint = await importFingerprint({ action, input });
 	return db.transaction(async (tx) => {
 		const [previous] = await tx
@@ -97,6 +129,15 @@ export async function importModule(
 				}))
 			});
 		}
+		await tx
+			.update(modules)
+			.set({
+				needsReview: true,
+				agentChanges: [
+					'Brouillon préparé par import : informations, liens, planning et grille fournie à vérifier'
+				]
+			})
+			.where(eq(modules.id, saved.id));
 		const final = await getModule(tx, saved.id);
 		const receipt: ImportReceipt = {
 			version: 1,

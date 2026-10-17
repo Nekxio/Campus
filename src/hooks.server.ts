@@ -14,7 +14,14 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const hasSession =
 		event.cookies.get('coursely.session_token') ||
 		event.cookies.get('__Secure-coursely.session_token');
-	if (!building && !authRoute && !studentRoute && hasSession) {
+	if (
+		!building &&
+		!authRoute &&
+		!studentRoute &&
+		event.url.pathname !== '/mcp' &&
+		!event.url.pathname.startsWith('/.well-known/') &&
+		hasSession
+	) {
 		try {
 			const { response: session, headers } = await withAuth((auth) =>
 				auth.api.getSession({ headers: event.request.headers, returnHeaders: true })
@@ -40,7 +47,16 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	if (
 		event.url.pathname.startsWith('/api/') ||
 		event.url.pathname.startsWith('/enseignant') ||
-		['/', '/connexion', '/activation'].includes(event.url.pathname) ||
+		[
+			'/',
+			'/connexion',
+			'/activation',
+			'/autoriser',
+			'/mcp',
+			'/.well-known/oauth-protected-resource/mcp',
+			'/.well-known/oauth-authorization-server/api/auth'
+		].includes(event.url.pathname) ||
+		event.url.pathname.startsWith('/connexion/') ||
 		hasSession
 	) {
 		response.headers.set('Cache-Control', 'private, no-store');

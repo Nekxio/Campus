@@ -420,12 +420,14 @@ test('module creation recovers a committed lost response before saving later edi
 		await supportUrl.fill('');
 		await moduleSection(page, 'information', 'Informations');
 		diagnostic.phase('explicit invalid save without PATCH');
-		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+		await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).click();
 		await expect(
 			page.getByText('Vérifiez les champs indiqués. Vos saisies sont conservées.', { exact: true })
 		).toBeVisible();
 		await expect(page.locator('#module-form')).toHaveAttribute('aria-busy', 'false');
-		await expect(page.getByRole('button', { name: 'Enregistrer', exact: true })).toBeEnabled();
+		await expect(
+			page.getByRole('button', { name: 'Enregistrer le module', exact: true })
+		).toBeEnabled();
 		expect(patches).toHaveLength(0);
 		await expect(supportUrl).toHaveValue('');
 		await supportUrl.fill('https://example.test/support');
@@ -436,7 +438,7 @@ test('module creation recovers a committed lost response before saving later edi
 				response.url() === app.origin + '/api/teaching/modules/' + saved.id &&
 				response.request().method() === 'PATCH'
 		);
-		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+		await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).click();
 		expect((await update).status()).toBe(200);
 		expect(patches).toHaveLength(1);
 		expect(patches[0].contexts[0].id).toBe(commands[0].payload.contexts[0].id);
@@ -466,7 +468,7 @@ test('module creation recovers a committed lost response before saving later edi
 				response.url() === app.origin + '/api/teaching/modules/' + saved.id &&
 				response.request().method() === 'PATCH'
 		);
-		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+		await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).click();
 		expect((await conflict).status()).toBe(409);
 		await expect(title).toHaveValue('Texte local après récupération et PATCH');
 		let readFails = true;
@@ -515,7 +517,7 @@ test('draft module saves, reloads and retains typed text on HTTP 409', async ({
 				response.url().endsWith('/api/teaching/modules/' + app.ids.module) &&
 				response.request().method() === 'PATCH'
 		);
-		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+		await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).click();
 		expect((await saved).status()).toBe(200);
 		diagnostic.phase('reload module and readiness');
 		await page.reload();
@@ -535,7 +537,7 @@ test('draft module saves, reloads and retains typed text on HTTP 409', async ({
 				response.url().endsWith('/api/teaching/modules/' + app.ids.module) &&
 				response.status() === 409
 		);
-		await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+		await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).click();
 		await conflict;
 		await expect(page.getByText('Version à actualiser', { exact: true })).toBeVisible();
 		await expect(title).toHaveValue('Texte fictif conservé pendant le conflit');
@@ -566,5 +568,11 @@ test('draft dirty navigation can be cancelled then confirmed with keyboard acces
 	);
 	await page.getByRole('button', { name: 'Annuler', exact: true }).click();
 	await dialog.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
-	await expect(page).toHaveURL(app.origin + '/');
+	await expect(page).toHaveURL(app.origin + '/#modules');
+	const mobileNavigation = page.getByRole('button', { name: 'Ouvrir la navigation', exact: true });
+	if (await mobileNavigation.isVisible()) await mobileNavigation.click();
+	await expect(page.getByRole('link', { name: 'Modules', exact: true })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
 });

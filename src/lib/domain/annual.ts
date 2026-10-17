@@ -10,7 +10,14 @@ export const annualActionSchema = z
 		reviewToken: z.string().regex(/^[a-f0-9]{64}$/),
 		requestId: idSchema,
 		typedYear: z.string().max(9),
-		pdfsKept: z.boolean()
+		pdfsKept: z.boolean(),
+		nextAcademicYear: z
+			.union([academicYearSchema, z.literal('').transform(() => undefined)])
+			.optional(),
+		moduleChoices: z
+			.array(z.strictObject({ moduleId: idSchema, decision: z.enum(['continue', 'pause']) }))
+			.max(1000)
+			.optional()
 	})
 	.superRefine((value, ctx) => {
 		if (value.action !== 'purge') return;
@@ -25,6 +32,21 @@ export const annualActionSchema = z
 				code: 'custom',
 				path: ['pdfsKept'],
 				message: 'Confirmez la conservation des PDF nécessaires.'
+			});
+		if (
+			value.moduleChoices?.some((choice) => choice.decision === 'continue') &&
+			!value.nextAcademicYear
+		)
+			ctx.addIssue({
+				code: 'custom',
+				path: ['nextAcademicYear'],
+				message: 'Choisissez explicitement l’année de reprise.'
+			});
+		if (value.nextAcademicYear && value.nextAcademicYear <= value.academicYear)
+			ctx.addIssue({
+				code: 'custom',
+				path: ['nextAcademicYear'],
+				message: 'La reprise doit viser une année ultérieure.'
 			});
 	});
 export type AnnualAction = z.infer<typeof annualActionSchema>;

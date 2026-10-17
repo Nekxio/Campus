@@ -11,6 +11,7 @@ import {
 import {
 	folderBindingSchema,
 	localModuleSchema,
+	localModuleUpdateSchema,
 	newFolderBinding,
 	resolveLocalModule,
 	type FolderBinding,
@@ -22,6 +23,10 @@ import {
 	importFingerprint,
 	type ImportContext
 } from '../../src/lib/domain/module-import.js';
+import {
+	patchModuleImportSchema,
+	type ModulePatchImport
+} from '../../src/lib/domain/module-patch.js';
 
 export function moduleOperations(
 	roots: string[],
@@ -38,6 +43,37 @@ export function moduleOperations(
 			);
 	}
 	return {
+		async patch(
+			folder: string,
+			value: Omit<ModulePatchImport, 'moduleId' | 'requestId' | 'version'>
+		) {
+			const path = await allowedFolder(folder, roots);
+			return withFolderLock(path, async () => {
+				const api = await client();
+				const binding = await readBinding(path);
+				sameOrigin(binding, api.origin);
+				if (!binding?.linked)
+					throw new Error('Bind this folder explicitly before patching a module.');
+				const fingerprint = await importFingerprint({ patch: value });
+				const requestId =
+					binding.lastOperation?.action === 'update' &&
+					binding.lastOperation.fingerprint === fingerprint
+						? binding.lastOperation.requestId
+						: crypto.randomUUID();
+				const input = patchModuleImportSchema.parse({
+					...value,
+					version: 2,
+					moduleId: binding.moduleId,
+					requestId
+				});
+				binding.lastOperation = { action: 'update', requestId, fingerprint };
+				await saveBinding(path, binding);
+				const receipt = await api.import('update', input);
+				binding.revision = receipt.revision;
+				await saveBinding(path, binding);
+				return { ...receipt, editorUrl: api.origin + receipt.editorPath };
+			});
+		},
 		async inspect(folder: string) {
 			const path = await allowedFolder(folder, roots);
 			return {
@@ -122,11 +158,18 @@ export function moduleOperations(
 					throw new Error(
 						'Create the draft or explicitly bind an existing module before updating it.'
 					);
-				const resolved = resolveLocalModule(localModuleSchema.parse(value), binding, path);
+				const resolved = resolveLocalModule(
+					(action === 'create' ? localModuleSchema : localModuleUpdateSchema).parse(value),
+					binding,
+					path
+				);
 				const base = {
 					version: 1 as const,
 					moduleId: binding.moduleId,
 					...resolved,
+					...(action === 'update'
+						? { draft: { ...resolved.draft, studentContent: value.studentContent } }
+						: {}),
 					...(action === 'update' ? { expectedRevision, confirmRubricReplacement } : {})
 				};
 				const fingerprint = await importFingerprint({ action, base });

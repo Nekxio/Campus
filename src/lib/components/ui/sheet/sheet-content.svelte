@@ -46,8 +46,8 @@
 				{#snippet child({ props })}
 					<Button
 						variant="ghost"
-						class="absolute top-4 right-4 bg-secondary"
-						size="icon-sm"
+						class="absolute top-4 right-4 size-11 bg-secondary"
+						size="icon"
 						{...props}
 					>
 						<XIcon />

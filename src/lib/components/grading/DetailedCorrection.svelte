@@ -41,7 +41,7 @@
 		<Empty.Content
 			><Button
 				href={resolve('/enseignant/notation') +
-					`?module=${data.rubric.module.id}&contexte=${data.contextId}`}
+					`?module=${data.rubric.module.id}&contexte=${data.contextId}&etudiant=${data.studentId}`}
 				variant="outline"
 				class="min-h-11">Retour à la grille</Button
 			></Empty.Content

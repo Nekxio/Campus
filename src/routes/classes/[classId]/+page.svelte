@@ -49,9 +49,9 @@
 						<Button
 							variant="outline"
 							href={module.publicPath}
-							aria-label={`Ouvrir le module ${module.title}`}
+							aria-label={`Ouvrir le cours ${module.title}`}
 							class="shrink-0"
-							>Ouvrir le module<ArrowRightIcon data-icon="inline-end" aria-hidden="true" /></Button
+							>Ouvrir le cours<ArrowRightIcon data-icon="inline-end" aria-hidden="true" /></Button
 						>
 					</article>
 				{/each}

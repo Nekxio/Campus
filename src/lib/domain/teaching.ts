@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { studentContentSchema, emptyStudentContent } from './pedagogy.js';
 import {
 	academicYearSchema,
 	idSchema,
@@ -70,6 +71,7 @@ export const moduleDraftSchema = z
 		objectives: z.array(studentNameSchema).max(100),
 		sourcePath: z.string().trim().max(2000),
 		preparation: preparationSchema,
+		studentContent: studentContentSchema.default(emptyStudentContent),
 		resources: z.array(resourceSchema).max(200),
 		contexts: z.array(contextSchema).max(100)
 	})
@@ -91,6 +93,9 @@ export const moduleUpdateSchema = moduleDraftSchema.safeExtend({
 export const moduleDetailSchema = moduleDraftSchema.safeExtend({
 	id: idSchema,
 	revision: revisionSchema,
+	needsReview: z.boolean().optional(),
+	agentChanges: z.array(z.string()).optional(),
+	paused: z.boolean().optional(),
 	contexts: z.array(contextSchema.extend({ expectedRevision: revisionSchema })).max(100)
 });
 export function validationFields(error: z.ZodError) {

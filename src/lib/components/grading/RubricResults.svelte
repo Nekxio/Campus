@@ -46,9 +46,9 @@
 				{
 					id: crypto.randomUUID(),
 					title: '',
-					kind: 'points_ratio',
+					kind: 'weighted',
 					assessmentIds: [],
-					components: []
+					components: [{ id: crypto.randomUUID(), assessmentIds: [], weight: 100 }]
 				}
 			]
 		}));
@@ -122,7 +122,9 @@
 
 <aside class="calculation-panel flex min-w-0 flex-col gap-4" aria-labelledby="results-heading">
 	<div class="flex flex-col gap-2">
-		<h2 id="results-heading" class="text-xl font-semibold tracking-tight">Règles et résultats</h2>
+		<h2 id="results-heading" class="text-xl font-semibold tracking-tight">
+			Résultats indépendants
+		</h2>
 		<p class="text-sm leading-relaxed text-muted-foreground">
 			Résultats indépendants, ramenés sur 20.
 		</p>
@@ -171,10 +173,14 @@
 						name={`results[${resultIndex}].assessmentIds`}
 						{assessments}
 					/>
-					{#if resultIndex === 0}{@render maxima()}{/if}
+					{#if resultIndex === 0 && !result.assessmentIds.every((id) => assessments.find((item) => item.id === id)?.kind === 'quiz')}{@render maxima()}{/if}
 					<p class="text-sm leading-relaxed text-muted-foreground">
-						Addition des points obtenus et des maxima, puis conversion sur 20. Ce cumul convient
-						notamment à plusieurs quiz.
+						{#if result.assessmentIds.length && result.assessmentIds.every((id) => assessments.find((item) => item.id === id)?.kind === 'quiz')}
+							Les sections Quiz sont normalisées sur 20 puis moyennées à poids égal.
+						{:else}
+							Addition des points obtenus et des maxima, puis conversion sur 20. Dans chaque section
+							Quiz, les quiz sont d’abord normalisés et moyennés à poids égal.
+						{/if}
 					</p>
 				{:else}
 					<Form.Fieldset
@@ -253,7 +259,8 @@
 							><PlusIcon data-icon="inline-start" />Ajouter une composante</Button
 						>
 						<Form.Description
-							>Chaque composante cumule ses points. Les poids doivent totaliser 100 %.</Form.Description
+							>Chaque composante moyenne ses notes sur 20 à poids égal. Les poids des composantes
+							doivent totaliser 100 %.</Form.Description
 						>
 						<Form.FieldErrors />
 					</Form.Fieldset>
@@ -285,8 +292,8 @@
 			>Modifier un barème déjà utilisé</summary
 		>
 		<p>
-			Les points bruts sont conservés. L’enregistrement recalcule les résultats ; les nouvelles
-			lignes restent à noter et les dépassements sont signalés.
+			Les points bruts sont conservés. Une modification numérique marque les évaluations concernées
+			à revoir ; les nouvelles lignes restent à noter et les dépassements sont signalés.
 		</p>
 	</details>
 </aside>

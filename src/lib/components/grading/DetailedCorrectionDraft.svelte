@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
+	import StudentGradeExport from './StudentGradeExport.svelte';
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
 	import {
@@ -15,7 +16,6 @@
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
@@ -135,6 +135,10 @@
 		current.status === 'absent_justified' || current.status === 'absent_unjustified'
 	);
 	const selectedDirty = $derived(JSON.stringify(current) !== baselines[selectedIndex]);
+	const reviewRequired = $derived(
+		savedStudent.corrections.find((record) => record.assessmentId === assessment.id)?.needsReview ??
+			false
+	);
 	const dirtyCount = $derived(
 		$draft.assessments.filter((item, index) => JSON.stringify(item) !== baselines[index]).length
 	);
@@ -144,7 +148,8 @@
 	const deadline = $derived(context?.deadlines.find((item) => item.assessmentId === assessment.id));
 	const position = $derived(data.students.findIndex((item) => item.id === initial.student.id));
 	const gridLink =
-		resolve('/enseignant/notation') + `?module=${rubric.module.id}&contexte=${initial.contextId}`;
+		resolve('/enseignant/notation') +
+		`?module=${rubric.module.id}&contexte=${initial.contextId}&etudiant=${initial.student.id}`;
 	const preview = $derived({
 		...savedStudent,
 		corrections: $draft.assessments.map((item) =>
@@ -202,10 +207,18 @@
 	const delayOptions = [
 		{ value: 'automatic', label: 'Pénalité automatique' },
 		{ value: 'exempt', label: 'Exception accordée' },
-		{ value: 'refused', label: 'Production refusée' }
+		{ value: 'refused', label: 'Projet explicitement non remis / refusé' }
 	];
 	function groupTotal(groupId: string) {
 		const lines = assessment.lines.filter((line) => line.groupId === groupId);
+		if (assessment.kind === 'quiz') {
+			const values = lines.map(
+				(line) => current.scores.find((score) => score.lineId === line.id)?.points ?? ''
+			);
+			return values.length && values.every((value) => /^\d+$/.test(value.trim()))
+				? `${formatMark(values.reduce((sum, value, index) => sum + (20 * Number(value)) / lines[index].maxPoints, 0) / values.length)} /20 · moyenne des quiz`
+				: 'Moyenne des quiz · incomplet';
+		}
 		const points = lines.reduce((sum, line) => {
 			const raw = current.scores.find((score) => score.lineId === line.id)?.points ?? '';
 			return sum + (/^\d+$/.test(raw.trim()) ? Number(raw) : 0);
@@ -449,7 +462,7 @@
 			><ChevronLeftIcon data-icon="inline-start" />Retour à la grille</Button
 		>
 		<Button
-			href={resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}
+			href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}?retour=notation&contexte=${initial.contextId}`}
 			variant="ghost"
 			class="min-h-11"
 			disabled={pending}>Voir le barème</Button
@@ -624,9 +637,9 @@
 								{form}
 								name={`assessments[${selectedIndex}].latenessDecision`}
 								id="submission-delay"
-								label="Décision de retard"
+								label="Décision de retard ou non-remise"
 								options={delayOptions}
-								description="Un point par jour de retard est retiré de la note du projet sur 20."
+								description="De 1 à 5 jours calendaires de Paris : −1 point par jour sur le projet /20 ; au-delà de 5 jours : zéro. Le plancher est zéro."
 							/>{/if}
 						{#if deadline?.submissionInstructions}<p
 								class="text-sm wrap-anywhere whitespace-pre-wrap text-muted-foreground"
@@ -645,7 +658,9 @@
 								<h2 class="text-xl font-semibold tracking-tight">
 									{assessment.groups.find((group) => group.id === activeGroup)?.title}
 								</h2>
-								<Badge variant="outline">{groupTotal(activeGroup)}</Badge>
+								<output class="text-sm font-medium tabular-nums" aria-label="Total du groupe"
+									>{groupTotal(activeGroup)}</output
+								>
 							</div>
 							<Tabs.List
 								aria-label="Groupes de critères"
@@ -770,6 +785,20 @@
 		class="bottom-summary flex min-w-0 flex-col gap-2 border-t bg-background pt-3"
 		aria-label="Bilan des évaluations"
 	>
+		{#if reviewRequired}<Alert.Root
+				><CircleAlertIcon aria-hidden="true" /><Alert.Title
+					>Barème modifié · correction à revoir</Alert.Title
+				><Alert.Description
+					>Vos points sont conservés. Vérifiez-les puis enregistrez cette évaluation pour confirmer
+					la nouvelle grille.</Alert.Description
+				></Alert.Root
+			>{/if}
+		<StudentGradeExport
+			{rubric}
+			contextId={initial.contextId}
+			student={savedStudent}
+			disabled={dirty || pending}
+		/>
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<h2 class="text-base font-semibold">Bilan des évaluations</h2>
@@ -802,7 +831,7 @@
 					type="submit"
 					form="correction-form"
 					class="min-h-11"
-					disabled={pending || conflict || !selectedDirty}
+					disabled={pending || conflict || (!selectedDirty && !reviewRequired)}
 					>{#if pending && !savingComment}<Spinner data-icon="inline-start" />{/if}Enregistrer {assessment.title}</Button
 				>
 			</div>
@@ -813,14 +842,15 @@
 					>Points, notes normalisées, coefficients et retard des évaluations</caption
 				><thead
 					><tr
-						><th scope="col">Évaluation</th><th scope="col">Points bruts</th><th scope="col"
+						><th scope="col">Évaluation</th><th scope="col">Base de calcul</th><th scope="col"
 							>Note sur 20</th
 						><th scope="col">Poids</th><th scope="col">Retard et calcul</th></tr
 					></thead
 				><tbody>
 					{#each rubric.assessments as item (item.id)}{@const grade =
 							calculated.assessments[item.id]}<tr
-							><th scope="row">{item.title}</th><td>{grade.rawPoints ?? '—'} / {grade.maxPoints}</td
+							><th scope="row">{item.title}</th><td
+								>{#if item.kind === 'quiz'}Moyenne des quiz{:else}{grade.rawPoints ?? '—'} / {grade.maxPoints}{/if}</td
 							><td
 								>{#if grade.rawMark !== null && grade.mark !== null && grade.rawMark !== grade.mark}{formatMark(
 										grade.rawMark
@@ -834,7 +864,10 @@
 								>100 %</td
 							><td
 								>{grade.state === 'ready'
-									? result.rule.kind === 'points_ratio'
+									? result.rule.kind === 'points_ratio' &&
+										!result.rule.assessmentIds.every(
+											(id) => rubric.assessments.find((item) => item.id === id)?.kind === 'quiz'
+										)
 										? 'Somme des points, puis conversion sur 20'
 										: 'Notes normalisées puis pondérées'
 									: resultIssueSummary(result)}</td
@@ -848,8 +881,12 @@
 				<div class="border-b pb-3">
 					<h3 class="font-medium">{item.title} · {resultLabel(grade)}</h3>
 					<dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
-						<dt class="text-muted-foreground">Points bruts</dt>
-						<dd class="tabular-nums">{grade.rawPoints ?? '—'} / {grade.maxPoints}</dd>
+						<dt class="text-muted-foreground">
+							{item.kind === 'quiz' ? 'Calcul' : 'Points bruts'}
+						</dt>
+						<dd class="tabular-nums">
+							{#if item.kind === 'quiz'}Moyenne des quiz{:else}{grade.rawPoints ?? '—'} / {grade.maxPoints}{/if}
+						</dd>
 						<dt class="text-muted-foreground">Poids</dt>
 						<dd class="wrap-anywhere">{assessmentWeights(item, rubric)}</dd>
 						<dt class="text-muted-foreground">Retard</dt>
@@ -910,7 +947,7 @@
 		align-items: end;
 	}
 	.criteria-scroll {
-		padding-block: 0.25rem;
+		padding: 0.375rem;
 		max-height: 31rem;
 		overflow-y: auto;
 		overscroll-behavior-y: contain;
@@ -949,14 +986,10 @@
 		}
 		.assessment-summary th,
 		.assessment-summary td {
-			padding: 0.35rem 0.5rem;
+			padding: 0.5rem 0.75rem;
 			border-bottom: 1px solid var(--border);
 			text-align: left;
 			overflow-wrap: anywhere;
-		}
-		.assessment-summary th:first-child,
-		.assessment-summary td:first-child {
-			padding-left: 0;
 		}
 		.assessment-summary thead {
 			background: var(--muted);
@@ -1012,10 +1045,6 @@
 		}
 		.correction :global(.criterion-list > *) {
 			margin-block: 0;
-		}
-		.assessment-summary th,
-		.assessment-summary td {
-			padding-block: 0.25rem;
 		}
 		.bottom-summary {
 			padding-top: 0.5rem;
@@ -1095,6 +1124,13 @@
 		}
 	}
 
+	@media (max-width: 63.99rem) {
+		.criteria-scroll {
+			max-height: none;
+			overflow: visible;
+			overscroll-behavior-y: auto;
+		}
+	}
 	@media (pointer: coarse) {
 		.correction :global([data-slot='native-select']),
 		.correction :global([data-slot='input']),

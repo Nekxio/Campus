@@ -6,8 +6,7 @@ teacher's private grading. These terms reflect the business scope agreed during 
 ## Language
 
 **Module**:
-A reusable body of teaching content, preparation, materials and assessment definitions.
-It remains available independently of a particular class or its students.
+A durable body of teaching content, preparation, materials and assessment definitions belonging to one class. Another class receives an independent copy. Its teaching content survives annual student-data removal.
 _Avoid_: Yearly class, grade grid
 
 **Module draft**:
@@ -76,6 +75,17 @@ and replacing the linked Drive files remain separate actions.
 _Avoid_: Grade publication, Drive file sharing
 
 **Annual purge**:
-The removal of a selected year's classes and student grading data while preserving teaching
-modules and their content.
+The explicitly confirmed close of a selected year, removing its student grading data in Coursely while retaining every module. Each module is continued with an empty new cohort or put aside privately.
 _Avoid_: Module deletion, teacher account deletion
+
+**Quiz section**:
+A set of Wayground quiz scores. Each quiz has a question-count maximum and the same weight after normalization; quiz questions and execution stay outside Coursely.
+_Avoid_: Question bank, raw-point aggregate across unequal quizzes
+
+**Module put aside**:
+Teaching content retained privately, with its previous public link disabled until an explicit resumption and publication.
+_Avoid_: Deleted module
+
+**Public class identity**:
+The stable destination students use to find a class’s published modules across explicitly confirmed annual transitions. It does not identify or carry a student cohort’s grades.
+_Avoid_: Annual roster, student account

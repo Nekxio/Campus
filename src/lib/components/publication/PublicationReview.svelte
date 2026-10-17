@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, onMount } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import {
 		defaults,
 		setError,
@@ -14,7 +15,7 @@
 	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import CopyIcon from '@lucide/svelte/icons/copy';
-	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import LockKeyholeIcon from '@lucide/svelte/icons/lock-keyhole';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
@@ -40,7 +41,7 @@
 		type PublicationSelection
 	} from '#lib/domain/publication.js';
 	import { saveTeaching, TeachingRequestError } from '#lib/teaching/api.js';
-	import ModuleCourseContent from './ModuleCourseContent.svelte';
+	import PublicCourse from './PublicCourse.svelte';
 
 	let { data }: { data: PublicationReviewData } = $props();
 	// The reviewed projection changes only after deliberate navigation or refresh.
@@ -48,14 +49,35 @@
 	const selected = $derived(review.selected);
 	const preview = $derived(selected?.draft ?? selected?.published ?? null);
 	const idPrefix = $derived(`review-${selected?.context.id ?? review.module.id}`);
-	const hasNotes = $derived(
-		preview &&
-			(preview.recap.trim() ||
-				preview.toDo.trim() ||
-				preview.lessonNotes.some((note) => note.recap.trim() || note.toDo.trim()))
+	const sections = publicationSections;
+	const returnSection = $derived(
+		['information', 'preparation', 'resources', 'planning'].includes(
+			page.url.searchParams.get('section') ?? ''
+		)
+			? page.url.searchParams.get('section')
+			: null
 	);
-	const sections = $derived(
-		preview ? publicationSections.filter((section) => section.id !== 'suivi' || hasNotes) : []
+	const returnQuery = $derived(
+		new URLSearchParams({
+			...(selected?.context.classId
+				? { classe: selected.context.classId, contexte: selected.context.id }
+				: {}),
+			...(returnSection ? { section: returnSection } : {})
+		}).toString()
+	);
+	const identityChanged = $derived(
+		!!selected?.draft &&
+			!!selected.published &&
+			JSON.stringify([
+				selected.draft.title,
+				selected.draft.description,
+				selected.draft.objectives
+			]) !==
+				JSON.stringify([
+					selected.published.title,
+					selected.published.description,
+					selected.published.objectives
+				])
 	);
 	const initialCommand = untrack(() =>
 		commandFor(data.selected, 'publish', '00000000-0000-4000-8000-000000000000')
@@ -75,6 +97,10 @@
 	let pending = $state(false);
 	let refreshing = $state(false);
 	let changingContext = $state(false);
+	let hydrated = $state(false);
+	onMount(() => {
+		hydrated = true;
+	});
 	const busy = $derived(pending || refreshing || changingContext);
 	let confirmOpen = $state(false);
 	let errorMessage = $state('');
@@ -85,10 +111,15 @@
 	let feedback = $state<HTMLDivElement | null>(null);
 	let retry: { signature: string; command: PublicationDecision } | null = null;
 	const canPublish = $derived(
-		!!selected?.draft && !selected.context.archived && !busy && !conflict && !needsRefresh
+		hydrated &&
+			!!selected?.draft &&
+			!selected.context.archived &&
+			!busy &&
+			!conflict &&
+			!needsRefresh
 	);
 	const canUnpublish = $derived(
-		selected?.status === 'published' && !busy && !conflict && !needsRefresh
+		hydrated && selected?.status === 'published' && !busy && !conflict && !needsRefresh
 	);
 
 	function commandFor(
@@ -122,6 +153,26 @@
 		if (!selected?.draft || !selected.published) return false;
 		const before = selected.published;
 		const after = selected.draft;
+		if (
+			id === 'supports' &&
+			JSON.stringify(before.studentContent.exercises) !==
+				JSON.stringify(after.studentContent.exercises)
+		)
+			return true;
+		if (
+			id === 'consignes' &&
+			JSON.stringify([
+				before.studentContent.instructions,
+				before.studentContent.projectInstructions,
+				before.rubric
+			]) !==
+				JSON.stringify([
+					after.studentContent.instructions,
+					after.studentContent.projectInstructions,
+					after.rubric
+				])
+		)
+			return true;
 		if (id === 'remise')
 			return JSON.stringify(before.deadlines) !== JSON.stringify(after.deadlines);
 		if (id === 'suivi')
@@ -172,7 +223,7 @@
 		try {
 			await goto(
 				resolve(
-					`/enseignant/modules/[moduleId]/publication?contexte=${encodeURIComponent(contextId)}`,
+					`/enseignant/modules/[moduleId]/publication?${new URLSearchParams({ contexte: contextId, ...(returnSection ? { section: returnSection } : {}) })}`,
 					{ moduleId: review.module.id }
 				)
 			);
@@ -284,7 +335,7 @@
 			<Button
 				variant="ghost"
 				class="min-h-11"
-				href={resolve('/enseignant/modules/[moduleId]', { moduleId: review.module.id })}
+				href={`${resolve('/enseignant/modules/[moduleId]', { moduleId: review.module.id })}${returnQuery ? '?' + returnQuery : ''}`}
 				disabled={busy}
 			>
 				<ArrowLeftIcon data-icon="inline-start" aria-hidden="true" />Retour au module
@@ -418,10 +469,16 @@
 				>
 					<div class="flex flex-col gap-3">
 						<h2 class="text-lg font-semibold tracking-tight">Contenu à vérifier</h2>
+						<p class="text-xs text-muted-foreground">
+							Ces sections servent à naviguer dans l’aperçu.
+						</p>
+						{#if identityChanged}<Badge variant="secondary"
+								>Titre, description ou objectifs modifiés</Badge
+							>{/if}
 						<nav aria-label="Sections de l’aperçu" class="flex flex-col gap-1">
 							{#each sections as section (section.id)}
 								<a
-									href={`#${idPrefix}-${section.id}`}
+									href={`#${idPrefix}`}
 									aria-current={activeSection === section.id ? 'location' : undefined}
 									onclick={() => (activeSection = section.id)}
 									class={cn(
@@ -429,7 +486,7 @@
 										activeSection === section.id && 'bg-muted font-medium'
 									)}
 								>
-									<CheckIcon class="size-4 shrink-0" aria-hidden="true" />
+									<ChevronRightIcon class="size-4 shrink-0" aria-hidden="true" />
 									<span class="min-w-0 flex-1"
 										>{section.label}{#if section.id === 'suivi'}<span
 												class="mt-1 block text-xs text-muted-foreground">Facultatif</span
@@ -536,11 +593,15 @@
 							>{/if}
 					</div>
 					<div class="preview-content min-w-0 p-5 sm:px-7" data-course-scroll>
-						{#if preview}<ModuleCourseContent
-								snapshot={preview}
-								{idPrefix}
-								onSectionChange={(id) => (activeSection = id)}
-								compact
+						{#if preview}<PublicCourse
+								data={{
+									contextId: selected.context.id,
+									snapshot: preview,
+									publishedAt: selected.publishedAt ?? '',
+									classPath: selected.classPath
+								}}
+								preview
+								bind:activeSection
 							/>{:else}<Empty.Root
 								><Empty.Header
 									><Empty.Title>Aucun contenu à prévisualiser</Empty.Title><Empty.Description
@@ -551,7 +612,7 @@
 					</div>
 				</section>
 			</div>
-			<footer class="decision-bar flex flex-col gap-4">
+			<footer class="decision-bar editor-save-bar flex flex-col gap-4">
 				<Separator />
 				<div class="decision-content flex flex-col gap-4">
 					<div class="decision-copy min-w-0">
@@ -671,6 +732,7 @@
 		container-type: inline-size;
 	}
 	.preview-content {
+		position: relative;
 		scroll-padding: 1.5rem;
 		scrollbar-gutter: stable;
 	}

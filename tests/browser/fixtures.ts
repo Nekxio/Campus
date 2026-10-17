@@ -10,7 +10,7 @@ export async function readyModuleEditor(page: Page) {
 			await expect(page.getByRole('tabpanel', { name: 'Préparation', exact: true })).toBeVisible({
 				timeout: 1000
 			});
-		}).toPass({ timeout: 15000 });
+		}).toPass({ timeout: 60000 });
 		await section.selectOption('information');
 		await expect(page.getByLabel('Nom du module (obligatoire)', { exact: true })).toBeVisible();
 		return;
@@ -19,7 +19,7 @@ export async function readyModuleEditor(page: Page) {
 	await expect(async () => {
 		await preparation.click();
 		await expect(preparation).toHaveAttribute('aria-selected', 'true', { timeout: 1000 });
-	}).toPass({ timeout: 15000 });
+	}).toPass({ timeout: 60000 });
 	await page.getByRole('tab', { name: 'Informations', exact: true }).click();
 	await expect(page.getByLabel('Nom du module (obligatoire)', { exact: true })).toBeVisible();
 }

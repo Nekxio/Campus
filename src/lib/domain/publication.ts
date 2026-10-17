@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { academicYearSchema, idSchema, modulePublicationSchema } from './contracts.js';
+import { emptyStudentContent, studentContentSchema } from './pedagogy.js';
 
 const label = z.string().trim().min(1).max(200);
 export const publicationSnapshotSchema = z.strictObject({
@@ -8,6 +9,27 @@ export const publicationSnapshotSchema = z.strictObject({
 	className: label,
 	academicYear: academicYearSchema,
 	objectives: z.array(label).max(100),
+	studentContent: studentContentSchema.default(emptyStudentContent),
+	rubric: z
+		.array(
+			z.strictObject({
+				title: label,
+				kind: z.enum(['quiz', 'project', 'oral', 'other']),
+				groups: z.array(
+					z.strictObject({
+						title: label,
+						lines: z.array(
+							z.strictObject({
+								label,
+								description: z.string().max(2000),
+								maxPoints: z.int().positive()
+							})
+						)
+					})
+				)
+			})
+		)
+		.default([]),
 	lessonNotes: z
 		.array(
 			z.strictObject({

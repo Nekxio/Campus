@@ -27,14 +27,14 @@
 					: 'La page n’a pas pu être chargée'}</Empty.Title
 			><Empty.Description
 				>{missing
-					? 'La page peut ne pas être publiée ou ne plus être accessible. Vérifiez le lien qui vous a été transmis.'
+					? 'La page peut ne pas être publiée ou ne plus être accessible. Vérifiez le lien complet. S’il est correct, demandez un nouveau lien à votre intervenant.'
 					: 'Réessayez dans un instant pour consulter le contenu.'}</Empty.Description
 			></Empty.Header
 		>
-		<Empty.Content
-			><Button variant="outline" onclick={() => window.location.reload()}>Réessayer</Button
-			></Empty.Content
-		>
+		{#if !missing}<Empty.Content
+				><Button variant="outline" onclick={() => window.location.reload()}>Réessayer</Button
+				></Empty.Content
+			>{/if}
 	</Empty.Root>
 </main>
 

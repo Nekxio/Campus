@@ -1,7 +1,11 @@
 import { expect, type Page } from '@playwright/test';
 import type { BrowserFixture } from './process.js';
 
-export async function activate(page: Page, app: BrowserFixture) {
+export async function activate(
+	page: Page,
+	app: BrowserFixture,
+	beforeCreate?: () => Promise<void>
+) {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('WebAuthn.enable');
 	const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
@@ -21,7 +25,7 @@ export async function activate(page: Page, app: BrowserFixture) {
 	try {
 		await page.goto(app.origin + '/activation');
 		await expect(page.getByText('Invitation introuvable', { exact: true })).toBeVisible({
-			timeout: 30000
+			timeout: 60000
 		});
 		// Keep the fragment out of Playwright navigation diagnostics and report steps.
 		await page.evaluate((token) => {
@@ -35,6 +39,7 @@ export async function activate(page: Page, app: BrowserFixture) {
 		.toBe(true);
 	const create = page.getByRole('button', { name: 'Créer ma clé d’accès', exact: true });
 	await expect(create).toBeEnabled();
+	await beforeCreate?.();
 	await create.focus();
 	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(app.origin + '/');

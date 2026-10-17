@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, onMount } from 'svelte';
 	import { z } from 'zod';
 	import { afterNavigate, beforeNavigate, goto, refreshAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -100,6 +100,10 @@
 	let changingYear = $state(false);
 	let pdfPending = $state<string | null>(null);
 	let historyPending = $state<string | null>(null);
+	let hydrated = $state(false);
+	onMount(() => {
+		hydrated = true;
+	});
 	const busy = $derived(
 		pending || refreshing || changingYear || pdfPending !== null || historyPending !== null
 	);
@@ -114,7 +118,9 @@
 	let histories = $state.raw<Record<string, AnnualHistoryData>>({});
 	let historyErrors = $state.raw<Record<string, string>>({});
 	let pdfFeedback = $state.raw<Record<string, { message: string; failed: boolean }>>({});
-	const canDecide = $derived(!!selected && !busy && !needsRefresh && retryCommand === null);
+	const canDecide = $derived(
+		hydrated && !!selected && !busy && !needsRefresh && retryCommand === null
+	);
 	const canArchive = $derived(
 		canDecide &&
 			selected?.status === 'active' &&
@@ -404,7 +410,7 @@
 
 <div class="annual-workspace flex min-w-0 flex-col gap-5">
 	<div class="flex flex-col gap-2">
-		<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Fin d’année</h1>
+		<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Fin d’année et historique</h1>
 		<p class="max-w-prose text-sm text-muted-foreground">
 			Conservez vos PDF, puis choisissez comment clôturer l’année.
 		</p>
@@ -427,7 +433,7 @@
 			<div class="flex w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-2 sm:w-auto sm:flex-1">
 				{#each selected.classes as item (item.id)}<p class="text-sm wrap-anywhere">
 						<span class="font-medium">{item.name}</span><span class="ml-2 text-muted-foreground"
-							>{item.studentCount} étudiants</span
+							>{item.studentCount} étudiant{item.studentCount > 1 ? 's' : ''}</span
 						>
 					</p>{/each}
 			</div>
@@ -440,8 +446,15 @@
 							: 'Année active'}</Badge
 				>
 				<p class="text-sm text-muted-foreground tabular-nums">
-					{#if selected.status !== 'purged'}{selected.removed.students} étudiants ·
-					{/if}{selected.preserved.contexts} contextes<br />{selected.preserved.modules} modules réutilisables
+					{#if selected.status !== 'purged'}{selected.removed.students} étudiant{selected.removed
+							.students > 1
+							? 's'
+							: ''} ·
+					{/if}{selected.preserved.contexts} contexte{selected.preserved.contexts > 1 ? 's' : ''}<br
+					/>{selected.preserved.modules} module{selected.preserved.modules > 1 ? 's' : ''} réutilisable{selected
+						.preserved.modules > 1
+						? 's'
+						: ''}
 				</p>
 			</div>
 		{/if}
@@ -489,10 +502,17 @@
 			{#if status}<Alert.Root role="status" class="mt-3"
 					><CircleCheckIcon aria-hidden="true" /><Alert.Title>{status}</Alert.Title
 					>{#if receipt?.action === 'purge'}<Alert.Description class="tabular-nums"
-							>Suppression enregistrée : {receipt.removed.classes} classes, {receipt.removed
-								.students} étudiants, {receipt.removed.corrections} corrections, {receipt.removed
-								.scores} saisies de points, {receipt.removed.comments} commentaires, {receipt
-								.removed.proposals} propositions et {receipt.removed.decisions} décisions.</Alert.Description
+							>Suppression enregistrée : {receipt.removed.classes} classe{receipt.removed.classes >
+							1
+								? 's'
+								: ''}, {receipt.removed.students} étudiant{receipt.removed.students > 1 ? 's' : ''}, {receipt
+								.removed.corrections} correction{receipt.removed.corrections > 1 ? 's' : ''}, {receipt
+								.removed.scores} saisie{receipt.removed.scores > 1 ? 's' : ''} de points, {receipt
+								.removed.comments} commentaire{receipt.removed.comments > 1 ? 's' : ''}, {receipt
+								.removed.proposals} proposition{receipt.removed.proposals > 1 ? 's' : ''} et {receipt
+								.removed.decisions} décision{receipt.removed.decisions > 1
+								? 's'
+								: ''}.</Alert.Description
 						>{/if}</Alert.Root
 				>{/if}
 		</div>
@@ -510,235 +530,266 @@
 			></Empty.Root
 		>
 	{:else}
-		<section aria-labelledby="annual-pdf-title" class="flex min-w-0 flex-col gap-3">
-			<div>
-				<h2 id="annual-pdf-title" class="text-lg font-semibold">
-					{selected.status === 'purged'
-						? 'Contextes et calendriers conservés'
-						: 'PDF nécessaires à conserver'}
-				</h2>
-				<p class="mt-1 max-w-prose text-sm text-muted-foreground">
-					{selected.status === 'purged'
-						? 'La préparation et les calendriers restent consultables. Les données étudiantes et les PDF ne peuvent plus être générés depuis cette année.'
-						: 'Les PDF conservés ne restaurent pas les détails de correction.'}
-				</p>
-			</div>
-			{#if selected.contexts.length}
-				<ul class="min-w-0 divide-y border-y">
-					{#each selected.contexts as context (context.id)}
-						<li class="flex min-w-0 flex-col gap-3 py-1.5">
-							<div class="annual-pdf-row min-w-0">
-								<p class="flex min-w-0 items-center gap-3 text-sm font-medium">
-									<FileTextIcon
-										class="size-4 shrink-0 text-muted-foreground"
-										aria-hidden="true"
-									/><span class="min-w-0 wrap-anywhere">{context.moduleTitle}</span>
-								</p>
-								<p class="min-w-0 text-sm wrap-anywhere text-muted-foreground">
-									{context.className}
-								</p>
-								<p class="text-sm text-muted-foreground">
-									{!context.rosterRetained
-										? 'Données purgées'
-										: context.pdf.ready
-											? 'PDF prêt'
-											: `${context.pdf.complete}/${context.pdf.total} résultats complets`}
-								</p>
-								<div class="flex min-w-0 flex-wrap items-center gap-2">
-									<Button
-										variant="outline"
-										class="min-h-11"
-										disabled={busy ||
-											needsRefresh ||
-											retryCommand !== null ||
-											!context.pdf.ready ||
-											!context.rosterRetained}
-										onclick={() => download(context)}
-										aria-label={`Télécharger le PDF ${context.moduleTitle} pour ${context.className}, ${selected.academicYear}`}
-									>
-										{#if pdfPending === context.id}<Spinner
-												data-icon="inline-start"
-											/>{:else}<DownloadIcon data-icon="inline-start" />{/if}{pdfPending ===
-										context.id
-											? 'Préparation…'
-											: 'Télécharger le PDF'}
-									</Button>
-									<Button
-										variant="ghost"
-										size="icon-lg"
-										class="size-11"
-										disabled={busy || needsRefresh || retryCommand !== null}
-										aria-expanded={openHistory === context.id}
-										aria-controls={`annual-history-${context.id}`}
-										aria-label={`${openHistory === context.id ? 'Masquer' : 'Consulter'} l’historique de ${context.moduleTitle} pour ${context.className}, ${selected.academicYear}`}
-										onclick={() => inspect(context)}><HistoryIcon aria-hidden="true" /></Button
-									>
-								</div>
-							</div>
-							{#if context.rosterRetained && !context.pdf.ready}<p
-									class="max-w-prose text-sm wrap-anywhere text-muted-foreground"
-								>
-									{context.pdf.reason}
-								</p>{/if}
-							{#if pdfFeedback[context.id]?.message}{#if pdfFeedback[context.id].failed}<Alert.Root
-										variant="destructive"
-										><CircleAlertIcon aria-hidden="true" /><Alert.Title
-											>PDF indisponible</Alert.Title
-										><Alert.Description>{pdfFeedback[context.id].message}</Alert.Description
-										></Alert.Root
-									>{:else}<p role="status" class="text-sm text-muted-foreground">
-										{pdfFeedback[context.id].message}
-									</p>{/if}{/if}
-							<div id={`annual-history-${context.id}`} hidden={openHistory !== context.id}>
-								{#if openHistory === context.id}{#if historyPending === context.id}<p
-											role="status"
-											class="flex min-h-11 items-center gap-2 text-sm text-muted-foreground"
-										>
-											<Spinner />Chargement de l’historique…
-										</p>{:else if historyErrors[context.id]}<Alert.Root variant="destructive"
-											><CircleAlertIcon aria-hidden="true" /><Alert.Title
-												>Historique indisponible</Alert.Title
-											><Alert.Description class="flex flex-col gap-3"
-												><p>{historyErrors[context.id]}</p>
-												{#if !needsRefresh}<Button
-														variant="outline"
-														class="min-h-11 self-start"
-														onclick={() => {
-															openHistory = null;
-															void inspect(context);
-														}}>Réessayer</Button
-													>{/if}</Alert.Description
-											></Alert.Root
-										>{:else if histories[context.id]}<AnnualHistory
-											data={histories[context.id]}
-										/>{/if}{/if}
-							</div>
-						</li>
-					{/each}
-				</ul>
-			{:else}<Empty.Root
-					><Empty.Header
-						><Empty.Title>Aucun contexte pour cette année</Empty.Title><Empty.Description
-							>Aucun PDF de module ni calendrier annuel à consulter.</Empty.Description
-						></Empty.Header
-					></Empty.Root
-				>{/if}
-		</section>
-		<section aria-labelledby="annual-removed-title" class="flex min-w-0 flex-col gap-3">
-			<h2 id="annual-removed-title" class="text-lg font-semibold">
-				{selected.status === 'purged'
-					? 'Données annuelles supprimées'
-					: 'Ce que la purge supprimera'}
-			</h2>
-			{#if selected.status === 'purged'}<p class="text-sm text-muted-foreground">
-					Les classes et les données étudiantes de {selected.academicYear} ont été supprimées. La réouverture
-					de l’année est indisponible.
-				</p>{:else if !selected.classes.length}<p class="text-sm text-muted-foreground">
-					Aucune classe ni donnée étudiante à purger pour cette année.
-				</p>{/if}
-			{#if selected.status !== 'purged'}<dl class="divide-y border-y text-sm">
-					<div class="annual-recap-row">
-						<dt class="font-medium">Classes et étudiants</dt>
-						<dd class="tabular-nums">
-							{selected.removed.classes} classes · {selected.removed.students} étudiants
-							<p class="mt-1 text-sm text-muted-foreground">
-								Les liens des classes ne fonctionneront plus.
-							</p>
-						</dd>
-					</div>
-					<div class="annual-recap-row">
-						<dt class="font-medium">Corrections et suivi privé</dt>
-						<dd class="tabular-nums">
-							{selected.removed.corrections} corrections · {selected.removed.comments} commentaires privés
-							· {selected.removed.proposals} propositions
-							<p class="mt-1 text-sm text-muted-foreground">
-								{selected.removed.scores} saisies de points · {selected.removed.decisions} décisions ;
-								remises et historique supprimés.
-							</p>
-						</dd>
-					</div>
-				</dl>{/if}
-		</section>
-		<section aria-labelledby="annual-preserved-title" class="flex min-w-0 flex-col gap-3">
-			<h2 id="annual-preserved-title" class="text-lg font-semibold">Ce qui restera disponible</h2>
-			<dl class="divide-y border-y text-sm">
-				<div class="annual-recap-row">
-					<dt class="font-medium">Modules, préparation et calendriers</dt>
-					<dd class="text-muted-foreground tabular-nums">
-						{selected.preserved.modules} modules · {selected.preserved.contexts} calendriers
-						<p class="mt-1">
-							{selected.preserved.lessons} séances · {selected.preserved.deadlines} échéances ; objectifs,
-							sources et barèmes conservés.
-						</p>
-					</dd>
-				</div>
-				<div class="annual-recap-row">
-					<dt class="font-medium">Accès, ressources et publication</dt>
-					<dd class="text-muted-foreground">
-						Enseignant, passkeys, accès agent et liens Drive
-						<p class="mt-1 tabular-nums">
-							{selected.preserved.publications} pages de module publiées
-						</p>
-					</dd>
-				</div>
-			</dl>
-		</section>
-		<div class="flex min-w-0 flex-col gap-3 border-t pt-5">
-			<div class="flex flex-wrap items-center gap-4">
-				{#if selected.status === 'active'}<form
-						onsubmit={(event) => submitOrdinary(event, 'archive')}
-						aria-busy={pending}
-					>
-						<Form.Button variant="outline" class="min-h-11" disabled={!canArchive}
-							><ArchiveIcon data-icon="inline-start" />{pending &&
-							retryCommand?.action === 'archive'
-								? 'Archivage…'
-								: 'Archiver sans supprimer'}</Form.Button
-						>
-					</form>
-					<p class="max-w-prose text-sm text-muted-foreground">
-						Retire l’année du travail actif.<br />Les données restent consultables.
-					</p>{:else}<form
-						onsubmit={(event) => submitOrdinary(event, 'reopen')}
-						aria-busy={pending}
-					>
-						<Form.Button variant="outline" class="min-h-11" disabled={!canReopen}
-							><ArchiveRestoreIcon data-icon="inline-start" />{pending &&
-							retryCommand?.action === 'reopen'
-								? 'Réouverture…'
-								: 'Rouvrir l’année'}</Form.Button
-						>
-					</form>
-					<p class="max-w-prose text-sm text-muted-foreground">
+		<div class="annual-dossier grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+			<section aria-labelledby="annual-pdf-title" class="flex min-w-0 flex-col gap-3">
+				<div>
+					<h2 id="annual-pdf-title" class="text-lg font-semibold">
 						{selected.status === 'purged'
-							? 'Les données étudiantes purgées ne peuvent pas être restaurées.'
-							: 'La préparation et la notation sont en lecture seule. Rouvrez l’année pour reprendre le travail.'}
-					</p>{/if}
-				<Button
-					variant="destructive"
-					class="min-h-11 sm:ml-auto"
-					disabled={!canPurge}
-					onclick={() => {
-						errorMessage = '';
-						confirmOpen = true;
-					}}><Trash2Icon data-icon="inline-start" />Préparer la purge</Button
-				>
-			</div>
-			{#if $archiveAllErrors.length || $reopenAllErrors.length}<p
-					role="alert"
-					class="text-sm text-destructive"
-				>
-					{[...$archiveAllErrors, ...$reopenAllErrors].flatMap((entry) => entry.messages).join(' ')}
-				</p>{/if}
-			{#if selected.status !== 'purged' && selected.classes.length}<p
-					class="text-sm text-muted-foreground"
-				>
-					Confirmation protégée ensuite : saisir « {selected.academicYear} » et confirmer avoir conservé
-					les PDF nécessaires.
-				</p>{/if}
-			<p role="status" class="sr-only">
-				{pending ? `Décision en cours pour l’année ${selected.academicYear}…` : ''}
-			</p>
+							? 'Contextes et calendriers conservés'
+							: 'PDF nécessaires à conserver'}
+					</h2>
+					<p class="mt-1 max-w-prose text-sm text-muted-foreground">
+						{selected.status === 'purged'
+							? 'La préparation et les calendriers restent consultables. Les données étudiantes et les PDF ne peuvent plus être générés depuis cette année.'
+							: 'Les PDF conservés ne restaurent pas les détails de correction.'}
+					</p>
+				</div>
+				{#if selected.contexts.length}
+					<ul class="min-w-0 divide-y border-y">
+						{#each selected.contexts as context (context.id)}
+							<li class="flex min-w-0 flex-col gap-3 py-1.5">
+								<div class="annual-pdf-row min-w-0">
+									<p class="flex min-w-0 items-center gap-3 text-sm font-medium">
+										<FileTextIcon
+											class="size-4 shrink-0 text-muted-foreground"
+											aria-hidden="true"
+										/><span class="min-w-0 wrap-anywhere">{context.moduleTitle}</span>
+									</p>
+									<p class="min-w-0 text-sm wrap-anywhere text-muted-foreground">
+										{context.className}
+									</p>
+									<p class="text-sm text-muted-foreground">
+										{!context.rosterRetained
+											? 'Données purgées'
+											: context.pdf.ready
+												? 'PDF prêt'
+												: `${context.pdf.complete}/${context.pdf.total} résultats complets`}
+									</p>
+									<div class="flex min-w-0 flex-wrap items-center gap-2">
+										<Button
+											variant="outline"
+											class="min-h-11"
+											disabled={busy ||
+												needsRefresh ||
+												retryCommand !== null ||
+												!context.pdf.ready ||
+												!context.rosterRetained}
+											onclick={() => download(context)}
+											aria-label={`Télécharger le PDF ${context.moduleTitle} pour ${context.className}, ${selected.academicYear}`}
+										>
+											{#if pdfPending === context.id}<Spinner
+													data-icon="inline-start"
+												/>{:else}<DownloadIcon data-icon="inline-start" />{/if}{pdfPending ===
+											context.id
+												? 'Préparation…'
+												: 'Télécharger le PDF'}
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon-lg"
+											class="size-11"
+											disabled={busy || needsRefresh || retryCommand !== null}
+											aria-expanded={openHistory === context.id}
+											aria-controls={`annual-history-${context.id}`}
+											aria-label={`${openHistory === context.id ? 'Masquer' : 'Consulter'} l’historique de ${context.moduleTitle} pour ${context.className}, ${selected.academicYear}`}
+											onclick={() => inspect(context)}><HistoryIcon aria-hidden="true" /></Button
+										>
+									</div>
+								</div>
+								{#if context.rosterRetained && !context.pdf.ready}<p
+										class="max-w-prose text-sm wrap-anywhere text-muted-foreground"
+									>
+										{context.pdf.reason}
+									</p>{/if}
+								{#if pdfFeedback[context.id]?.message}{#if pdfFeedback[context.id].failed}<Alert.Root
+											variant="destructive"
+											><CircleAlertIcon aria-hidden="true" /><Alert.Title
+												>PDF indisponible</Alert.Title
+											><Alert.Description>{pdfFeedback[context.id].message}</Alert.Description
+											></Alert.Root
+										>{:else}<p role="status" class="text-sm text-muted-foreground">
+											{pdfFeedback[context.id].message}
+										</p>{/if}{/if}
+								<div id={`annual-history-${context.id}`} hidden={openHistory !== context.id}>
+									{#if openHistory === context.id}{#if historyPending === context.id}<p
+												role="status"
+												class="flex min-h-11 items-center gap-2 text-sm text-muted-foreground"
+											>
+												<Spinner />Chargement de l’historique…
+											</p>{:else if historyErrors[context.id]}<Alert.Root variant="destructive"
+												><CircleAlertIcon aria-hidden="true" /><Alert.Title
+													>Historique indisponible</Alert.Title
+												><Alert.Description class="flex flex-col gap-3"
+													><p>{historyErrors[context.id]}</p>
+													{#if !needsRefresh}<Button
+															variant="outline"
+															class="min-h-11 self-start"
+															onclick={() => {
+																openHistory = null;
+																void inspect(context);
+															}}>Réessayer</Button
+														>{/if}</Alert.Description
+												></Alert.Root
+											>{:else if histories[context.id]}<AnnualHistory
+												data={histories[context.id]}
+											/>{/if}{/if}
+								</div>
+							</li>
+						{/each}
+					</ul>
+				{:else}<Empty.Root
+						><Empty.Header
+							><Empty.Title>Aucun contexte pour cette année</Empty.Title><Empty.Description
+								>Aucun PDF de module ni calendrier annuel à consulter.</Empty.Description
+							></Empty.Header
+						></Empty.Root
+					>{/if}
+			</section>
+			<aside
+				class="annual-conservation flex min-w-0 flex-col gap-7 xl:border-l xl:pl-7"
+				aria-label="Conservation et décisions sur l’année"
+			>
+				<section aria-labelledby="retention-title">
+					<h2 id="retention-title" class="text-lg font-semibold">Conservation</h2>
+					<p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+						La clôture est manuelle, à la date que vous choisissez. Elle supprime dans Coursely les
+						données étudiantes de l’année et conserve tous les modules. Les fichiers Drive et PDF
+						déjà conservés restent en dehors de Coursely.
+					</p>
+				</section>
+				<section aria-labelledby="annual-removed-title" class="flex min-w-0 flex-col gap-3">
+					<h2 id="annual-removed-title" class="text-lg font-semibold">
+						{selected.status === 'purged'
+							? 'Données annuelles supprimées'
+							: 'Ce que la clôture supprimera'}
+					</h2>
+					{#if selected.status === 'purged'}<p class="text-sm text-muted-foreground">
+							Les classes et les données étudiantes de {selected.academicYear} ont été supprimées. La
+							réouverture de l’année est indisponible.
+						</p>{:else if !selected.classes.length}<p class="text-sm text-muted-foreground">
+							Aucune classe ni donnée étudiante à purger pour cette année.
+						</p>{/if}
+					{#if selected.status !== 'purged'}<dl class="divide-y border-y text-sm">
+							<div class="annual-recap-row">
+								<dt class="font-medium">Classes et étudiants</dt>
+								<dd class="tabular-nums">
+									{selected.removed.classes} classe{selected.removed.classes > 1 ? 's' : ''} · {selected
+										.removed.students} étudiant{selected.removed.students > 1 ? 's' : ''}
+									<p class="mt-1 text-sm text-muted-foreground">
+										Le lien d’une classe reprise sera conservé ; les autres annuaires seront
+										retirés.
+									</p>
+								</dd>
+							</div>
+							<div class="annual-recap-row">
+								<dt class="font-medium">Corrections et suivi privé</dt>
+								<dd class="tabular-nums">
+									{selected.removed.corrections} correction{selected.removed.corrections > 1
+										? 's'
+										: ''} · {selected.removed.comments} commentaire{selected.removed.comments > 1
+										? 's'
+										: ''} privé{selected.removed.comments > 1 ? 's' : ''} · {selected.removed
+										.proposals} proposition{selected.removed.proposals > 1 ? 's' : ''}
+									<p class="mt-1 text-sm text-muted-foreground">
+										{selected.removed.scores} saisie{selected.removed.scores > 1 ? 's' : ''} de points
+										· {selected.removed.decisions} décision{selected.removed.decisions > 1
+											? 's'
+											: ''} ; remises et historique supprimés.
+									</p>
+								</dd>
+							</div>
+						</dl>{/if}
+				</section>
+				<section aria-labelledby="annual-preserved-title" class="flex min-w-0 flex-col gap-3">
+					<h2 id="annual-preserved-title" class="text-lg font-semibold">
+						Ce qui restera disponible
+					</h2>
+					<dl class="divide-y border-y text-sm">
+						<div class="annual-recap-row">
+							<dt class="font-medium">Modules, préparation et calendriers</dt>
+							<dd class="text-muted-foreground tabular-nums">
+								{selected.preserved.modules} module{selected.preserved.modules > 1 ? 's' : ''} · {selected
+									.preserved.contexts} calendrier{selected.preserved.contexts > 1 ? 's' : ''}
+								<p class="mt-1">
+									{selected.preserved.lessons} séance{selected.preserved.lessons > 1 ? 's' : ''} · {selected
+										.preserved.deadlines} échéance{selected.preserved.deadlines > 1 ? 's' : ''} ; objectifs,
+									sources et barèmes conservés.
+								</p>
+							</dd>
+						</div>
+						<div class="annual-recap-row">
+							<dt class="font-medium">Accès, ressources et publication</dt>
+							<dd class="text-muted-foreground">
+								Enseignant, passkeys, accès agent et liens Drive
+								<p class="mt-1 tabular-nums">
+									{selected.preserved.publications} page{selected.preserved.publications > 1
+										? 's'
+										: ''} de module publiée{selected.preserved.publications > 1 ? 's' : ''}
+								</p>
+							</dd>
+						</div>
+					</dl>
+				</section>
+				<div class="flex min-w-0 flex-col gap-3 border-t pt-5">
+					<div class="flex flex-wrap items-center gap-4">
+						{#if selected.status === 'active'}<form
+								onsubmit={(event) => submitOrdinary(event, 'archive')}
+								aria-busy={pending}
+							>
+								<Form.Button variant="outline" class="min-h-11" disabled={!canArchive}
+									><ArchiveIcon data-icon="inline-start" />{pending &&
+									retryCommand?.action === 'archive'
+										? 'Archivage…'
+										: 'Archiver sans supprimer'}</Form.Button
+								>
+							</form>
+							<p class="max-w-prose text-sm text-muted-foreground">
+								Retire l’année du travail actif.<br />Les données restent consultables.
+							</p>{:else}<form
+								onsubmit={(event) => submitOrdinary(event, 'reopen')}
+								aria-busy={pending}
+							>
+								<Form.Button variant="outline" class="min-h-11" disabled={!canReopen}
+									><ArchiveRestoreIcon data-icon="inline-start" />{pending &&
+									retryCommand?.action === 'reopen'
+										? 'Réouverture…'
+										: 'Rouvrir l’année'}</Form.Button
+								>
+							</form>
+							<p class="max-w-prose text-sm text-muted-foreground">
+								{selected.status === 'purged'
+									? 'Les données étudiantes purgées ne peuvent pas être restaurées.'
+									: 'La préparation et la notation sont en lecture seule. Rouvrez l’année pour reprendre le travail.'}
+							</p>{/if}
+						<Button
+							variant="destructive"
+							class="min-h-11 text-[color-mix(in_oklch,var(--destructive),var(--foreground)_20%)] sm:ml-auto dark:text-destructive dark:hover:bg-destructive/25"
+							disabled={!canPurge}
+							onclick={() => {
+								errorMessage = '';
+								confirmOpen = true;
+							}}><Trash2Icon data-icon="inline-start" />Préparer la clôture</Button
+						>
+					</div>
+					{#if $archiveAllErrors.length || $reopenAllErrors.length}<p
+							role="alert"
+							class="text-sm text-destructive"
+						>
+							{[...$archiveAllErrors, ...$reopenAllErrors]
+								.flatMap((entry) => entry.messages)
+								.join(' ')}
+						</p>{/if}
+					{#if selected.status !== 'purged' && selected.classes.length}<p
+							class="text-sm text-muted-foreground"
+						>
+							Confirmation protégée ensuite : saisir « {selected.academicYear} » et confirmer avoir conservé
+							les PDF nécessaires.
+						</p>{/if}
+					<p role="status" class="sr-only">
+						{pending ? `Décision en cours pour l’année ${selected.academicYear}…` : ''}
+					</p>
+				</div>
+			</aside>
 		</div>
 	{/if}
 </div>
@@ -785,7 +836,7 @@
 	}
 	@media (min-width: 64rem) {
 		.annual-pdf-row {
-			grid-template-columns: minmax(0, 1fr) minmax(5rem, 0.4fr) minmax(7rem, 0.4fr) auto;
+			grid-template-columns: minmax(0, 1fr);
 			gap: 1.25rem;
 		}
 		.annual-recap-row dd {

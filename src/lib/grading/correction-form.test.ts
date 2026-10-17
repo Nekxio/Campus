@@ -38,6 +38,7 @@ function fixture() {
 	rubric.contexts = [
 		{
 			id: contextId,
+			classId: crypto.randomUUID(),
 			expectedRevision: 1,
 			className: 'Classe fictive',
 			academicYear: '2026-2027',

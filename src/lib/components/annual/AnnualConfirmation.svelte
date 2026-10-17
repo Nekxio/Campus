@@ -12,6 +12,7 @@
 	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
 	import * as Field from '#lib/components/ui/field/index.js';
 	import * as Form from '#lib/components/ui/form/index.js';
+	import AnnualModuleChoice from './AnnualModuleChoice.svelte';
 	import { annualActionSchema, type AnnualAction, type AnnualPreview } from '#lib/domain/annual.js';
 
 	let {
@@ -46,12 +47,21 @@
 				reviewToken: reviewed.reviewToken,
 				requestId: '00000000-0000-4000-8000-000000000000',
 				typedYear: '',
-				pdfsKept: false
+				pdfsKept: false,
+				moduleChoices: [
+					...new Map(
+						reviewed.contexts.map((context) => [
+							context.moduleId,
+							{ moduleId: context.moduleId, decision: 'pause' as const }
+						])
+					).values()
+				]
 			},
 			zod4Client(annualActionSchema)
 		),
 		{
 			id: `annual-purge-${reviewed.academicYear}`,
+			dataType: 'json',
 			validators: zod4Client(annualActionSchema),
 			applyAction: 'never',
 			resetForm: false,
@@ -71,11 +81,13 @@
 		const validated = await purgeForm.validateForm({ update: true, focusOnError: false });
 		if (!validated.valid) {
 			await tick();
-			const id = validated.errors.pdfsKept?.length
-				? 'annual-pdfs-kept'
-				: validated.errors.typedYear?.length
-					? 'annual-typed-year'
-					: null;
+			const id = validated.errors.nextAcademicYear?.length
+				? 'annual-next-year'
+				: validated.errors.pdfsKept?.length
+					? 'annual-pdfs-kept'
+					: validated.errors.typedYear?.length
+						? 'annual-typed-year'
+						: null;
 			if (id) document.getElementById(id)?.focus();
 			return;
 		}
@@ -89,6 +101,7 @@
 		const fields = await onConfirm(command);
 		if (fields)
 			$purgeErrors = {
+				nextAcademicYear: fields.nextAcademicYear ? [fields.nextAcademicYear] : undefined,
 				typedYear: fields.typedYear ? [fields.typedYear] : undefined,
 				pdfsKept: fields.pdfsKept ? [fields.pdfsKept] : undefined
 			};
@@ -108,7 +121,7 @@
 		}}
 	>
 		<AlertDialog.Header>
-			<AlertDialog.Title>Purger l’année {reviewed.academicYear} ?</AlertDialog.Title>
+			<AlertDialog.Title>Clôturer l’année {reviewed.academicYear} ?</AlertDialog.Title>
 			<AlertDialog.Description>
 				Cette suppression est définitive. Les PDF conservés ne restaurent ni les critères, ni les
 				remises, ni les commentaires privés.
@@ -126,7 +139,9 @@
 						{#each reviewed.classes as item (item.id)}
 							<div class="flex flex-wrap justify-between gap-x-4 gap-y-1 text-muted-foreground">
 								<dt class="min-w-0 wrap-anywhere">{item.name}</dt>
-								<dd class="tabular-nums">{item.studentCount} étudiants</dd>
+								<dd class="tabular-nums">
+									{item.studentCount} étudiant{item.studentCount > 1 ? 's' : ''}
+								</dd>
 							</div>
 						{/each}
 						<div class="flex flex-wrap justify-between gap-x-4 gap-y-1">
@@ -155,17 +170,20 @@
 						</div>
 					</dl>
 					<p class="mt-2 text-sm text-muted-foreground">
-						Les liens des classes disparaîtront avec les données étudiantes et leur historique.
+						Les classes reprises conservent leur lien public. Les autres annuaires de classe ne
+						seront plus accessibles.
 					</p>
 				</div>
 				<div class="border-t pt-4">
 					<h3 class="text-sm font-semibold">Données conservées</h3>
 					<p class="mt-2 text-sm wrap-anywhere text-muted-foreground">
-						{reviewed.preserved.modules} modules, leurs préparations, objectifs, sources, ressources et
-						barèmes ;
-						{reviewed.preserved.contexts} calendriers avec {reviewed.preserved.lessons} séances et
-						{reviewed.preserved.deadlines} échéances ; {reviewed.preserved.publications} pages de module
-						publiées.
+						{reviewed.preserved.modules} module{reviewed.preserved.modules > 1 ? 's' : ''}, leurs
+						préparations, objectifs, sources, ressources et barèmes ;
+						{reviewed.preserved.contexts} calendrier{reviewed.preserved.contexts > 1 ? 's' : ''} avec
+						{reviewed.preserved.lessons} séance{reviewed.preserved.lessons > 1 ? 's' : ''} et
+						{reviewed.preserved.deadlines} échéance{reviewed.preserved.deadlines > 1 ? 's' : ''} ; {reviewed
+							.preserved.publications} page{reviewed.preserved.publications > 1 ? 's' : ''} de module
+						publiée{reviewed.preserved.publications > 1 ? 's' : ''}.
 					</p>
 					<p class="mt-2 text-sm text-muted-foreground">
 						Vos accès enseignant, passkeys et agent ainsi que les liens Drive restent disponibles.
@@ -173,6 +191,32 @@
 				</div>
 			</div>
 			<Field.FieldGroup>
+				<Form.Field form={purgeForm} name="nextAcademicYear">
+					<Form.Control id="annual-next-year"
+						>{#snippet children({ props })}<Form.Label
+								>Année de reprise (si vous reprenez des modules)</Form.Label
+							><Input
+								{...props}
+								bind:value={$purgeData.nextAcademicYear}
+								placeholder="2027-2028"
+								disabled={locked}
+							/>{/snippet}</Form.Control
+					>
+					<Form.Description
+						>Aucune date de clôture automatique. Les nouvelles classes seront vides et les
+						calendriers à renseigner.</Form.Description
+					><Form.FieldErrors />
+				</Form.Field>
+				{#each $purgeData.moduleChoices ?? [] as choice, index (choice.moduleId)}
+					<AnnualModuleChoice
+						form={purgeForm}
+						{index}
+						moduleId={choice.moduleId}
+						title={reviewed.contexts.find((context) => context.moduleId === choice.moduleId)
+							?.moduleTitle ?? 'Module'}
+						disabled={locked}
+					/>
+				{/each}
 				<Field.Field data-invalid={!!$purgeErrors.pdfsKept?.length} data-disabled={locked}>
 					<Form.Field form={purgeForm} name="pdfsKept">
 						<Form.Control id="annual-pdfs-kept">
@@ -222,7 +266,7 @@
 							? 'Le dossier doit être actualisé'
 							: retryCommand
 								? 'Résultat à vérifier'
-								: 'Purge non enregistrée'}</Alert.Title
+								: 'Clôture non enregistrée'}</Alert.Title
 					>
 					<Alert.Description class="flex flex-col gap-3">
 						<p>{errorMessage}</p>
@@ -241,8 +285,7 @@
 			{/if}
 			{#if $allErrors.some((entry) => entry.path !== 'typedYear' && entry.path !== 'pdfsKept')}
 				<p role="alert" class="text-sm text-destructive">
-					Les références de l’année ne sont plus valides. Actualisez le dossier avant une nouvelle
-					confirmation.
+					Vérifiez l’année de reprise et le choix de chaque module avant de confirmer.
 				</p>
 			{/if}
 			<p role="status" class="sr-only">
@@ -260,7 +303,7 @@
 						? 'Purge en cours…'
 						: retryCommand
 							? 'Réessayer la même purge'
-							: `Purger ${reviewed.academicYear}`}
+							: `Clôturer ${reviewed.academicYear}`}
 				</Button>
 			</AlertDialog.Footer>
 		</form>

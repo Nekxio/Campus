@@ -1,7 +1,6 @@
 <script lang="ts">
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { cn } from '#lib/utils.js';
@@ -12,13 +11,15 @@
 		idPrefix,
 		compact = false,
 		onlySection = null,
-		onSectionChange
+		onSectionChange,
+		showObjectives = true
 	}: {
 		snapshot: PublicationSnapshot;
 		idPrefix: string;
 		compact?: boolean;
 		onlySection?: 'supports' | 'consignes' | 'remise' | 'ressources' | 'suivi' | null;
 		onSectionChange?: (sectionId: string) => void;
+		showObjectives?: boolean;
 	} = $props();
 	const objectiveEntries = $derived.by(() => {
 		const occurrences: Record<string, number> = Object.create(null);
@@ -33,6 +34,13 @@
 		snapshot.resources.filter((link) => link.kind === 'instructions' || link.kind === 'rubric')
 	);
 	const usefulLinks = $derived(snapshot.resources.filter((link) => link.kind === 'resource'));
+	const hasInlineInstructions = $derived(
+		Boolean(
+			snapshot.studentContent.instructions.trim() ||
+			snapshot.studentContent.projectInstructions.trim() ||
+			snapshot.rubric.length
+		)
+	);
 	const notes = $derived(
 		snapshot.lessonNotes.filter((note) => note.recap.trim() || note.toDo.trim())
 	);
@@ -123,7 +131,9 @@
 					</a>
 				{:else}
 					<div class="resource-label">
-						<span>{link.label}</span>{#if isPdf(link)}<Badge variant="outline">PDF</Badge>{/if}
+						<span>{link.label}</span>{#if isPdf(link)}<span
+								class="text-xs font-normal text-muted-foreground">PDF</span
+							>{/if}
 					</div>
 					{#if onlySection}
 						<Button
@@ -210,13 +220,26 @@
 				class="section-title">Supports du cours</svelte:element
 			>
 			<div class="section-body">
-				{#if courseLinks.length > 0}{@render resourceLinks(courseLinks)}{:else}<p
-						class="empty-copy"
-					>
+				{#if courseLinks.length > 0}{@render resourceLinks(
+						courseLinks
+					)}{:else if !snapshot.studentContent.exercises.length}<p class="empty-copy">
 						Aucun support de cours n’est indiqué pour le moment.
 					</p>{/if}
+				{#each snapshot.studentContent.exercises as exercise (exercise.id)}
+					<section class="flex flex-col gap-3 border-t pt-4" aria-label={exercise.title}>
+						<h3 class="font-semibold">{exercise.title} · exercice non noté</h3>
+						<p class="whitespace-pre-wrap">{exercise.instructions}</p>
+						<h4 class="font-medium">Corrigé</h4>
+						<p class="whitespace-pre-wrap">{exercise.solution}</p>
+						{#if exercise.code}<pre class="overflow-x-auto rounded-xl border p-3"><code
+									>{exercise.code}</code
+								></pre>{/if}
+					</section>
+				{/each}
 			</div>
-			{#if onlySection && snapshot.objectives.length > 0}<div class="reading-objectives">
+			{#if onlySection && showObjectives && snapshot.objectives.length > 0}<div
+					class="reading-objectives"
+				>
 					{@render moduleObjectives()}
 				</div>{/if}
 		</section>
@@ -233,11 +256,40 @@
 				class="section-title">Consignes et barèmes</svelte:element
 			>
 			<div class="section-body">
-				{#if assignmentLinks.length > 0}{@render resourceLinks(assignmentLinks)}{:else}<p
-						class="empty-copy"
-					>
+				{#if assignmentLinks.length > 0}{@render resourceLinks(
+						assignmentLinks
+					)}{:else if !hasInlineInstructions}<p class="empty-copy">
 						Aucune consigne ni aucun barème n’est indiqué pour le moment.
 					</p>{/if}
+				{#if snapshot.studentContent.instructions.trim()}<h3 class="font-semibold">
+						Consignes du module
+					</h3>
+					<p class="whitespace-pre-wrap">{snapshot.studentContent.instructions}</p>{/if}
+				{#if snapshot.studentContent.projectInstructions.trim()}<h3 class="font-semibold">
+						Consignes du projet
+					</h3>
+					<p class="whitespace-pre-wrap">{snapshot.studentContent.projectInstructions}</p>{/if}
+				{#each snapshot.rubric as assessment, assessmentIndex (assessmentIndex)}
+					<section
+						class="flex flex-col gap-3 border-t pt-4"
+						aria-label={`Grille vierge · ${assessment.title}`}
+					>
+						<h3 class="font-semibold">{assessment.title} · grille vierge</h3>
+						{#each assessment.groups as group, groupIndex (groupIndex)}
+							<h4 class="font-medium">{group.title}</h4>
+							<ul class="flex flex-col gap-3">
+								{#each group.lines as line, lineIndex (lineIndex)}<li class="flex flex-col gap-1">
+										<p>{line.label} · maximum {line.maxPoints} points</p>
+										{#if line.description}<p
+												class="text-sm whitespace-pre-wrap text-muted-foreground"
+											>
+												{line.description}
+											</p>{/if}
+									</li>{/each}
+							</ul>
+						{/each}
+					</section>
+				{/each}
 			</div>
 		</section>
 	{/if}

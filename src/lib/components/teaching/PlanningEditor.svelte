@@ -3,6 +3,7 @@
 	import type { SuperForm } from 'sveltekit-superforms';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
+	import XIcon from '@lucide/svelte/icons/x';
 	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
@@ -15,11 +16,13 @@
 	let {
 		form,
 		classes,
-		persistedIds
+		persistedIds,
+		persistedLessonIds
 	}: {
 		form: SuperForm<ModuleEditorInput, string>;
 		classes: ClassSummary[];
 		persistedIds: string[];
+		persistedLessonIds: string[];
 	} = $props();
 	// The keyed editor owns one stable Superform instance for its lifetime.
 	const { form: formData } = untrack(() => form);
@@ -31,9 +34,7 @@
 			lessons: context.lessons.map(({ id, title }) => ({ id, title }))
 		}))
 	);
-	const availableClasses = $derived(
-		classes.filter((item) => !$formData.contexts.some((context) => context.classId === item.id))
-	);
+	const availableClasses = $derived($formData.contexts.length ? [] : classes);
 	const classOptions = $derived([
 		{ value: '', label: 'Choisir une classe' },
 		...availableClasses.map((item) => ({
@@ -44,7 +45,7 @@
 	function addClass() {
 		if (
 			!availableClasses.some((item) => item.id === $formData.addClassId) ||
-			$formData.contexts.length >= 100
+			$formData.contexts.length >= 1
 		)
 			return;
 		formData.update((data) => ({
@@ -117,15 +118,19 @@
 		</Empty.Root>
 	{/if}
 	{#each contexts as context, contextIndex (context.id)}
-		<Form.Fieldset {form} name={`contexts[${contextIndex}]`} class="flex min-w-0 flex-col gap-6">
-			<Form.Legend class="min-w-0 [overflow-wrap:anywhere]"
-				>{classLabel(context.classId)}</Form.Legend
-			>
+		<Form.Fieldset
+			{form}
+			name={`contexts[${contextIndex}]`}
+			aria-describedby={`${context.id}-class-name`}
+			class="flex min-w-0 flex-col gap-6"
+		>
+			<Form.Legend class="mb-2 text-muted-foreground">Classe associée</Form.Legend>
 			<div class="flex flex-wrap items-center justify-between gap-3">
-				<Badge variant="secondary"
-					>{persistedIds.includes(context.id) ? 'Classe associée' : 'À enregistrer'}</Badge
-				>
-				{#if !persistedIds.includes(context.id)}<Button
+				<p id={`${context.id}-class-name`} class="min-w-0 text-base font-medium wrap-anywhere">
+					{classLabel(context.classId)}
+				</p>
+				{#if !persistedIds.includes(context.id)}<Badge variant="secondary">À enregistrer</Badge>
+					<Button
 						type="button"
 						variant="ghost"
 						class="min-h-11"
@@ -158,9 +163,11 @@
 								variant="ghost"
 								size="icon"
 								class="size-11 shrink-0"
-								aria-label={`Retirer ${lesson.title || `la séance ${lessonIndex + 1}`}`}
+								aria-label={`${persistedLessonIds.includes(lesson.id) ? 'Retirer' : 'Annuler'} ${lesson.title || `la nouvelle séance ${lessonIndex + 1}`}`}
 								onclick={() => removeLesson(context.id, lesson.id)}
-								><TrashIcon aria-hidden="true" /></Button
+								>{#if persistedLessonIds.includes(lesson.id)}<TrashIcon
+										aria-hidden="true"
+									/>{:else}<XIcon aria-hidden="true" />{/if}</Button
 							>
 						</div>
 						<div class="flex flex-col gap-4">
@@ -198,6 +205,7 @@
 								name={`contexts[${contextIndex}].lessons[${lessonIndex}].recap`}
 								id={`${lesson.id}-recap`}
 								label="Récapitulatif"
+								description="Visible dans le cours étudiant si le calendrier est publié."
 								multiline
 								maxlength={10000}
 								element
@@ -207,6 +215,7 @@
 								name={`contexts[${contextIndex}].lessons[${lessonIndex}].toDo`}
 								id={`${lesson.id}-toDo`}
 								label="À faire"
+								description="Consignes visibles dans le cours étudiant si le calendrier est publié."
 								multiline
 								maxlength={10000}
 								element

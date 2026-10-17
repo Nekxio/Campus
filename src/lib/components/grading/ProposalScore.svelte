@@ -85,7 +85,8 @@
 									autocomplete="off"
 									value={value.current}
 									{disabled}
-									class="min-h-11 w-16 text-center"
+									density="compact"
+									class="w-16 text-center"
 									oninput={(event) => update(event.currentTarget.value)}
 									onchange={() => form.validate(name, { update: 'errors' })}
 								/>

@@ -58,14 +58,18 @@ describe('Private module recovery reads', () => {
 		const projection = moduleDetailSchema.parse(await response.json());
 		expect(projection).toEqual(await getModule(db, ids.module));
 		expect(Object.keys(projection).sort()).toEqual([
+			'agentChanges',
 			'contexts',
 			'description',
 			'id',
+			'needsReview',
 			'objectives',
+			'paused',
 			'preparation',
 			'resources',
 			'revision',
 			'sourcePath',
+			'studentContent',
 			'title'
 		]);
 		expect(moduleDetailSchema.safeParse({ ...projection, students: [] }).success).toBe(false);

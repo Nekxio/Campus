@@ -88,7 +88,6 @@
 							value={fieldValue.current}
 							{required}
 							{maxlength}
-							class="min-h-11"
 							oninput={(event) => updateValue(event.currentTarget.value)}
 							onchange={validateField}
 						/>

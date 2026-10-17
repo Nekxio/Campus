@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { page } from '$app/state';
 	import GradeExport from './GradeExport.svelte';
+	import StudentGradeExport from './StudentGradeExport.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
@@ -14,21 +17,41 @@
 	import * as Table from '#lib/components/ui/table/index.js';
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
-	import { assessmentStatusLabels, type GradeGridData } from '#lib/domain/grading.js';
+	import { assessmentStatusLabels } from '#lib/domain/grading.js';
+	import type { GradeWorkspaceData } from '#lib/domain/grading-selection.js';
 	import {
 		calculateStudent,
 		formatMark,
 		type CalculatedGrade
 	} from '#lib/domain/grade-calculation.js';
-	let { data }: { data: GradeGridData } = $props();
+	let { data }: { data: GradeWorkspaceData } = $props();
 	let search = $state('');
 	let filter = $state('all');
-	let selectedId = $state<string | null>(null);
+	// Kit 3 keeps page.url on the loaded page during shallow student selection.
+	const selectionUrl = $derived(page.shallow?.url ?? page.url);
+	const selectedId = $derived(selectionUrl.searchParams.get('etudiant'));
 	let pending = $state(false);
 	let errorMessage = $state('');
-	const rubric = $derived(data.rubric);
-	const moduleId = $derived(rubric?.module.id ?? '');
-	const contexts = $derived(data.contexts.filter((item) => item.moduleId === moduleId));
+	let requestVersion = 0;
+	function savedSelection() {
+		return {
+			academicYear: data.academicYear ?? '',
+			classId: data.classId ?? '',
+			moduleId: data.rubric?.module.id ?? '',
+			contextId: data.contextId ?? ''
+		};
+	}
+	let chosen = $derived(savedSelection());
+	const matchingYear = $derived(chosen.academicYear === (data.academicYear ?? ''));
+	const matchingClass = $derived(matchingYear && chosen.classId === (data.classId ?? ''));
+	const matchingGrid = $derived(
+		matchingClass &&
+			chosen.moduleId === (data.rubric?.module.id ?? '') &&
+			chosen.contextId === (data.contextId ?? '')
+	);
+	const classOptions = $derived(matchingYear ? data.classes : []);
+	const moduleOptions = $derived(matchingClass ? data.modules : []);
+	const rubric = $derived(!pending && matchingGrid ? data.rubric : null);
 	const context = $derived(rubric?.contexts.find((item) => item.id === data.contextId));
 	function normalized(value: string) {
 		return value
@@ -37,7 +60,7 @@
 			.toLocaleLowerCase('fr');
 	}
 	const calculatedStudents = $derived(
-		data.students.map((student) => ({
+		(rubric ? data.students : []).map((student) => ({
 			student,
 			calculation: calculateStudent(
 				rubric?.assessments ?? [],
@@ -70,31 +93,41 @@
 				? 'À corriger'
 				: 'En attente';
 	}
-	async function selectContext(nextModule: string, nextContext: string) {
-		if (pending) return;
+	async function selectContext(next: ReturnType<typeof savedSelection>) {
+		const version = ++requestVersion;
+		chosen = next;
 		pending = true;
 		errorMessage = '';
-		const query = [
-			nextModule ? `module=${encodeURIComponent(nextModule)}` : '',
-			nextContext ? `contexte=${encodeURIComponent(nextContext)}` : ''
-		]
-			.filter(Boolean)
-			.join('&');
-		const destination = (resolve('/enseignant/notation') +
-			(query ? '?' + query : '')) as ResolvedPathname;
+		const query = new SvelteURLSearchParams({ annee: next.academicYear });
+		if (next.classId) query.set('classe', next.classId);
+		if (next.moduleId) query.set('module', next.moduleId);
+		if (next.contextId) query.set('contexte', next.contextId);
+		const destination = (resolve('/enseignant/notation') + '?' + query) as ResolvedPathname;
 		try {
 			await goto(destination);
-			selectedId = null;
+			if (version !== requestVersion) return;
+			search = '';
+			filter = 'all';
 		} catch {
+			if (version !== requestVersion) return;
+			chosen = savedSelection();
 			errorMessage = 'Impossible d’ouvrir cette grille. Réessayez.';
 		} finally {
-			pending = false;
+			if (version === requestVersion) pending = false;
 		}
 	}
 	async function selectStudent(id: string) {
-		selectedId = id;
+		const contextId = data.contextId;
+		const query = new SvelteURLSearchParams(selectionUrl.search);
+		query.set('etudiant', id);
+		await goto((resolve('/enseignant/notation') + '?' + query) as ResolvedPathname, {
+			shallow: true,
+			replace: true,
+			state: page.state
+		});
 		if (window.matchMedia('(max-width: 63.99rem)').matches) {
 			await tick();
+			if (pending || data.contextId !== contextId || selectedId !== id) return;
 			const summary = document.getElementById('selected-student-summary');
 			summary?.focus({ preventScroll: true });
 			summary?.scrollIntoView({
@@ -104,6 +137,17 @@
 					: 'smooth'
 			});
 		}
+	}
+	function selectStudentFromRow(event: MouseEvent, id: string) {
+		if (
+			event.defaultPrevented ||
+			!(event.target instanceof Element) ||
+			event.target.closest(
+				'a, button, input, select, textarea, label, [role="button"], [role="link"], [contenteditable]'
+			)
+		)
+			return;
+		void selectStudent(id);
 	}
 
 	function correctionLink(studentId: string) {
@@ -125,12 +169,12 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<Button
 				href={resolve('/enseignant/propositions') +
-					(data.contextId ? `?contexte=${data.contextId}` : '')}
+					(rubric && data.contextId ? `?contexte=${data.contextId}` : '')}
 				variant="outline"
 				class="min-h-11">Propositions</Button
 			>
 			{#if rubric}<Button
-					href={resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}
+					href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}?retour=notation${data.contextId ? '&contexte=' + data.contextId : ''}`}
 					variant="outline"
 					class="min-h-11">Modifier le barème</Button
 				>{/if}
@@ -140,47 +184,108 @@
 			><CircleAlertIcon aria-hidden="true" /><Alert.Title>Grille indisponible</Alert.Title
 			><Alert.Description>{errorMessage}</Alert.Description></Alert.Root
 		>{/if}
+	<Field.Field class="max-w-xs">
+		<Field.FieldLabel for="grading-year">Année de travail</Field.FieldLabel>
+		<NativeSelect.Root
+			id="grading-year"
+			value={chosen.academicYear}
+			disabled={data.academicYears.length === 0}
+			class="w-full"
+			onchange={(event) =>
+				selectContext({
+					academicYear: event.currentTarget.value,
+					classId: '',
+					moduleId: '',
+					contextId: ''
+				})}
+		>
+			<NativeSelect.Option value="">Choisir une année</NativeSelect.Option>
+			{#each data.academicYears as year (year)}
+				<NativeSelect.Option value={year}>{year}</NativeSelect.Option>
+			{/each}
+		</NativeSelect.Root>
+	</Field.Field>
 	<Field.FieldGroup class="grid-filters min-w-0 gap-4">
+		<Field.Field
+			><Field.FieldLabel for="grading-context">Classe et année</Field.FieldLabel><NativeSelect.Root
+				id="grading-context"
+				value={chosen.classId}
+				disabled={!chosen.academicYear || classOptions.length === 0}
+				class="w-full"
+				onchange={(event) =>
+					selectContext({
+						...chosen,
+						classId: event.currentTarget.value,
+						moduleId: '',
+						contextId: ''
+					})}
+				><NativeSelect.Option value="">Choisir une classe</NativeSelect.Option
+				>{#each classOptions as item (item.id)}<NativeSelect.Option value={item.id}
+						>{item.name} · {item.academicYear}</NativeSelect.Option
+					>{/each}</NativeSelect.Root
+			></Field.Field
+		>
 		<Field.Field
 			><Field.FieldLabel for="grading-module">Module</Field.FieldLabel><NativeSelect.Root
 				id="grading-module"
-				value={moduleId}
-				disabled={pending || data.modules.length === 0}
+				value={chosen.moduleId}
+				disabled={!chosen.classId || moduleOptions.length === 0}
 				class="w-full"
-				onchange={(event) => {
-					const id = event.currentTarget.value;
-					void selectContext(id, data.contexts.find((item) => item.moduleId === id)?.id ?? '');
-				}}
+				onchange={(event) =>
+					selectContext({
+						...chosen,
+						moduleId: event.currentTarget.value,
+						contextId:
+							data.contexts.find((item) => item.moduleId === event.currentTarget.value)?.id ?? ''
+					})}
 				><NativeSelect.Option value="">Choisir un module</NativeSelect.Option
-				>{#each data.modules as item (item.id)}<NativeSelect.Option value={item.id}
+				>{#each moduleOptions as item (item.id)}<NativeSelect.Option value={item.id}
 						>{item.title}</NativeSelect.Option
 					>{/each}</NativeSelect.Root
 			></Field.Field
 		>
-		<Field.Field
-			><Field.FieldLabel for="grading-context">Classe et année</Field.FieldLabel><NativeSelect.Root
-				id="grading-context"
-				value={data.contextId ?? ''}
-				disabled={pending || contexts.length === 0}
-				class="w-full"
-				onchange={(event) => selectContext(moduleId, event.currentTarget.value)}
-				><NativeSelect.Option value="">Choisir une classe</NativeSelect.Option
-				>{#each contexts as item (item.id)}<NativeSelect.Option value={item.id}
-						>{item.className} · {item.academicYear}</NativeSelect.Option
-					>{/each}</NativeSelect.Root
-			></Field.Field
-		>
 	</Field.FieldGroup>
-	{#if rubric && data.contextId}<GradeExport {data} />{/if}
-	{#if !rubric}
+	{#if rubric && data.contextId}{#key data.contextId}<GradeExport {data} />{/key}{/if}
+	{#if pending}
+		<p role="status" class="py-6 text-sm text-muted-foreground">Chargement de la grille…</p>
+	{:else if !data.academicYear}
+		<Empty.Root
+			><Empty.Header>
+				<Empty.Title
+					>{data.academicYears.length
+						? 'Choisissez l’année de travail'
+						: 'Aucune année disponible'}</Empty.Title
+				>
+				<Empty.Description
+					>{data.academicYears.length
+						? 'Sélectionnez une année ouverte pour retrouver ses classes.'
+						: 'Créez une classe pour commencer la notation.'}</Empty.Description
+				>
+			</Empty.Header><Empty.Content
+				><Button href={resolve('/enseignant/classes')} variant="outline">Voir les classes</Button
+				></Empty.Content
+			></Empty.Root
+		>
+	{:else if !data.classId}
+		<Empty.Root
+			><Empty.Header>
+				<Empty.Title>Aucune classe sélectionnée</Empty.Title>
+				<Empty.Description
+					>Choisissez une classe pour retrouver ses modules et ses étudiants.</Empty.Description
+				>
+			</Empty.Header></Empty.Root
+		>
+	{:else if !rubric}
 		<Empty.Root
 			><Empty.Header
 				><Empty.Title
-					>{data.modules.length ? 'Choisissez un module' : 'Aucun module disponible'}</Empty.Title
+					>{data.modules.length
+						? 'Choisissez un module'
+						: 'Aucun module pour cette classe'}</Empty.Title
 				><Empty.Description
 					>{data.modules.length
-						? 'Sélectionnez le module et la classe dont vous souhaitez consulter les résultats.'
-						: 'Créez un module et rattachez-le à une classe pour commencer la notation.'}</Empty.Description
+						? 'Sélectionnez le module dont vous souhaitez consulter les résultats.'
+						: 'Rattachez un module à cette classe pour commencer la notation.'}</Empty.Description
 				></Empty.Header
 			><Empty.Content
 				><Button href={resolve('/')} variant="outline" class="min-h-11">Voir les modules</Button
@@ -209,7 +314,7 @@
 				></Empty.Header
 			><Empty.Content
 				><Button
-					href={resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}
+					href={`${resolve('/enseignant/modules/[moduleId]/bareme', { moduleId: rubric.module.id })}?retour=notation${data.contextId ? '&contexte=' + data.contextId : ''}`}
 					class="min-h-11">Préparer le barème</Button
 				></Empty.Content
 			></Empty.Root
@@ -253,8 +358,9 @@
 			<h2 id="student-list-title" class="text-xl font-semibold tracking-tight">
 				{context?.className} · {context?.academicYear}
 			</h2>
-			<p class="text-sm text-muted-foreground">
-				{filtered.length} / {data.students.length} étudiants · {completeCount} résultats complets
+			<p class="text-sm text-muted-foreground" role="status" aria-live="polite" aria-atomic="true">
+				{filtered.length} / {data.students.length} étudiant{data.students.length > 1 ? 's' : ''} · {completeCount}
+				résultat{completeCount > 1 ? 's complets' : ' complet'}
 			</p>
 		</div>
 		<div class="results-layout">
@@ -290,7 +396,9 @@
 								></Table.Header
 							><Table.Body
 								>{#each filtered as item (item.student.id)}<Table.Row
+										class="cursor-pointer focus-within:bg-muted/50"
 										data-selected={selected?.student.id === item.student.id}
+										onclick={(event) => selectStudentFromRow(event, item.student.id)}
 										><Table.Cell
 											><Button
 												type="button"
@@ -312,9 +420,12 @@
 						>
 					</div>
 					<div class="mobile-grid flex flex-col border-t">
-						{#each filtered as item (item.student.id)}<div
-								class="student-row flex flex-col gap-2 border-b py-4"
+						{#each filtered as item (item.student.id)}
+							<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions (The named button remains the keyboard control; the row adds a larger pointer target.) -->
+							<div
+								class="student-row flex cursor-pointer flex-col gap-2 border-b py-4 focus-within:bg-muted/50 hover:bg-muted/50"
 								data-selected={selected?.student.id === item.student.id}
+								onclick={(event) => selectStudentFromRow(event, item.student.id)}
 							>
 								<Button
 									type="button"
@@ -367,6 +478,11 @@
 						>
 					</div>
 					<section class="flex flex-col gap-3" aria-label="Évaluations">
+						{#if rubric && data.contextId}{#key `${data.contextId}:${selected.student.id}`}<StudentGradeExport
+									{rubric}
+									contextId={data.contextId}
+									student={selected.student}
+								/>{/key}{/if}
 						{#each rubric.assessments as assessment (assessment.id)}{@const record =
 								selected.student.corrections.find(
 									(item) => item.assessmentId === assessment.id

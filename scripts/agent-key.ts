@@ -36,7 +36,7 @@ try {
 		let created: Awaited<ReturnType<typeof issueAgentKey>> | undefined;
 		try {
 			created = await issueAgentKey(
-				createAuth(settings, client),
+				await createAuth(settings, client),
 				client,
 				email,
 				value ?? 'Codex',

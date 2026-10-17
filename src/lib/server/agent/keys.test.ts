@@ -23,7 +23,7 @@ beforeEach(async () => {
 	db = createDatabase(client);
 	await migrate(db, { migrationsFolder: './drizzle' });
 	await db.insert(user).values({ id: teacherId, email, name: 'Teacher Demo', role: 'teacher' });
-	auth = createAuth(
+	auth = await createAuth(
 		{
 			ORIGIN: 'https://coursely.example.test',
 			BETTER_AUTH_SECRET: randomBytes(32).toString('hex')

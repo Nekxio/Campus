@@ -1,7 +1,32 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, gte, inArray, isNull, notInArray, sql, count } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	gt,
+	lt,
+	inArray,
+	isNull,
+	notInArray,
+	sql,
+	count
+} from 'drizzle-orm';
 import type { Database } from '../db/index.js';
-import { classes, students, modules, resources, teachingContexts, lessons } from '../db/schema.js';
+import {
+	classes,
+	students,
+	modules,
+	resources,
+	teachingContexts,
+	lessons,
+	assessments,
+	rubricGroups,
+	rubricLines,
+	resultDefinitions,
+	publicModuleLinks
+} from '../db/schema.js';
 import type {
 	ClassSummary,
 	ClassesData,
@@ -12,8 +37,12 @@ import type {
 } from '../../teaching/types.js';
 import { editableModule } from '../../teaching/types.js';
 import { previewRoster } from '../../domain/roster-import.js';
+import { teachingMonth, lessonDatesInMonth } from '../../teaching/calendar.js';
 
 import { activeClassFilter, requireActiveYear } from './annual-access.js';
+import { getRubric } from './grading.js';
+import { emptyStudentContent } from '../../domain/pedagogy.js';
+import { moduleDraftSchema, moduleUpdateSchema } from '../../domain/teaching.js';
 
 type Store = Pick<Database, 'select' | 'update' | 'insert' | 'delete'>;
 const missing = () => error(404, 'Cet élément n’est plus disponible.');
@@ -96,11 +125,14 @@ export async function listModules(db: Store): Promise<ModuleSummary[]> {
 			.where(isNull(teachingContexts.archivedAt))
 			.orderBy(desc(classes.academicYear), asc(classes.name))
 	]);
-	return rows.map(({ id, title, description, revision }) => ({
+	return rows.map(({ id, title, description, revision, needsReview, agentChanges, pausedAt }) => ({
 		id,
 		title,
 		description,
 		revision,
+		needsReview,
+		agentChanges,
+		paused: !!pausedAt,
 		resourceCount: links.find((v) => v.moduleId === id)?.total ?? 0,
 		classes: attached
 			.filter((v) => v.moduleId === id)
@@ -248,6 +280,53 @@ export async function attachModule(
 				and(eq(teachingContexts.classId, classId), eq(teachingContexts.moduleId, input.moduleId))
 			);
 		if (existing) error(409, 'Ce module est déjà rattaché à cette classe.');
+		const [module] = await tx.select().from(modules).where(eq(modules.id, input.moduleId));
+		if (module.pausedAt) {
+			const oldContexts = await tx
+				.select()
+				.from(teachingContexts)
+				.where(eq(teachingContexts.moduleId, input.moduleId));
+			if (oldContexts.some((context) => context.classId && !context.archivedAt))
+				error(409, 'Ce module possède encore une classe active.');
+			const contextId = crypto.randomUUID();
+			await tx.insert(teachingContexts).values({
+				id: contextId,
+				moduleId: module.id,
+				classId,
+				className: selected.name,
+				academicYear: selected.academicYear
+			});
+			const [link] = await tx
+				.select()
+				.from(publicModuleLinks)
+				.where(eq(publicModuleLinks.moduleId, module.id))
+				.limit(1);
+			if (link)
+				await tx
+					.update(publicModuleLinks)
+					.set({ contextId, enabled: false })
+					.where(eq(publicModuleLinks.id, link.id));
+			await tx
+				.update(modules)
+				.set({
+					pausedAt: null,
+					needsReview: true,
+					agentChanges: [
+						'Module repris : vérifiez la classe, le planning et publiez manuellement pour réactiver son lien'
+					]
+				})
+				.where(eq(modules.id, module.id));
+			return { id: contextId, moduleId: module.id };
+		}
+		const [bound] = await tx
+			.select({ id: teachingContexts.id })
+			.from(teachingContexts)
+			.where(eq(teachingContexts.moduleId, input.moduleId))
+			.limit(1);
+		if (bound) {
+			const copied = await copyModuleToClass(tx, input.moduleId, selected.id);
+			return { id: copied.contexts[0].id, moduleId: copied.id };
+		}
 		const [record] = await tx
 			.insert(teachingContexts)
 			.values({
@@ -257,7 +336,7 @@ export async function attachModule(
 				academicYear: selected.academicYear
 			})
 			.returning({ id: teachingContexts.id });
-		return record;
+		return { ...record, moduleId: input.moduleId };
 	});
 }
 export async function getModule(db: Store, id: string): Promise<ModuleDetail> {
@@ -282,11 +361,15 @@ export async function getModule(db: Store, id: string): Promise<ModuleDetail> {
 	return {
 		id: record.id,
 		revision: record.revision,
+		needsReview: record.needsReview,
+		agentChanges: record.agentChanges,
+		paused: !!record.pausedAt,
 		title: record.title,
 		description: record.description,
 		objectives: record.objectives,
 		sourcePath: record.sourcePath,
 		preparation: record.preparation,
+		studentContent: record.studentContent,
 		resources: links.map(({ id, label, url, kind }) => ({ id, label, url, kind })),
 		contexts: contexts.map(({ teaching_context: context, class: annualClass }) => ({
 			id: context.id,
@@ -305,7 +388,98 @@ export async function getModule(db: Store, id: string): Promise<ModuleDetail> {
 		}))
 	};
 }
+
+export async function copyModuleToClass(
+	db: Pick<Database, 'transaction'>,
+	moduleId: string,
+	classId: string
+) {
+	return db.transaction(async (tx) => {
+		const source = await getModule(tx, moduleId);
+		const rubric = await getRubric(tx, moduleId, true);
+		const copied = await createModule(tx, {
+			...editableModule(source),
+			contexts: [{ id: crypto.randomUUID(), classId, lessons: [] }],
+			resources: source.resources.map((resource) => ({ ...resource, id: crypto.randomUUID() })),
+			studentContent: {
+				...(source.studentContent ?? emptyStudentContent()),
+				exercises: (source.studentContent?.exercises ?? []).map((exercise) => ({
+					...exercise,
+					id: crypto.randomUUID()
+				}))
+			}
+		});
+		const ids = new Map<string, string>();
+		const identify = (old: string) => {
+			if (!ids.has(old)) ids.set(old, crypto.randomUUID());
+			return ids.get(old)!;
+		};
+		for (const assessment of rubric.assessments) {
+			await tx.insert(assessments).values({
+				id: identify(assessment.id),
+				moduleId: copied.id,
+				title: assessment.title,
+				kind: assessment.kind,
+				purpose: assessment.purpose
+			});
+			for (const group of assessment.groups)
+				await tx.insert(rubricGroups).values({
+					id: identify(group.id),
+					assessmentId: identify(assessment.id),
+					title: group.title
+				});
+			for (const [position, line] of assessment.lines.entries())
+				await tx.insert(rubricLines).values({
+					...line,
+					id: identify(line.id),
+					groupId: identify(line.groupId),
+					assessmentId: identify(assessment.id),
+					position
+				});
+		}
+		for (const [position, result] of rubric.results.entries())
+			await tx.insert(resultDefinitions).values({
+				id: identify(result.id),
+				moduleId: copied.id,
+				title: result.title,
+				position,
+				rule:
+					result.rule.kind === 'points_ratio'
+						? { kind: 'points_ratio', assessmentIds: result.rule.assessmentIds.map(identify) }
+						: {
+								kind: 'weighted',
+								...(result.rule.sectionPoints
+									? {
+											sectionPoints: {
+												quizMaxima: result.rule.sectionPoints.quizMaxima.map((item) => ({
+													...item,
+													assessmentId: identify(item.assessmentId)
+												}))
+											}
+										}
+									: {}),
+								components: result.rule.components.map((component) => ({
+									...component,
+									assessmentIds: component.assessmentIds.map(identify)
+								}))
+							}
+			});
+		await tx
+			.update(modules)
+			.set({
+				needsReview: true,
+				agentChanges: ['Copie indépendante : classe, grille et publication à vérifier']
+			})
+			.where(eq(modules.id, copied.id));
+		return getModule(tx, copied.id);
+	});
+}
 async function writeModuleParts(tx: Store, moduleId: string, draft: ModuleDraft) {
+	if (draft.contexts.length > 1)
+		error(
+			422,
+			'Un module appartient à une seule classe. Créez une copie indépendante pour une autre classe.'
+		);
 	// Client-supplied durable identities must not target another module or class context.
 	const resourceIds = draft.resources.map((v) => v.id);
 	if (resourceIds.length) {
@@ -421,6 +595,7 @@ function creationFingerprint(draft: ModuleDraft) {
 		objectives: draft.objectives,
 		sourcePath: draft.sourcePath,
 		preparation: draft.preparation,
+		studentContent: draft.studentContent ?? emptyStudentContent(),
 		resources: draft.resources,
 		contexts: [...draft.contexts]
 			.sort((a, b) => a.id.localeCompare(b.id))
@@ -439,10 +614,13 @@ function creationFingerprint(draft: ModuleDraft) {
 }
 export async function createModule(
 	db: Pick<Database, 'transaction'>,
-	draft: ModuleDraft,
+	rawDraft: ModuleDraft,
 	id: string = crypto.randomUUID()
 ) {
 	return db.transaction(async (tx) => {
+		const parsed = moduleDraftSchema.safeParse(rawDraft);
+		if (!parsed.success) error(422, 'Vérifiez les informations et identités du module.');
+		const draft = parsed.data;
 		const [existing] = await tx.select({ id: modules.id }).from(modules).where(eq(modules.id, id));
 		if (existing) {
 			const saved = await getModule(tx, id);
@@ -457,9 +635,15 @@ export async function createModule(
 			return saved;
 		}
 		const { title, description, objectives, sourcePath, preparation } = draft;
-		await tx
-			.insert(modules)
-			.values({ id, title, description, objectives, sourcePath, preparation });
+		await tx.insert(modules).values({
+			id,
+			title,
+			description,
+			objectives,
+			sourcePath,
+			preparation,
+			studentContent: draft.studentContent ?? emptyStudentContent()
+		});
 		await writeModuleParts(tx, id, draft);
 		return getModule(tx, id);
 	});
@@ -467,25 +651,38 @@ export async function createModule(
 export async function updateModule(
 	db: Pick<Database, 'transaction'>,
 	id: string,
-	draft: ModuleDraft & { expectedRevision: number }
+	rawDraft: ModuleDraft & { expectedRevision: number }
 ) {
 	return db.transaction(async (tx) => {
+		const parsed = moduleUpdateSchema.safeParse(rawDraft);
+		if (!parsed.success) error(422, 'Vérifiez les informations et identités du module.');
+		const draft = parsed.data;
 		await claimModule(tx, id, draft.expectedRevision);
 		const { title, description, objectives, sourcePath, preparation } = draft;
 		await tx
 			.update(modules)
-			.set({ title, description, objectives, sourcePath, preparation })
+			.set({
+				title,
+				description,
+				objectives,
+				sourcePath,
+				preparation,
+				studentContent: draft.studentContent ?? emptyStudentContent()
+			})
 			.where(eq(modules.id, id));
 		await writeModuleParts(tx, id, draft);
 		return getModule(tx, id);
 	});
 }
-export async function getHomeData(db: Store): Promise<HomeData> {
-	const [moduleList, next] = await Promise.all([
+export async function getHomeData(db: Store, now = new Date()): Promise<HomeData> {
+	const month = teachingMonth(now);
+	const [moduleList, next, calendarLessons] = await Promise.all([
 		listModules(db),
 		db
 			.select({
 				moduleId: modules.id,
+				contextId: teachingContexts.id,
+				classId: classes.id,
 				moduleTitle: modules.title,
 				className: classes.name,
 				academicYear: classes.academicYear,
@@ -497,12 +694,28 @@ export async function getHomeData(db: Store): Promise<HomeData> {
 			.innerJoin(teachingContexts, eq(lessons.contextId, teachingContexts.id))
 			.innerJoin(classes, eq(teachingContexts.classId, classes.id))
 			.innerJoin(modules, eq(teachingContexts.moduleId, modules.id))
-			.where(and(isNull(teachingContexts.archivedAt), gte(lessons.endsAt, new Date())))
+			.where(
+				and(isNull(teachingContexts.archivedAt), activeClassFilter(db), gte(lessons.endsAt, now))
+			)
 			.orderBy(asc(lessons.startsAt))
-			.limit(1)
+			.limit(1),
+		db
+			.select({ startsAt: lessons.startsAt, endsAt: lessons.endsAt })
+			.from(lessons)
+			.innerJoin(teachingContexts, eq(lessons.contextId, teachingContexts.id))
+			.innerJoin(classes, eq(teachingContexts.classId, classes.id))
+			.where(
+				and(
+					isNull(teachingContexts.archivedAt),
+					activeClassFilter(db),
+					lt(lessons.startsAt, month.endsAt),
+					gt(lessons.endsAt, month.startsAt)
+				)
+			)
 	]);
 	return {
 		modules: moduleList,
+		calendar: { month: month.month, lessonDates: lessonDatesInMonth(month, calendarLessons) },
 		nextLesson: next[0]
 			? {
 					...next[0],

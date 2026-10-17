@@ -2,9 +2,9 @@
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import MonitorIcon from '@lucide/svelte/icons/monitor';
-	import { resetMode, setMode, userPrefersMode } from 'mode-watcher';
-	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
-	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
+	import { mode, resetMode, setMode, userPrefersMode } from 'mode-watcher';
+	import { buttonVariants } from '#lib/components/ui/button/index.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 
 	const themes = [
 		{ value: 'light', label: 'Clair', accessibleLabel: 'Thème clair', icon: SunIcon },
@@ -18,28 +18,42 @@
 	}
 </script>
 
-<ToggleGroup.Root
-	type="single"
-	variant="outline"
-	aria-label="Thème de l’interface"
-	class="w-full"
-	bind:value={() => userPrefersMode.current, changeTheme}
->
-	{#each themes as theme (theme.value)}
-		<Tooltip.Root>
-			<Tooltip.Trigger>
-				{#snippet child({ props })}
-					<ToggleGroup.Item
-						{...props}
+<div class="theme-switcher self-start">
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger
+			class={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+			aria-label="Choisir le thème"
+			title={`Thème : ${themes.find((theme) => theme.value === userPrefersMode.current)?.label ?? 'Système'}`}
+		>
+			{#if mode.current === 'dark'}<MoonIcon aria-hidden="true" />{:else}<SunIcon
+					aria-hidden="true"
+				/>{/if}
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content side="top" align="start">
+			<DropdownMenu.RadioGroup
+				aria-label="Thème de l’interface"
+				bind:value={() => userPrefersMode.current, changeTheme}
+			>
+				{#each themes as theme (theme.value)}
+					<DropdownMenu.RadioItem
 						value={theme.value}
 						aria-label={theme.accessibleLabel}
-						class="min-h-11 min-w-11 flex-1"
+						class="min-h-11"
+						closeOnSelect
 					>
-						<theme.icon aria-hidden="true" />
-					</ToggleGroup.Item>
-				{/snippet}
-			</Tooltip.Trigger>
-			<Tooltip.Content side="top" sideOffset={8}>{theme.label}</Tooltip.Content>
-		</Tooltip.Root>
-	{/each}
-</ToggleGroup.Root>
+						<theme.icon aria-hidden="true" />{theme.label}
+					</DropdownMenu.RadioItem>
+				{/each}
+			</DropdownMenu.RadioGroup>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+</div>
+
+<style>
+	@media (pointer: coarse) {
+		.theme-switcher :global([data-slot='dropdown-menu-trigger']) {
+			min-width: 2.75rem;
+			min-height: 2.75rem;
+		}
+	}
+</style>

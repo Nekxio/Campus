@@ -53,11 +53,13 @@ credentials never follow a redirect or an origin stored in the local binding.
    read it with an explicit `moduleId`, then `bind_module_folder` with explicit mappings from local
    keys to existing IDs. No title-based or fuzzy matching occurs. Existing mappings cannot be
    reassigned to another entity. Preserve an empty map only when no corresponding entity exists.
-4. For an existing linked module, read fresh context, keep durable keys and IDs, then call
-   `update_module_draft` with `expectedRevision` and each existing context's `expectedRevision`.
-   Supply the complete desired draft: omitted links and lessons are removed. Omit `rubric` to keep
-   it. Include it only for a requested replacement and set `confirmRubricReplacement: true`.
-5. Open the returned `editorUrl` to review. An import changes only the working draft; it cannot
+4. For an existing linked module, read fresh context, keep exact IDs, then call
+   `patch_module_draft` with `expectedRevision`, a `patch`, and optional `rubric`/`remove`.
+   Omitted fields and omitted collection members are preserved. Existing entities use their exact
+   ID; new UUIDs need complete fields. Only IDs explicitly listed in `remove` are deleted.
+   Keep context revisions when editing its calendar. Omit `rubric` to preserve it.
+5. Open the returned `editorUrl` to review the visible **Brouillon à relire** and change overview.
+   The same modules are linked directly from teacher home. An import changes only the draft; it cannot
    publish a page, change Drive sharing, submit scores, accept a proposal or purge a class.
 
 The `.coursely.json` file stores version, configured origin, durable module/entity IDs, optional Drive
@@ -73,7 +75,27 @@ never delete the binding or invent new criterion keys to resolve a conflict. An 
 may leave `.coursely.lock`; verify no import is running before removing only that lock. Bindings
 are written atomically, symlinks are refused, and concurrent imports cannot use the same folder.
 
-## Version-1 payload
+## Targeted version-2 patches
+
+The MCP exposes six module tools (inspect/context/bind/create/legacy update/patch) and the two
+separately scoped correction tools. `patch_module_draft` is the preferred update. For example, its
+arguments can contain `patch: { preparation: { nextSteps: "Relire les liens" } }` without changing
+the framing, links, rubric or lessons. Get the revision and all entity IDs from `get_import_context`.
+The MCP supplies the bound module ID, version and durable request UUID itself.
+
+`remove` accepts arrays of resource, lesson, exercise, assessment, group, scoring-line, result or
+deadline-assessment IDs. Unknown/foreign removals and duplicate modified identities are refused.
+Deleting a group or assessment still requires a coherent resulting rubric: explicitly remove or
+reconcile dependent lines/results/deadlines in the same patch. Invalid merged content rolls back
+everything. Omitting a collection, or sending an empty collection, does not clear existing members.
+
+The legacy `update_module_draft` remains a complete-field interface. It requires explicit scalar
+fields and preparation fields so creation defaults cannot erase existing content. Omitted collection
+members remain preserved, but it offers no implicit deletion. Use a version-2 patch for omissions,
+public instructions/exercises and explicit removals. A legacy rubric update still requires the
+explicit rubric permission and `confirmRubricReplacement: true`.
+
+## Version-1 creation payload
 
 The local draft is validated by `src/lib/domain/local-module.ts`; the server contract is
 `src/lib/domain/module-import.ts`. No JavaScript formulas or SQL are accepted. A fictional example
@@ -113,7 +135,7 @@ contain `key`, `title` and either a `points_ratio` rule with `assessmentKeys`, o
 with components (`assessmentKeys`, `weight`) totaling 100. Only graded evaluations contribute.
 Rubric contexts specify `classId` and deadlines (`assessmentKey`, offset `dueAt`,
 `submissionInstructions`). They must belong to the imported draft. Existing active deadlines are
-preserved when their context is omitted from the rubric; an explicit empty deadline list clears it.
+preserved when omitted. Remove a deadline explicitly through the version-2 `remove` contract.
 
 The MCP resolves keys through the binding, then sends version, module ID, request ID, draft and
 optional rubric. Updates also send expected revision and the replacement confirmation. The import
@@ -124,7 +146,8 @@ snapshot is changed.
 
 ## Verification and remaining work
 
-At the module-import milestone, the local suite passed 139 tests across 20 files, including 34 new agent/MCP checks.
+The original import milestone recorded 139 tests. Current tests also exercise targeted patches and
+their retries through all eight tools over real stdio and loopback HTTP.
 Tests use fictional folders, in-memory migrated libSQL, real Better Auth API Key verification and
 an actual stdio MCP child connected to a local HTTP server. They cover create/update/bind, durable
 IDs, lost responses, stale revisions, atomic rollback, rubric/raw-score preservation, filesystem
@@ -135,7 +158,9 @@ Real activation requires pending migrations and an operator-issued key. The defa
 is only an allowed inspection/import source; it is not a production database or a logged-in session.
 Correction proposals and their selected verification screen are now implemented separately; see
 [the correction proposal guide](correction-proposals.md). They require explicit additional permissions
-on a newly issued key. Drive validation, publication, PDF and annual purge remain separate later lots.
+on a newly issued key. Publication, PDFs and manual annual closure are implemented separately; their
+current verification boundary is recorded in the teaching workflow plan. Real Drive validation and
+HTTPS acceptance remain operator checks.
 
 Library references: [Better Auth API Key](https://better-auth.com/docs/plugins/api-key),
 [TypeScript MCP SDK v1](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x),

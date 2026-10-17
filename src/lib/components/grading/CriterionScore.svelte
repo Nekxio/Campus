@@ -28,7 +28,7 @@
 	}
 </script>
 
-<Form.ElementField {form} {name} class="flex min-w-0 flex-col gap-1 border-b">
+<Form.ElementField {form} {name} class="flex min-w-0 flex-col gap-1 border-b px-3 py-2">
 	{#snippet children({ errors })}
 		<Field.Field data-invalid={errors.length > 0} data-disabled={disabled} class="gap-0">
 			<Form.Control id={`score-${line.id}`}>
@@ -51,7 +51,8 @@
 								inputmode="numeric"
 								value={value.current}
 								{disabled}
-								class="min-h-11 w-16 text-center"
+								density="compact"
+								class="w-16 text-center"
 								oninput={(event) => update(event.currentTarget.value)}
 								onchange={() => form.validate(name, { update: 'errors' })}
 							/>

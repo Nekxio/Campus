@@ -47,7 +47,7 @@ export async function startFixture(failAfterCopy = false) {
 	const ready = await new Promise<FixtureReady>((done, reject) => {
 		const timeout = setTimeout(() => {
 			void cleanup().finally(() => reject(new FixtureStartupError(allocatedDirectory)));
-		}, 60000);
+		}, 120000);
 		function receive(message: { type: string; value?: FixtureReady; directory?: string }) {
 			if (message.type === 'allocated') {
 				allocatedDirectory = message.directory;

@@ -19,7 +19,6 @@
 	import * as Alert from '#lib/components/ui/alert/index.js';
 	import * as Empty from '#lib/components/ui/empty/index.js';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { Badge } from '#lib/components/ui/badge/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { studentNameSchema } from '#lib/domain/teaching.js';
@@ -38,6 +37,27 @@
 		onReload: () => Promise<void>;
 	} = $props();
 	type Editor = 'add' | 'edit' | 'import';
+	type Draft = { class: ClassDetail; student: StudentRecord | null; name: string; source: string };
+	// Page-local only: never persist roster data in browser storage or an SSR singleton.
+	const retainedDrafts: Record<string, Draft | undefined> = Object.create(null);
+	let editorKey = '';
+	let editorCommitted = false;
+	function retainEditor(open: boolean) {
+		if (open || !editor || !openedClass || editorCommitted) return;
+		if ($studentData.name !== (openedStudent?.name ?? '') || $importData.source.trim()) {
+			retainedDrafts[editorKey] = {
+				class: openedClass,
+				student: openedStudent,
+				name: $studentData.name,
+				source: $importData.source
+			};
+		} else delete retainedDrafts[editorKey];
+	}
+	function discardEditorDraft() {
+		editorCommitted = true;
+		delete retainedDrafts[editorKey];
+	}
+
 	let editor = $state<Editor | null>(null);
 	let editorOpen = $state(false);
 	let editorOpener: HTMLElement | null = null;
@@ -116,13 +136,19 @@
 
 	function showEditor(mode: Editor, opener: HTMLElement, student: StudentRecord | null = null) {
 		editorOpener = opener;
-		openedClass = record;
-		openedStudent = student;
+		editorKey = `${record.id}:${mode}:${student?.id ?? ''}`;
+		editorCommitted = false;
+		const retained = retainedDrafts[editorKey];
+		openedClass = retained?.class ?? record;
+		openedStudent = retained?.student ?? student;
 		studentForm.reset({
 			id: student ? `class-student-${record.id}-${student.id}` : `class-student-${record.id}-new`,
-			data: { name: student?.name ?? '' }
+			data: { name: retained?.name ?? student?.name ?? '' }
 		});
-		importForm.reset({ id: `class-roster-import-${record.id}`, data: { source: '', file: null } });
+		importForm.reset({
+			id: `class-roster-import-${record.id}`,
+			data: { source: retained?.source ?? '', file: null }
+		});
 		error = null;
 		editor = mode;
 		editorOpen = true;
@@ -214,6 +240,7 @@
 				});
 				message = 'L’étudiant a été ajouté à la classe.';
 			}
+			discardEditorDraft();
 			await onSaved(message);
 			// The workspace must finish refreshing and remove inert before focus returns.
 			await tick();
@@ -268,6 +295,7 @@
 	async function reloadEditor() {
 		await onReload();
 		await tick();
+		discardEditorDraft();
 		editorOpen = false;
 	}
 	async function reloadDelete() {
@@ -279,7 +307,7 @@
 <section aria-labelledby="roster-title" class="min-w-0">
 	<div class="mb-1 flex items-center gap-2.5">
 		<h3 id="roster-title" class="text-lg font-semibold tracking-tight">Étudiants</h3>
-		<Badge variant="outline">{record.students.length}</Badge>
+		<span class="text-sm text-muted-foreground tabular-nums">{record.students.length}</span>
 	</div>
 	<p class="text-sm text-muted-foreground">Une liste commune à tous les modules de l’année.</p>
 	<div class="my-3 flex flex-wrap gap-2">
@@ -377,8 +405,12 @@
 
 <Dialog.Root
 	bind:open={editorOpen}
+	onOpenChange={retainEditor}
 	onOpenChangeComplete={(value) => {
-		if (!value && !editorOpen) editor = null;
+		if (!value && !editorOpen) {
+			retainEditor(false);
+			editor = null;
+		}
 	}}
 >
 	{#if editor}
@@ -558,12 +590,15 @@
 				<p role="status" class="sr-only">
 					{readingFile ? 'Lecture du fichier…' : pending ? 'Enregistrement en cours…' : ''}
 				</p>
+				<p class="text-xs text-muted-foreground">
+					Fermer conserve votre saisie pendant cette visite de la page.
+				</p>
 				<Dialog.Footer>
 					<Button
 						variant="outline"
 						class="min-h-11"
 						disabled={pending || readingFile}
-						onclick={closeEditor}>Annuler</Button
+						onclick={closeEditor}>Fermer</Button
 					>
 					<Button
 						type="submit"
