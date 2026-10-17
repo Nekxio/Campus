@@ -4,6 +4,7 @@ import { createServer } from 'node:net';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createClient, type Client } from '@libsql/client';
 import { migrate } from 'drizzle-orm/libsql/migrator';
@@ -143,7 +144,7 @@ async function main() {
 		let startup = '';
 		const stdout = server!.stdout!;
 		function read(chunk: Buffer) {
-			startup = (startup + chunk.toString()).slice(-2048);
+			startup = stripVTControlCharacters(startup + chunk.toString()).slice(-2048);
 			if (!startup.includes(`http://127.0.0.1:${port}`)) return;
 			stdout.off('data', read);
 			stdout.resume();
