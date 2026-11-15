@@ -30,6 +30,8 @@
 		"test:browser": "node --import=./scripts/prepare-tests.ts node_modules/@playwright/test/cli.js test",
 		"check:browser": "tsc --noEmit -p tests/browser/tsconfig.json",
 		"assets:identity": "tsx scripts/generate-identity.ts",
+		"hooks:install": "tsx scripts/install-git-hooks.ts",
+		"release:prepare": "tsx scripts/release-flow.ts prepare",
 		"preview:prepare": "tsx scripts/preview-deployment.ts prepare"
 	},
 	"devDependencies": {
