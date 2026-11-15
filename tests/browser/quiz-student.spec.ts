@@ -7,6 +7,8 @@ import type {
 	QuizSessionReview
 } from '../../src/lib/domain/quiz-session.js';
 import { projectQuizQuestions } from '../../src/lib/domain/quiz-content.js';
+import { publicationReviewDataSchema } from '../../src/lib/domain/publication.js';
+import { activate } from './support/auth.js';
 
 const mockStudentParticipation = async (page: Page, fixture: NativeQuizFixture, closed = false) => {
 	const roomPath = `/api/quizzes/${fixture.contextId}/rooms/${fixture.runId}`;
@@ -906,6 +908,128 @@ test('the shared server deadline freezes input without revealing answers', async
 	await expect(page.getByRole('button', { name: 'Remettre définitivement', exact: true })).toHaveCount(0);
 	await expect(page.getByText('Bonne réponse', { exact: true })).toHaveCount(0);
 	await expect(page.getByRole('timer')).toHaveText('0 s');
+});
+
+test('public course history navigation isolates quiz rooms and ignores a previous context response', async ({
+	app,
+	page
+}, testInfo) => {
+	await activate(page, app);
+	const publicationPath = `${app.origin}/api/teaching/modules/${app.ids.module}/publication`;
+	const review = await page.request.get(`${publicationPath}?contexte=${app.ids.currentContext}`);
+	expect(review.ok()).toBe(true);
+	const selected = publicationReviewDataSchema.parse(await review.json()).selected!;
+	const requestId = crypto.randomUUID();
+	const published = await page.request.post(publicationPath, {
+		headers: { Origin: app.origin, 'Idempotency-Key': requestId },
+		data: {
+			requestId,
+			contextId: app.ids.currentContext,
+			action: 'publish',
+			expectedRevision: selected.publicationRevision,
+			moduleRevision: selected.moduleRevision,
+			contextRevision: selected.contextRevision,
+			classRevision: selected.classRevision,
+			confirm: true
+		}
+	});
+	expect(published.ok()).toBe(true);
+	const firstContext = app.ids.publicationContext;
+	const secondContext = app.ids.currentContext;
+	const room = (title: string) => ({
+		id: crypto.randomUUID(),
+		title,
+		lessonId: crypto.randomUUID(),
+		durationSeconds: 600,
+		status: 'lobby',
+		runId: crypto.randomUUID()
+	});
+	const firstRoom = room('Quiz du premier cours');
+	const secondRoom = room('Quiz du deuxième cours');
+	const delayedRoom = room('Ancienne réponse du premier cours');
+	const oldResponse = Promise.withResolvers<void>();
+	const nextResponse = Promise.withResolvers<void>();
+	let firstRequests = 0;
+	await page.route(`**/api/quizzes/${firstContext}`, async (route) => {
+		firstRequests += 1;
+		if (firstRequests === 2) {
+			await oldResponse.promise;
+			await route.fulfill({ json: [delayedRoom] });
+		} else await route.fulfill({ json: [firstRoom] });
+	});
+	await page.route(`**/api/quizzes/${secondContext}`, async (route) => {
+		await nextResponse.promise;
+		await route.fulfill({ json: [secondRoom] });
+	});
+	const courseUrl = (contextId: string) => `${app.origin}/modules/${contextId}`;
+	const section = page.getByRole('region', { name: 'Quiz en classe' });
+	const openQuizSection = async () => {
+		if (await section.isVisible()) return;
+		if (testInfo.project.name === 'mobile') {
+			const dialog = page.getByRole('dialog', { name: 'Contenu du cours' });
+			await expect(async () => {
+				await page.getByRole('button', { name: /^Changer de rubrique :/ }).click();
+				await expect(dialog).toBeVisible({ timeout: 1000 });
+			}).toPass();
+			await dialog.getByRole('button', { name: 'Quiz', exact: true }).click();
+			await expect(dialog).toHaveCount(0);
+		} else {
+			await expect(async () => {
+				await page.getByRole('tab', { name: 'Quiz', exact: true }).click();
+				await expect(section).toBeVisible({ timeout: 1000 });
+			}).toPass();
+		}
+	};
+	const expectRoom = async (contextId: string, currentRoom: ReturnType<typeof room>) => {
+		await expect(page).toHaveURL(courseUrl(contextId));
+		await expect(section.getByRole('link', { name: /Rejoindre/ })).toHaveCount(1);
+		await expect(section.getByRole('link', { name: `Rejoindre ${currentRoom.title}` })).toHaveAttribute(
+			'href',
+			`/modules/${contextId}/quiz/${currentRoom.runId}`
+		);
+	};
+	await page.goto(courseUrl(firstContext));
+	await openQuizSection();
+	await expectRoom(firstContext, firstRoom);
+	const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
+	await section.getByRole('button', { name: 'Actualiser les salles', exact: true }).click();
+	await expect.poll(() => firstRequests).toBe(2);
+	await page.evaluate((href) => {
+		const link = document.createElement('a');
+		link.href = href;
+		link.textContent = 'Open another fictional course';
+		link.dataset.testid = 'course-history-navigation';
+		document.querySelector('main')!.prepend(link);
+	}, courseUrl(secondContext));
+	await page.getByTestId('course-history-navigation').click();
+	await expect(page).toHaveURL(courseUrl(secondContext));
+	await expect(page.getByRole('heading', { name: firstRoom.title, exact: true })).toHaveCount(0);
+	await page.evaluate(() => document.querySelector('[data-testid="course-history-navigation"]')?.remove());
+	await openQuizSection();
+	await expect(section.getByText('Recherche des salles ouvertes…')).toBeVisible();
+	await expect(section.getByRole('link', { name: /Rejoindre/ })).toHaveCount(0);
+	nextResponse.resolve();
+	await expectRoom(secondContext, secondRoom);
+	const delayed = page.waitForResponse((response) => response.url().endsWith(`/api/quizzes/${firstContext}`));
+	oldResponse.resolve();
+	await (await delayed).finished();
+	await page.evaluate(
+		() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+	);
+	await expectRoom(secondContext, secondRoom);
+	await expect(page.getByRole('heading', { name: delayedRoom.title, exact: true })).toHaveCount(0);
+
+	await page.goBack();
+	await expect(page).toHaveURL(courseUrl(firstContext));
+	await expect(page.getByRole('heading', { name: secondRoom.title, exact: true })).toHaveCount(0);
+	await openQuizSection();
+	await expectRoom(firstContext, firstRoom);
+	await page.goForward();
+	await expect(page).toHaveURL(courseUrl(secondContext));
+	await expect(page.getByRole('heading', { name: firstRoom.title, exact: true })).toHaveCount(0);
+	await openQuizSection();
+	await expectRoom(secondContext, secondRoom);
+	expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
 });
 
 test('course quiz section shows current rooms, retries errors and handles an empty list', async ({

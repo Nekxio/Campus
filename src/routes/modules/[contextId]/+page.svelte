@@ -10,4 +10,6 @@
 	description={data.snapshot.description.slice(0, 160)}
 	publicContent
 />
-<PublicCourse {data} />
+{#key data.contextId}
+	<PublicCourse {data} />
+{/key}
