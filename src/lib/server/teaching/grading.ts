@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, isNotNull, notInArray, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import {
 	modules,
@@ -194,10 +194,21 @@ export async function replaceRubric(
 					.map((line) => [line.id, line.maxPoints])
 					.sort((a, b) => String(a[0]).localeCompare(String(b[0])))
 			});
+		const retiredIds = new Set(
+			(
+				await tx
+					.select({ id: assessments.id })
+					.from(assessments)
+					.where(and(eq(assessments.moduleId, moduleId), isNotNull(assessments.retiredAt)))
+			).map((assessment) => assessment.id)
+		);
 		const changedIds = draft.assessments
 			.filter((assessment) => {
 				const old = previous.assessments.find((item) => item.id === assessment.id);
-				return old && numericShape(old, previous) !== numericShape(assessment, draft);
+				// Retirement removes result rules, so a restored assessment needs a fresh review of retained marks.
+				return (
+					retiredIds.has(assessment.id) || (old && numericShape(old, previous) !== numericShape(assessment, draft))
+				);
 			})
 			.map((assessment) => assessment.id);
 		const affectedCorrections = changedIds.length

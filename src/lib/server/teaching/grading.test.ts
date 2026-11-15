@@ -182,6 +182,24 @@ describe('Private persistent grading', () => {
 		expect(grid.students[0].retiredScores).toHaveLength(2);
 		expect(await db.select().from(tables.scores).where(eq(tables.scores.correctionId, ids.correction))).toHaveLength(2);
 	});
+	it('requires review when restoring retained corrections, preserving their raw points', async () => {
+		const original = draft(rubric);
+		const points = await db.select().from(tables.scores).where(eq(tables.scores.correctionId, ids.correction));
+		const removed = draft(rubric);
+		removed.assessments = removed.assessments.filter((item) => item.id !== ids.project);
+		removed.results = [];
+		for (const context of removed.contexts) context.deadlines = [];
+		const retired = await replaceRubric(db, ids.module, { ...removed, expectedRevision: rubric.module.revision });
+		expect(retired.reviewRequiredCorrections).toBe(0);
+		const restored = { ...original, contexts: draft(retired).contexts };
+		restored.assessments.find((item) => item.id === ids.project)!.lines[0].maxPoints += 1;
+		const saved = await replaceRubric(db, ids.module, { ...restored, expectedRevision: retired.module.revision });
+		expect(saved.reviewRequiredCorrections).toBeGreaterThan(0);
+		expect(
+			(await db.select().from(tables.corrections).where(eq(tables.corrections.id, ids.correction)))[0].needsReview
+		).toBe(true);
+		expect(await db.select().from(tables.scores).where(eq(tables.scores.correctionId, ids.correction))).toEqual(points);
+	});
 	it('rejects stale context calendars atomically without changing the rubric or deadline', async () => {
 		await db
 			.update(tables.teachingContexts)
