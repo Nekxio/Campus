@@ -498,7 +498,9 @@ second merge even if `develop` has subsequently advanced. A conflict requires op
 not an automatic retry against a different base.
 
 Because writes using `GITHUB_TOKEN` do not trigger push CI, the job explicitly dispatches CI
-for its exact resulting commit. Those checks also gate the subsequent preview deployment.
+for its exact resulting commit. The requested SHA must equal the develop event SHA before checkout;
+if develop has advanced, the stale dispatch fails instead of checking another tree. Those checks
+also gate the subsequent preview deployment.
 A failed backmerge does not block an otherwise validated production upload. SQL/quiz namespace
 state and HTTPS passkey acceptance remain separate operator checks; a CI result does not prove them.
 
@@ -506,7 +508,7 @@ state and HTTPS passkey acceptance remain separate operator checks; a CI result 
 
 The production and shared preview targets are fixed in operator tooling. Production is the
 Worker named in `scripts/production.ts`; preview is the distinct Worker in
-`scripts/preview-deployment.ts`. Both `develop` pushes and `release/*` pushes update the same
+`scripts/preview-deployment.ts`. Both protected `develop` pushes and protected `release/*` pushes update the same
 preview after successful checks; the last successful serialized upload wins. Opening a PR does
 not deploy. Manual checks do not deploy production.
 
@@ -514,8 +516,14 @@ Repository variables: `CLOUDFLARE_ACCOUNT_ID`, `COURSELY_PRODUCTION_ORIGIN`,
 `COURSELY_PRODUCTION_ENABLED`, `CAMPUS_PREVIEW_ORIGIN`, `CAMPUS_PREVIEW_ENABLED`.
 The existing production secrets remain `BETTER_AUTH_SECRET`, `TURSO_DATABASE_URL`,
 `TURSO_AUTH_TOKEN` and `CLOUDFLARE_API_TOKEN`. Preview uses separate
-`CAMPUS_PREVIEW_AUTH_SECRET`, `CAMPUS_PREVIEW_TURSO_URL` and `CAMPUS_PREVIEW_TURSO_TOKEN`;
-its database URL is allowlisted and production credentials are refused. Its quiz binding belongs
+`CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN`, `CAMPUS_PREVIEW_AUTH_SECRET`,
+`CAMPUS_PREVIEW_TURSO_URL` and `CAMPUS_PREVIEW_TURSO_TOKEN`;
+its database URL is allowlisted and production database credentials are refused. The preview token
+must have no production authority; verify the actual Cloudflare resource scope. A distinct secret
+name alone does not enforce resource isolation. The current configuration shares the account ID
+and fixes the preview origin. If token permissions cannot exclude the production Worker, keep
+preview disabled: an isolated account requires a separate, reviewed account/origin configuration
+change before enabling it. There is no fallback to the production token. Its quiz binding belongs
 to the separate Worker, without a production `script_name`. Prepare its config with
 `pnpm preview:prepare`, after setting the non-secret account and preview-origin variables.
 
@@ -525,9 +533,11 @@ address still requires teacher passkeys for private pages. Preview uploads finis
 checks of anonymous privacy and database-backed reads of randomly absent public links.
 Keep preview data fictional.
 Configure branch protections or rulesets for the required checks and merge policy on `develop`
-and `main`, accounting for the Gitflow job's scoped writes. Workflow deployment gates do not
-enforce that policy themselves. The workflow uses repository variables and secrets without a
-GitHub environment or duplicate Cloudflare Workers Builds integration.
+and `main`, accounting for the Gitflow job's scoped writes. Protect release branches before preview
+uploads as well. Preview requires GitHub to report the event ref as protected and the checked SHA
+to match the immutable event SHA, independently of repository scripts. These gates fail closed
+until protections and a dedicated preview token are configured; they do not configure merge policy.
+The workflow uses repository variables and secrets without a GitHub environment or duplicate Cloudflare Workers Builds integration.
 
 Quality and deployment build separately; the guarantee concerns the checked SHA, not promotion
 of an identical binary. Pre-deployment smoke probes run locally and do not include anonymous

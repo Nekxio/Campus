@@ -17,7 +17,9 @@ export const previewDatabaseUrl = 'libsql://campus-dev-nekxio.aws-eu-west-1.turs
 export const validatePreview = (settings: ProductionEnvironment, checkout: string) => {
 	if (
 		settings.GITHUB_REPOSITORY?.toLowerCase() !== 'nekxio/campus' ||
+		settings.GITHUB_REF_PROTECTED !== 'true' ||
 		!['push', 'workflow_dispatch'].includes(settings.GITHUB_EVENT_NAME ?? '') ||
+		(settings.GITHUB_EVENT_NAME === 'workflow_dispatch' && settings.GITHUB_REF !== 'refs/heads/develop') ||
 		!(
 			settings.GITHUB_REF === 'refs/heads/develop' ||
 			/^refs\/heads\/release\/\d+\.\d+\.\d+$/.test(settings.GITHUB_REF ?? '')
@@ -76,10 +78,7 @@ export const checkCurrentPreview = async (settings: ProductionEnvironment, reque
 
 const main = async () => {
 	const command = process.argv[2];
-	const settings =
-		process.env.GITHUB_EVENT_NAME === 'workflow_dispatch'
-			? { ...process.env, GITHUB_SHA: process.env.COURSELY_CHECKED_SHA }
-			: process.env;
+	const settings = process.env;
 	if (command === 'validate')
 		validatePreview(settings, execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim());
 	else if (command === 'prepare') {

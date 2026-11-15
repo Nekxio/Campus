@@ -33,10 +33,23 @@ jobs:
     outputs:
       commit: ${{ steps.commit.outputs.sha }}
     steps:
+      # This guard runs before any code selected by the dispatch can execute.
+      - name: Validate dispatch commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' && -n "$EXPECTED_SHA" ]]; then
+            if [[ "$GITHUB_REF" != 'refs/heads/develop' || ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ || "$EXPECTED_SHA" != "$GITHUB_SHA" ]]; then
+              echo 'Dispatch must check the exact develop event commit.' >&2
+              exit 1
+            fi
+          fi
+
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.expected_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Record the checked commit
@@ -298,7 +311,7 @@ jobs:
   deploy-preview:
     name: Deploy preview
     needs: quality
-    if: needs.quality.result == 'success' && github.repository == 'Nekxio/Campus' && vars.CAMPUS_PREVIEW_ENABLED == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop' && inputs.expected_sha != ''))
+    if: needs.quality.result == 'success' && needs.quality.outputs.commit == github.sha && github.ref_protected == true && github.repository == 'Nekxio/Campus' && vars.CAMPUS_PREVIEW_ENABLED == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop' && inputs.expected_sha == github.sha))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
@@ -313,7 +326,7 @@ jobs:
       - name: Check out the tested commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.quality.outputs.commit }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -345,14 +358,14 @@ jobs:
       - name: Deploy the current checked preview commit
         if: steps.current.outputs.current == 'true'
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN }}
           CAMPUS_PREVIEW_AUTH_SECRET: ${{ secrets.CAMPUS_PREVIEW_AUTH_SECRET }}
           CAMPUS_PREVIEW_TURSO_URL: ${{ secrets.CAMPUS_PREVIEW_TURSO_URL }}
           CAMPUS_PREVIEW_TURSO_TOKEN: ${{ secrets.CAMPUS_PREVIEW_TURSO_TOKEN }}
         run: |
           set -euo pipefail
           trap 'rm -f "$RUNNER_TEMP/campus-preview-secrets.json"' EXIT
-          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is required'; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN is required'; exit 1; }
           pnpm exec tsx scripts/preview-deployment.ts secrets
           pnpm exec wrangler deploy --config .wrangler/preview/wrangler.json --secrets-file "$RUNNER_TEMP/campus-preview-secrets.json" --env-file /dev/null
       - name: Verify preview HTTPS and database access

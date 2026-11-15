@@ -7,6 +7,8 @@ import {
 	validatePreview
 } from '../../../../scripts/preview-deployment.js';
 import { readFile } from 'node:fs/promises';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { runInNewContext } from 'node:vm';
 
 const source = JSON.parse(await readFile('wrangler.jsonc', 'utf8'));
 const sha = 'a'.repeat(40);
@@ -89,6 +91,7 @@ describe('isolated preview target', () => {
 	it('only deploys checked develop or release commits, with an explicit enable flag', () => {
 		const settings = {
 			GITHUB_EVENT_NAME: 'push',
+			GITHUB_REF_PROTECTED: 'true',
 			GITHUB_REF: 'refs/heads/develop',
 			GITHUB_REPOSITORY: 'Nekxio/Campus',
 			GITHUB_SHA: sha,
@@ -99,6 +102,7 @@ describe('isolated preview target', () => {
 		expect(() => validatePreview(settings, sha)).not.toThrow();
 		expect(() => validatePreview({ ...settings, GITHUB_REF: 'refs/heads/release/1.0.0' }, sha)).not.toThrow();
 		for (const override of [
+			{ GITHUB_REF_PROTECTED: 'false' },
 			{ GITHUB_REPOSITORY: 'someone/fork' },
 			{ GITHUB_REPOSITORY: 'Nekxio/Coursely' },
 			{ GITHUB_REF: 'refs/heads/main' },
@@ -147,6 +151,109 @@ describe('current preview check before deployment', () => {
 			expect(request).not.toHaveBeenCalled();
 		}
 	);
+});
+
+const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
+const qualityJob = workflow.split('  quality:')[1].split('\n  deploy:')[0];
+const previewJob = workflow.split('  deploy-preview:')[1].split('\n  gitflow:')[0];
+
+describe('preview workflow trust boundary', () => {
+	const settings = {
+		GITHUB_EVENT_NAME: 'workflow_dispatch',
+		GITHUB_REF: 'refs/heads/develop',
+		GITHUB_SHA: sha,
+		EXPECTED_SHA: sha
+	};
+	const dispatchGuard = () => {
+		const match = qualityJob.match(/- name: Validate dispatch commit\n[\s\S]*? {8}run: \|\n((?: {10}.*\n|\n)+)/);
+		expect(match, 'dispatch guard must execute before checkout').not.toBeNull();
+		expect(qualityJob.indexOf('Validate dispatch commit')).toBeLessThan(qualityJob.indexOf('Check out source'));
+		return match![1].replace(/^ {10}/gm, '');
+	};
+	it.each([releaseSha, 'main', sha.slice(0, 7), sha + '\n', '$(exit 0)'])(
+		'rejects mismatched or symbolic dispatch SHA %s before checkout',
+		(expected) => {
+			const result = spawnSync('/bin/bash', ['-e', '-c', dispatchGuard()], {
+				env: { ...settings, EXPECTED_SHA: expected },
+				encoding: 'utf8'
+			});
+			expect(result.status).toBe(1);
+		}
+	);
+	it('allows the exact dispatched commit and ordinary checks without a requested SHA', () => {
+		for (const override of [
+			{},
+			{ EXPECTED_SHA: '' },
+			{ GITHUB_EVENT_NAME: 'push', EXPECTED_SHA: '' },
+			{ GITHUB_EVENT_NAME: 'pull_request', EXPECTED_SHA: '' }
+		]) {
+			const result = spawnSync('/bin/bash', ['-e', '-c', dispatchGuard()], {
+				env: { ...settings, ...override },
+				encoding: 'utf8'
+			});
+			expect(result.status, result.stderr).toBe(0);
+		}
+		expect(
+			spawnSync('/bin/bash', ['-e', '-c', dispatchGuard()], {
+				env: { ...settings, GITHUB_REF: 'refs/heads/feat/unreviewed' }
+			}).status
+		).toBe(1);
+	});
+	it('pins both checkouts to the event SHA and gates secrets independently of repository scripts', () => {
+		for (const job of [qualityJob, previewJob]) {
+			const checkout = job.match(/uses: actions\/checkout@[^\n]*\n {8}with:\n {10}ref: ([^\n]+)/);
+			expect(checkout?.[1]).toBe('${{ github.sha }}');
+		}
+		const condition = previewJob.match(/^ {4}if: (.+)$/m)![1];
+		const github = {
+			repository: 'Nekxio/Campus',
+			event_name: 'workflow_dispatch',
+			ref: 'refs/heads/develop',
+			sha,
+			ref_protected: true
+		};
+		const permits = (overrides = {}, commit = sha, expected = sha) =>
+			runInNewContext(condition, {
+				github: { ...github, ...overrides },
+				needs: { quality: { result: 'success', outputs: { commit } } },
+				vars: { CAMPUS_PREVIEW_ENABLED: 'true' },
+				inputs: { expected_sha: expected },
+				startsWith: (value: string, prefix: string) => value.startsWith(prefix)
+			});
+		expect(permits()).toBe(true);
+		expect(permits({}, releaseSha)).toBe(false);
+		expect(permits({}, sha, releaseSha)).toBe(false);
+		for (const override of [
+			{ ref_protected: false },
+			{ event_name: 'pull_request' },
+			{ repository: 'someone/fork' },
+			{ ref: 'refs/heads/feat/unreviewed' }
+		])
+			expect(permits(override)).toBe(false);
+		for (const ref of ['refs/heads/develop', 'refs/heads/release/1.0.0'])
+			expect(permits({ event_name: 'push', ref }, sha, '')).toBe(true);
+		expect(previewJob).toContain('secrets.CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN');
+		expect(previewJob).not.toContain('secrets.CLOUDFLARE_API_TOKEN');
+	});
+	it('accepts the checked dispatch SHA in the CLI but never substitutes it for a different event SHA', () => {
+		const checkout = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+		for (const eventSha of [checkout, sha]) {
+			const result = spawnSync(process.execPath, ['--import=tsx', 'scripts/preview-deployment.ts', 'validate'], {
+				env: {
+					...settings,
+					GITHUB_SHA: eventSha,
+					GITHUB_REF_PROTECTED: 'true',
+					GITHUB_REPOSITORY: 'Nekxio/Campus',
+					COURSELY_CHECKED_SHA: checkout,
+					COURSELY_QUALITY_RESULT: 'success',
+					CAMPUS_PREVIEW_ENABLED: 'true'
+				},
+				encoding: 'utf8'
+			});
+			expect(result.status).toBe(eventSha === checkout ? 0 : 1);
+			if (eventSha !== checkout) expect(result.stderr).toContain('Preview preparation failed');
+		}
+	});
 });
 
 const githubFixture = () => {
