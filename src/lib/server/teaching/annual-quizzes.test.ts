@@ -110,7 +110,7 @@ describe('Annual quiz lifecycle boundaries', () => {
 		expect((await db.select().from(t.quizRuns))[0].id).toBe(runId);
 	});
 
-	it('requires exact server-confirmed cleanup for every closed run before purging student records', async () => {
+	it('persists cleanup work and requires exact confirmation before acknowledging the purge', async () => {
 		const first = await run('closed');
 		const second = await run('closed', ids.currentContext, first);
 		const command = await action('purge');
@@ -123,8 +123,8 @@ describe('Annual quiz lifecycle boundaries', () => {
 			await expect(decideAnnualYear(db, ids.teacher, command, proof)).rejects.toMatchObject({
 				status: 409
 			});
-		expect(await db.select().from(t.quizRuns)).toHaveLength(2);
-		expect(await db.select().from(t.academicYears)).toHaveLength(0);
+		expect(await db.select().from(t.quizRuns)).toHaveLength(0);
+		expect((await db.select().from(t.annualReceipts))[0].pendingQuizRunIds).toEqual([first, second].sort());
 		const purgeQuizRuns = vi.fn(async () => [second, first]);
 		const receipt = await decideAnnualYear(db, ids.teacher, command, { purgeQuizRuns });
 		expect(purgeQuizRuns).toHaveBeenCalledExactlyOnceWith([first, second].sort());
@@ -170,11 +170,64 @@ describe('Annual quiz lifecycle boundaries', () => {
 		await client.execute(
 			"CREATE TRIGGER fail_quiz_annual_receipt BEFORE INSERT ON annual_receipt BEGIN SELECT RAISE(ABORT, 'fictional rollback'); END"
 		);
-		await expect(
-			decideAnnualYear(db, ids.teacher, command, { purgeQuizRuns: async () => [current] })
-		).rejects.toThrow();
+		const purgeQuizRuns = vi.fn(async () => [current]);
+		await expect(decideAnnualYear(db, ids.teacher, command, { purgeQuizRuns })).rejects.toThrow();
+		expect(purgeQuizRuns).not.toHaveBeenCalled();
 		expect((await getAnnualData(db, ids.teacher, '2026-2027')).selected!.reviewToken).toBe(command.reviewToken);
 		expect((await db.select().from(t.quizRuns)).map((run) => run.id).sort()).toEqual([current, otherYear].sort());
 		expect(await db.select().from(t.students).where(eq(t.students.classId, ids.currentClass))).toHaveLength(12);
+	});
+	it('retries room cleanup when recording its completion fails after deletion', async () => {
+		const current = await run('closed');
+		const otherYear = await run('closed', ids.oldContext);
+		const command = await action('purge');
+		const remaining = new Set<string>([current, otherYear]);
+		const purgeQuizRuns = vi.fn(async (runIds: readonly string[]) => {
+			for (const id of runIds) remaining.delete(id);
+			return runIds;
+		});
+		await client.execute(
+			"CREATE TRIGGER fail_cleanup_ack BEFORE UPDATE ON annual_receipt BEGIN SELECT RAISE(ABORT, 'fictional acknowledgement failure'); END"
+		);
+		await expect(decideAnnualYear(db, ids.teacher, command, { purgeQuizRuns })).rejects.toThrow();
+		expect([...remaining]).toEqual([otherYear]);
+		expect((await db.select().from(t.annualReceipts))[0].pendingQuizRunIds).toEqual([current]);
+		await client.execute('DROP TRIGGER fail_cleanup_ack');
+		await decideAnnualYear(db, ids.teacher, command, { purgeQuizRuns });
+		expect(purgeQuizRuns).toHaveBeenCalledTimes(2);
+		expect(purgeQuizRuns.mock.calls.every(([runIds]) => runIds.length === 1 && runIds[0] === current)).toBe(true);
+		expect((await db.select().from(t.annualReceipts))[0].pendingQuizRunIds).toEqual([]);
+		expect((await db.select().from(t.quizRuns)).map((item) => item.id)).toEqual([otherYear]);
+	});
+	it('recovers a partial external purge after a reload without replaying annual SQL changes', async () => {
+		const first = await run('closed');
+		const second = await run('closed');
+		const remaining = new Set<string>([first, second]);
+		const command = await action('purge');
+		await expect(
+			decideAnnualYear(db, ids.teacher, command, {
+				purgeQuizRuns: async () => {
+					remaining.delete(first);
+					throw new Error('Fictional transport failure');
+				}
+			})
+		).rejects.toBeDefined();
+		expect(await db.select().from(t.quizRuns)).toHaveLength(0);
+		expect(await db.select().from(t.students).where(eq(t.students.classId, ids.currentClass))).toHaveLength(0);
+		const [pending] = await db.select().from(t.annualReceipts);
+		expect(pending.pendingQuizRunIds).toEqual([first, second].sort());
+		const purgeQuizRuns = vi.fn(async (runIds: readonly string[]) => {
+			for (const id of runIds) remaining.delete(id);
+			return runIds;
+		});
+		const reloaded = await getAnnualData(db, ids.teacher, command.academicYear, { purgeQuizRuns });
+		expect(reloaded.selected!.status).toBe('purged');
+		expect(remaining.size).toBe(0);
+		expect(purgeQuizRuns).toHaveBeenCalledExactlyOnceWith([first, second].sort());
+		expect((await db.select().from(t.annualReceipts))[0].pendingQuizRunIds).toEqual([]);
+		expect(await decideAnnualYear(db, ids.teacher, command)).toEqual(pending.receipt);
+		await expect(decideAnnualYear(db, ids.teacher, { ...command, action: 'archive' })).rejects.toMatchObject({
+			status: 409
+		});
 	});
 });

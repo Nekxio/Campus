@@ -1,0 +1,1 @@
+ALTER TABLE `annual_receipt` ADD `pending_quiz_run_ids` text DEFAULT '[]' NOT NULL;

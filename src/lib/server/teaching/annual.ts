@@ -247,7 +247,7 @@ const requireClosedAnnualQuizzes = (source: Awaited<ReturnType<typeof snapshot>>
 	if (source.quizRuns.some((run) => run.status !== 'closed'))
 		error(409, 'Clôturez tous les quiz de cette année avant de l’archiver ou de la clôturer.');
 };
-const confirmAnnualQuizCleanup = async (
+const validateAnnualQuizCleanup = async (
 	db: Store,
 	source: Awaited<ReturnType<typeof snapshot>>,
 	cleanup?: AnnualQuizCleanup
@@ -262,14 +262,44 @@ const confirmAnnualQuizCleanup = async (
 		error(409, 'Un rattrapage dépend de cette année dans un autre dossier. Aucun quiz n’a été supprimé.');
 	if (!cleanup?.purgeQuizRuns)
 		error(409, 'Le nettoyage des données de chaque quiz doit être confirmé avant la clôture annuelle.');
-	const confirmed = await cleanup.purgeQuizRuns([...runIds]);
-	if (
-		!Array.isArray(confirmed) ||
-		new Set(confirmed).size !== confirmed.length ||
-		confirmed.length !== runIds.size ||
-		confirmed.some((id) => !runIds.has(id))
-	)
-		error(409, 'Le nettoyage des données de chaque quiz doit être confirmé avant la clôture annuelle.');
+};
+const finishAnnualQuizCleanup = async (
+	db: Pick<Database, 'transaction'>,
+	teacherId: string,
+	cleanup?: AnnualQuizCleanup,
+	requestId?: string
+) => {
+	const pending = await db.transaction((tx) =>
+		tx
+			.select()
+			.from(t.annualReceipts)
+			.where(
+				and(
+					eq(t.annualReceipts.teacherId, teacherId),
+					...(requestId ? [eq(t.annualReceipts.requestId, requestId)] : [])
+				)
+			)
+	);
+	for (const record of pending) {
+		const runIds = record.pendingQuizRunIds;
+		if (!runIds.length) continue;
+		if (!cleanup?.purgeQuizRuns) error(503, 'Le nettoyage des quiz reste à terminer. Réessayez la clôture.');
+		// The receipt and purge are already durable; retries cannot restore SQL references to deleted rooms.
+		const confirmed = await cleanup.purgeQuizRuns(runIds);
+		if (
+			!Array.isArray(confirmed) ||
+			new Set(confirmed).size !== confirmed.length ||
+			confirmed.length !== runIds.length ||
+			confirmed.some((id) => !runIds.includes(id))
+		)
+			error(409, 'Le nettoyage des données de chaque quiz reste à terminer. Réessayez la clôture.');
+		await db.transaction((tx) =>
+			tx
+				.update(t.annualReceipts)
+				.set({ pendingQuizRunIds: [] })
+				.where(and(eq(t.annualReceipts.id, record.id), eq(t.annualReceipts.teacherId, teacherId)))
+		);
+	}
 };
 // Project the already consistent snapshot once, instead of rereading every module's entire roster.
 function snapshotGrid(
@@ -433,7 +463,13 @@ async function preview(db: Store, academicYear: string, teacherId: string): Prom
 		contexts
 	};
 }
-export function getAnnualData(db: Pick<Database, 'transaction'>, teacherId: string, selectedYear?: string) {
+export const getAnnualData = async (
+	db: Pick<Database, 'transaction'>,
+	teacherId: string,
+	selectedYear?: string,
+	quizCleanup?: AnnualQuizCleanup
+) => {
+	if (quizCleanup) await finishAnnualQuizCleanup(db, teacherId, quizCleanup);
 	return db.transaction(async (tx) => {
 		const [classes, contexts, states] = await Promise.all([
 			tx.select({ year: t.classes.academicYear }).from(t.classes),
@@ -444,7 +480,7 @@ export function getAnnualData(db: Pick<Database, 'transaction'>, teacherId: stri
 		if (selectedYear && !years.includes(selectedYear)) error(404, 'Cette année n’est plus disponible.');
 		return { years, selected: selectedYear ? await preview(tx, annualYear(selectedYear), teacherId) : null };
 	});
-}
+};
 export async function decideAnnualYear(
 	db: Pick<Database, 'transaction'>,
 	teacherId: string,
@@ -454,7 +490,7 @@ export async function decideAnnualYear(
 	const parsed = annualActionSchema.safeParse(value);
 	if (!parsed.success) error(422, 'Vérifiez la confirmation de l’année et les PDF nécessaires.');
 	const input = parsed.data;
-	return db.transaction(async (tx) => {
+	const receipt = await db.transaction(async (tx) => {
 		const fingerprint = await hash(input);
 		const [previous] = await tx
 			.select()
@@ -532,7 +568,7 @@ export async function decideAnnualYear(
 						'Un ancien module possède une autre classe active : créez une copie indépendante avant la reprise.'
 					);
 			}
-			await confirmAnnualQuizCleanup(tx, source, quizCleanup);
+			await validateAnnualQuizCleanup(tx, source, quizCleanup);
 		}
 		const now = new Date();
 		await tx
@@ -733,9 +769,17 @@ export async function decideAnnualYear(
 				? { calendar: { connection: !!source.calendar.subscription, lessons: source.calendar.importedLessons.length } }
 				: {})
 		};
-		await tx.insert(t.annualReceipts).values({ teacherId, requestId: input.requestId, fingerprint, receipt });
+		await tx.insert(t.annualReceipts).values({
+			teacherId,
+			requestId: input.requestId,
+			fingerprint,
+			receipt,
+			pendingQuizRunIds: input.action === 'purge' ? source.quizRuns.map((run) => run.id) : []
+		});
 		return receipt;
 	});
+	await finishAnnualQuizCleanup(db, teacherId, quizCleanup, input.requestId);
+	return receipt;
 }
 export function getAnnualHistory(
 	db: Pick<Database, 'transaction'>,

@@ -29,6 +29,7 @@ export const annualReceipts = sqliteTable(
 		requestId: text('request_id').notNull(),
 		fingerprint: text('fingerprint').notNull(),
 		receipt: text('receipt', { mode: 'json' }).$type<AnnualReceipt>().notNull(),
+		pendingQuizRunIds: text('pending_quiz_run_ids', { mode: 'json' }).$type<string[]>().notNull().default([]),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' })
 			.notNull()
 			.$defaultFn(() => new Date())
