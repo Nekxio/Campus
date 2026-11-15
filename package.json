@@ -6,6 +6,8 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "pnpm gen && vite build",
+		"worker:dry-run": "tsx scripts/worker-dry-run.ts",
+		"production:prepare": "tsx scripts/production.ts prepare",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
 		"prepare": "svelte-kit sync",
 		"check": "pnpm gen && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --config ./vite.config.ts && tsc -p scripts/tsconfig.json",
@@ -20,12 +22,15 @@
 		"ai:svelte": "svelte-mcp",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
+		"db:fixtures": "tsx scripts/db-fixtures.ts",
 		"auth:invite": "tsx --env-file-if-exists=.env scripts/auth-invite.ts",
 		"auth:revoke": "tsx --env-file-if-exists=.env scripts/auth-revoke.ts",
 		"agent:key": "tsx --env-file-if-exists=.env scripts/agent-key.ts",
 		"mcp": "tsx scripts/campus-mcp.ts",
 		"test:browser": "node --import=./scripts/prepare-tests.ts node_modules/@playwright/test/cli.js test",
-		"assets:identity": "tsx scripts/generate-identity.ts"
+		"check:browser": "tsc --noEmit -p tests/browser/tsconfig.json",
+		"assets:identity": "tsx scripts/generate-identity.ts",
+		"preview:prepare": "tsx scripts/preview-deployment.ts prepare"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
