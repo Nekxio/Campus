@@ -61,11 +61,12 @@ export const applyCalendarEvents = async (
 		.from(lessons)
 		.where(inArray(lessons.contextId, contextIds));
 	const managed = await db
-		.select({ lessonId: calendarLessons.lessonId })
+		.select({ lessonId: calendarLessons.lessonId, status: calendarLessons.status })
 		.from(calendarLessons)
 		.innerJoin(lessons, eq(lessons.id, calendarLessons.lessonId))
 		.where(inArray(lessons.contextId, contextIds));
 	const managedIds = new Set(managed.map(({ lessonId }) => lessonId));
+	const lessonStatuses = new Map(managed.map(({ lessonId, status }) => [lessonId, status]));
 	const identities = await db
 		.select({ metadata: calendarLessons })
 		.from(calendarLessons)
@@ -79,6 +80,7 @@ export const applyCalendarEvents = async (
 	const statusWrites = new Map<string, Metadata>();
 	const store = (row: LessonRow, meta: Metadata) => {
 		managedIds.add(row.id);
+		lessonStatuses.set(row.id, meta.status);
 		const index = current.findIndex((v) => v.id === row.id);
 		if (index < 0) current.push(row);
 		else current[index] = row;
@@ -142,13 +144,13 @@ export const applyCalendarEvents = async (
 	}
 	// Check the complete proposed timetable: swaps and cancellations can free old slots.
 	for (const proposed of scheduleWrites.values()) {
-		if (metadata.find((v) => v.lessonId === proposed.id)?.status === 'cancelled') continue;
+		if (lessonStatuses.get(proposed.id) === 'cancelled') continue;
 		if (
 			current.some(
 				(v) =>
 					v.contextId === proposed.contextId &&
 					v.id !== proposed.id &&
-					metadata.find((m) => m.lessonId === v.id)?.status !== 'cancelled' &&
+					lessonStatuses.get(v.id) !== 'cancelled' &&
 					overlaps(v, proposed)
 			)
 		)

@@ -326,6 +326,68 @@ describe('school calendar subscription', () => {
 		await command({ action: 'disconnect', revision: cancelled.connection!.revision });
 		expect((await getHomeData(db, now, '2026-11')).calendar.lessonDates).not.toContain('2026-11-04');
 	});
+	it.each(['cancelled', 'disconnected'] as const)(
+		'respects a %s lesson from the previous subscription when replacing the feed',
+		async (status) => {
+			let settings = await connect();
+			const [original] = await db.select().from(t.calendarLessons);
+			await db
+				.update(t.lessons)
+				.set({ recap: 'Keep my notes', toDo: 'Keep my preparation' })
+				.where(eq(t.lessons.id, original.lessonId));
+			if (status === 'cancelled') {
+				feed.mockResolvedValue([{ ...event, cancelled: true }]);
+				settings = await command({ action: 'sync', manual: true }, new Date('2026-11-01T08:00:00Z'));
+			}
+			await command({ action: 'disconnect', revision: settings.connection!.revision });
+			const [metadata] = await db.select().from(t.calendarLessons);
+			const [lesson] = await db.select().from(t.lessons).where(eq(t.lessons.id, original.lessonId));
+			expect(metadata.status).toBe(status);
+			const replacement = { ...event, title: 'Replacement' };
+			feed.mockResolvedValue([replacement]);
+			const preview = await command(
+				{ action: 'preview', url: 'https://school.pronote-campus.net/hp/Telechargements/ical/replacement.ics' },
+				new Date('2026-11-01T08:02:00Z')
+			);
+			const mappingsBefore = await db.select().from(t.calendarMappings);
+			const moduleBefore = await getModule(db, ids.module);
+			const connection = command(
+				{
+					action: 'connect',
+					revision: preview.connection!.revision,
+					mappings: [{ course: event.course, contextId: ids.currentContext, adoptions: [] }]
+				},
+				new Date('2026-11-01T08:02:00Z')
+			);
+			if (status === 'disconnected') {
+				await expect(connection).rejects.toMatchObject({ status: 409 });
+				expect(await db.select().from(t.calendarLessons)).toEqual([metadata]);
+				expect(await db.select().from(t.calendarMappings)).toEqual(mappingsBefore);
+				expect(await getModule(db, ids.module)).toEqual(moduleBefore);
+				expect((await getCalendarSettings(db, ids.teacher)).connection?.active).toBe(false);
+			} else {
+				expect((await connection).connection?.active).toBe(true);
+				const imported = (await db.select().from(t.calendarLessons)).find((row) => row.lessonId !== lesson.id)!;
+				expect(imported).toMatchObject({ eventKey: event.key, status: 'active' });
+				expect(imported.mappingId).not.toBe(metadata.mappingId);
+				feed.mockResolvedValue([{ ...replacement, title: 'Updated replacement' }]);
+				const refreshed = await command({ action: 'sync', manual: true }, new Date('2026-11-01T08:04:00Z'));
+				expect(refreshed.connection?.error).toBe('');
+				expect(await db.select().from(t.lessons).where(eq(t.lessons.id, imported.lessonId))).toEqual([
+					expect.objectContaining({
+						title: 'Updated replacement',
+						startsAt: new Date(event.startsAt),
+						endsAt: new Date(event.endsAt)
+					})
+				]);
+				expect(await db.select().from(t.calendarLessons)).toHaveLength(2);
+			}
+			expect(await db.select().from(t.lessons).where(eq(t.lessons.id, lesson.id))).toEqual([lesson]);
+			expect(await db.select().from(t.calendarLessons).where(eq(t.calendarLessons.lessonId, lesson.id))).toEqual([
+				metadata
+			]);
+		}
+	);
 	it('does not infer a new lesson when a bound event changes its course label', async () => {
 		const connected = await connect();
 		await command({ action: 'disconnect', revision: connected.connection!.revision });
