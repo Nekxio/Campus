@@ -11,6 +11,7 @@ import { projectQuizQuestions } from '../../src/lib/domain/quiz-content.js';
 const mockStudentParticipation = async (page: Page, fixture: NativeQuizFixture, closed = false) => {
 	const roomPath = `/api/quizzes/${fixture.contextId}/rooms/${fixture.runId}`;
 	const commands: QuizSessionCommand[] = [];
+	const connections: { closed: boolean }[] = [];
 	let channel: WebSocketRoute | null = null;
 	let view: QuizParticipantProjection = {
 		id: fixture.runId,
@@ -84,17 +85,78 @@ const mockStudentParticipation = async (page: Page, fixture: NativeQuizFixture, 
 		})
 	);
 	await page.routeWebSocket('**' + roomPath, (socket) => {
+		const connection = { closed: false };
+		connections.push(connection);
+		socket.onClose(() => {
+			connection.closed = true;
+		});
 		channel = socket;
 		socket.send(JSON.stringify({ type: 'state', view }));
 		socket.onMessage((raw) => commands.push(JSON.parse(String(raw)) as QuizSessionCommand));
 	});
 	return {
 		commands,
+		connections,
 		publish,
 		acknowledge,
 		disconnect: () => channel?.close({ code: 1008, reason: 'Fictional connection interruption' })
 	};
 };
+
+test('quiz history navigation replaces the room and closes the previous socket', async ({ app, page }) => {
+	const firstFixture = await app.call<NativeQuizFixture>('native-quiz-ui');
+	const secondFixture = await app.call<NativeQuizFixture>('native-quiz-ui');
+	firstFixture.content.title = 'First fictional quiz';
+	secondFixture.content.title = 'Second fictional quiz';
+	const first = await mockStudentParticipation(page, firstFixture);
+	const second = await mockStudentParticipation(page, secondFixture);
+	const url = (fixture: NativeQuizFixture) => `${app.origin}/modules/${fixture.contextId}/quiz/${fixture.runId}`;
+	const answer = page.getByRole('radio', { name: 'Première option', exact: true });
+	await page.goto(url(firstFixture));
+	await expect(page.getByRole('heading', { name: firstFixture.content.title, exact: true })).toBeVisible();
+	await expect(answer).toBeEnabled();
+	const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
+	await answer.check();
+	await expect.poll(() => first.commands.some((command) => command.type === 'save_answers')).toBe(true);
+	const saved = first.commands.find((command) => command.type === 'save_answers')!;
+	first.acknowledge(saved);
+
+	await page.evaluate((href) => {
+		const link = document.createElement('a');
+		link.href = href;
+		link.textContent = 'Open another fictional quiz';
+		link.dataset.testid = 'quiz-history-navigation';
+		document.querySelector('main')!.prepend(link);
+	}, url(secondFixture));
+	await page.getByTestId('quiz-history-navigation').click();
+	await expect(page).toHaveURL(url(secondFixture));
+	await expect(page.getByRole('heading', { name: secondFixture.content.title, exact: true })).toBeVisible();
+	await expect(answer).not.toBeChecked();
+	await expect.poll(() => first.connections[0]?.closed).toBe(true);
+	await expect.poll(() => second.connections.length).toBe(1);
+	await page.evaluate(() => document.querySelector('[data-testid="quiz-history-navigation"]')?.remove());
+
+	await page.goBack();
+	await expect(page).toHaveURL(url(firstFixture));
+	await expect(page.getByRole('heading', { name: firstFixture.content.title, exact: true })).toBeVisible();
+	await expect(answer).toBeChecked();
+	await expect.poll(() => second.connections[0]?.closed).toBe(true);
+	await expect.poll(() => first.connections.length).toBe(2);
+
+	await page.goForward();
+	await expect(page).toHaveURL(url(secondFixture));
+	await expect(page.getByRole('heading', { name: secondFixture.content.title, exact: true })).toBeVisible();
+	await expect(answer).not.toBeChecked();
+	await expect.poll(() => first.connections[1]?.closed).toBe(true);
+	await expect.poll(() => second.connections.length).toBe(2);
+	expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
+	await answer.check();
+	await expect.poll(() => second.commands.some((command) => command.type === 'save_answers')).toBe(true);
+	expect(second.commands.find((command) => command.type === 'save_answers')?.answers[0].questionId).toBe(
+		secondFixture.content.questions[0].id
+	);
+	expect(first.commands.filter((command) => command.type === 'save_answers')).toHaveLength(1);
+});
 
 for (const ending of ['interrupted', 'expired', 'submitted', 'closed'] as const) {
 	test(`quiz lifecycle announces its start and ${ending} without losing keyboard focus`, async ({ app, page }) => {

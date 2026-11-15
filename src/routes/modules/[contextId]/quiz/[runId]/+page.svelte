@@ -14,7 +14,9 @@
 <svelte:head><meta name="robots" content="noindex, nofollow" /></svelte:head>
 <PublicHeader className={data.className} academicYear={data.academicYear} mainId="quiz" />
 <main id="quiz" tabindex="-1" class="quiz-page mx-auto min-h-svh max-w-[77.5rem]">
-	<QuizStudent contextId={data.contextId} runId={data.runId} />
+	{#key `${data.contextId}:${data.runId}`}
+		<QuizStudent contextId={data.contextId} runId={data.runId} />
+	{/key}
 </main>
 <LegalFooter />
 
