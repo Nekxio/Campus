@@ -25,7 +25,8 @@ of truth for the versioned project.
 
 ## Getting Started
 
-Use Node **26.11.1** (`.node-version`) and pnpm **12.11.2** (`packageManager`).
+Use Node **26.13.0** (`.node-version`) and pnpm **12.11.2** (`packageManager`).
+Node 26.13.0 includes the Undici fix needed to cancel oversized multipart bodies without unhandled stream errors.
 Dependency versions are resolved in `pnpm-lock.yaml`.
 
 The [CI workflow](.github/workflows/ci.yml) deploys validated release merges into `main` when the

@@ -5,7 +5,7 @@ SvelteKit teaching application, deployed to Cloudflare Workers. Teacher access, 
 ## Stack and commands
 
 - Svelte 5, SvelteKit 3, TypeScript 6, Tailwind CSS 4 and Vite 8; Turso/libSQL, Drizzle and Better Auth passkeys.
-- Node.js 26.11.1 and pnpm 12.11.2 are specified by `.node-version`, `package.json` and `pnpm-lock.yaml`.
+- Node.js 26.13.0 and pnpm 12.11.2 are specified by `.node-version`, `package.json` and `pnpm-lock.yaml`.
 
 | Action             | Command from the repository root                                |
 | ------------------ | --------------------------------------------------------------- |
