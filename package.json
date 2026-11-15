@@ -22,6 +22,8 @@
 		"db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
 		"auth:invite": "tsx --env-file-if-exists=.env scripts/auth-invite.ts",
 		"auth:revoke": "tsx --env-file-if-exists=.env scripts/auth-revoke.ts",
+		"agent:key": "tsx --env-file-if-exists=.env scripts/agent-key.ts",
+		"mcp": "tsx scripts/campus-mcp.ts",
 		"test:browser": "node --import=./scripts/prepare-tests.ts node_modules/@playwright/test/cli.js test"
 	},
 	"devDependencies": {
