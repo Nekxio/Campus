@@ -18,6 +18,8 @@
 		"test": "pnpm test:unit --run",
 		"gen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --env-file /dev/null",
 		"ai:svelte": "svelte-mcp",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
 		"test:browser": "node --import=./scripts/prepare-tests.ts node_modules/@playwright/test/cli.js test"
 	},
 	"devDependencies": {

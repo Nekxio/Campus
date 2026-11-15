@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791790831940,
+      "tag": "0000_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791804910035,
+      "tag": "0001_lonely_gateway",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791818949917,
+      "tag": "0002_brown_unus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791831075824,
+      "tag": "0003_premium_tomas",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791835327736,
+      "tag": "0004_lyrical_skullbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791841469684,
+      "tag": "0005_nasty_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791914043971,
+      "tag": "0006_chunky_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791925654663,
+      "tag": "0007_true_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792081945170,
+      "tag": "0008_lucky_puppet_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792230931865,
+      "tag": "0009_condemned_sue_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792233020042,
+      "tag": "0010_boring_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1792250993982,
+      "tag": "0011_bound_unused_oauth_clients",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793433101850,
+      "tag": "0012_famous_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793545691122,
+      "tag": "0013_youthful_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793545965919,
+      "tag": "0014_slim_king_cobra",
+      "breakpoints": true
+    }
+  ]
+}

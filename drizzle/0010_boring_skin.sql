@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `oauth_consent_client_user_unique` ON `oauth_consent` (`client_id`,`user_id`);
