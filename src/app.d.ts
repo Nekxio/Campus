@@ -1,11 +1,21 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+import type { AuthSession } from '#lib/server/auth.js';
+import type { ServerTiming } from '#lib/server/server-timing.js';
+
 declare global {
 	namespace App {
-		// interface Error {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
+		interface PageState {
+			createdModuleId?: string;
+		}
+		interface Locals {
+			serverTiming?: ServerTiming;
+			user: AuthSession['user'] | null;
+			session: AuthSession['session'] | null;
+			authUnavailable?: boolean;
+			publicClassId?: string | null;
+		}
+		interface Error {
+			publicClassId?: string | null;
+		}
 	}
 }
 
