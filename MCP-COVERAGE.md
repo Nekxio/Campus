@@ -30,7 +30,7 @@ There is no independent class, module or quiz DELETE operation in the applicatio
 ## Authorization and recovery
 
 - Existing OAuth grants do not acquire mutation powers automatically. Sensitive scopes require explicit consent; advertising or installing a tool does not grant its permissions.
-- OAuth discovery advertises every supported scope so clients can select the permissions they need. Dynamic client registration still defaults to `modules:read`; advertising a scope never grants it.
+- OAuth discovery and the initial unauthenticated challenge advertise every supported scope, so the copied connection commands open the complete, adjustable consent screen. Explicitly restricted requests and insufficient-scope challenges keep their selected permissions. Dynamic client registration still defaults to `modules:read`; advertising a scope never grants it.
 - `roster:update` permits renaming/attachment; `roster:delete` separately permits deletion with current student/class revisions and `confirm=true`.
 - `grades:read` permits full grids, comments, proposal review and final export projections. `grades:write` permits saved corrections/comments and proposal decisions.
 - `publications:write` is separate from all draft scopes. Imports still never publish automatically. Explicit publication decisions reuse the review's revisions, confirmation and request receipt.
