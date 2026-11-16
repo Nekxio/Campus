@@ -531,6 +531,10 @@ Before enabling either deployment flag, verify the selected database migration j
 configure its credentials/origin. A first upload creates the preview Worker. Its public HTTPS
 address still requires teacher passkeys for private pages. Preview uploads finish with HTTPS
 checks of anonymous privacy and database-backed reads of randomly absent public links.
+Each route is logged before its request. Transport failures and HTTP 502/503/504 responses
+receive at most three attempts, each with a 15-second timeout and a one- then two-second delay.
+Unexpected access, redirect or cache behavior fails immediately. A failed post-upload check
+does not roll back the Worker version already deployed.
 Keep preview data fictional.
 Configure branch protections or rulesets for the required checks and merge policy on `develop`
 and `main`, accounting for the Gitflow job's scoped writes. Protect release branches before preview

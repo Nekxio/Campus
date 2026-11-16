@@ -370,23 +370,7 @@ jobs:
           pnpm exec wrangler deploy --config .wrangler/preview/wrangler.json --secrets-file "$RUNNER_TEMP/campus-preview-secrets.json" --env-file /dev/null
       - name: Verify preview HTTPS and database access
         if: steps.current.outputs.current == 'true'
-        run: |
-          node --input-type=module <<'JS'
-          import { readFile } from 'node:fs/promises';
-          const { vars: { ORIGIN: origin } } = JSON.parse(await readFile('.wrangler/preview/wrangler.json', 'utf8'));
-          const missingId = crypto.randomUUID();
-          for (const [path, expected] of [
-            ['/connexion', 200], ['/', 303], ['/api/session', 401],
-            [`/modules/${missingId}`, 404], [`/classes/${missingId}`, 404]
-          ]) {
-            const response = await fetch(origin + path, { redirect: 'manual', signal: AbortSignal.timeout(15000) });
-            if (response.status !== expected) throw new Error(`Preview HTTPS probe failed: ${path} (${response.status})`);
-            if (path !== '/connexion' && !response.headers.get('cache-control')?.includes('no-store'))
-              throw new Error('Preview must preserve private and public cache protections');
-            if (path === '/' && response.headers.get('location') !== '/connexion')
-              throw new Error('Preview must redirect anonymous users to sign-in');
-          }
-          JS
+        run: pnpm exec tsx scripts/preview-deployment.ts verify
       - name: Remove ephemeral preview secrets
         if: always()
         run: rm -f "$RUNNER_TEMP/campus-preview-secrets.json"
