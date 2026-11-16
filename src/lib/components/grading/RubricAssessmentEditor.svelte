@@ -194,7 +194,7 @@
 		</Field.FieldGroup>
 		{#if assessment.kind === 'quiz'}
 			<p class="max-w-prose text-sm text-muted-foreground">
-				Une ligne par quiz Wayground · 1 question = 1 point · chaque quiz a le même poids après conversion sur 20.
+				Une ligne par quiz · 1 question = 1 point · chaque quiz a le même poids après conversion sur 20.
 			</p>
 		{/if}
 		<div class="definition-wrap min-w-0">
