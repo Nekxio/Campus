@@ -1,0 +1,431 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**', '!automation/**']
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact develop commit to check after automated Gitflow synchronization
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  CI: true
+  WRANGLER_SEND_METRICS: false
+  CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: false
+  CAMPUS_EXTENDED_CHECKS: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/') || github.base_ref == 'develop' || github.base_ref == 'main' || startsWith(github.head_ref, 'release/') }}
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Superseded checks may stop; this never cancels the separate deployment job.
+    concurrency:
+      group: ci-quality-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      # This guard runs before any code selected by the dispatch can execute.
+      - name: Validate dispatch commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' && -n "$EXPECTED_SHA" ]]; then
+            if [[ "$GITHUB_REF" != 'refs/heads/develop' || ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ || "$EXPECTED_SHA" != "$GITHUB_SHA" ]]; then
+              echo 'Dispatch must check the exact develop event commit.' >&2
+              exit 1
+            fi
+          fi
+
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Record the checked commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting and lint
+        run: pnpm lint
+
+      - name: Check types
+        run: pnpm check
+
+      - name: Run unit and local integration tests
+        run: pnpm test
+
+      - name: Validate the release version plan
+        if: startsWith(github.ref, 'refs/heads/release/') || github.base_ref == 'main'
+        run: pnpm exec tsx scripts/release-flow.ts check-plan
+        env:
+          CAMPUS_RELEASE_BRANCH: ${{ github.head_ref || github.ref_name }}
+
+      - name: Require a real release merge on main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: pnpm exec tsx scripts/release-flow.ts inspect
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run Worker tests
+        if: env.CAMPUS_EXTENDED_CHECKS == 'true'
+        run: pnpm test:worker
+
+      - name: Check browser test types
+        run: pnpm check:browser
+
+      - name: Build for Cloudflare Workers
+        if: env.CAMPUS_EXTENDED_CHECKS == 'true'
+        run: pnpm build
+
+      - name: Check the Workers Free bundle without uploading
+        if: env.CAMPUS_EXTENDED_CHECKS == 'true'
+        run: pnpm worker:dry-run
+
+      - name: Check the Cloudflare preview
+        if: env.CAMPUS_EXTENDED_CHECKS == 'true'
+        shell: bash
+        run: |
+          pnpm preview > "$RUNNER_TEMP/campus-preview.log" 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --max-time 2 --output "$RUNNER_TEMP/campus-sign-in.html" http://127.0.0.1:4173/connexion; then
+              grep --quiet --ignore-case '<!doctype html' "$RUNNER_TEMP/campus-sign-in.html"
+              node --input-type=module -e '
+                const home = await fetch("http://127.0.0.1:4173/", { redirect: "manual" });
+                if (home.status !== 303 || home.headers.get("location") !== "/connexion") {
+                  throw new Error("Teacher home must redirect anonymous visitors to sign-in");
+                }
+                for (const path of ["/enseignant/classes", "/enseignant/modules/nouveau", "/enseignant/propositions", "/enseignant/modules/00000000-0000-4000-8000-000000000001/publication"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path, { redirect: "manual" });
+                  if (page.status !== 303 || page.headers.get("location") !== "/connexion" || !page.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Teaching pages must remain private and uncached");
+                  }
+                }
+                for (const path of ["classes", "modules"]) {
+                  const mutation = await fetch("http://127.0.0.1:4173/api/teaching/" + path, {
+                    method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:4173" }, body: "{}"
+                  });
+                  if (mutation.status !== 401 || !mutation.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Teaching writes must refuse anonymous access before validation");
+                  }
+                }
+                for (const [path, method] of [
+                  ["/api/agent/context", "GET"],
+                  ["/api/agent/correction-context", "GET"],
+                  ["/api/agent/proposals", "POST"],
+                  ["/api/teaching/proposals/00000000-0000-4000-8000-000000000001/decision", "POST"],
+                  ["/api/teaching/modules/00000000-0000-4000-8000-000000000001/publication", "POST"],
+                  ["/api/agent/modules", "POST"],
+                  ["/api/agent/modules/00000000-0000-4000-8000-000000000001", "PATCH"]
+                ]) {
+                  const agent = await fetch("http://127.0.0.1:4173" + path, {
+                    method, ...(method === "GET" ? {} : { headers: { "Content-Type": "application/json" }, body: "{}" })
+                  });
+                  if (agent.status !== 401 || !agent.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Agent endpoints must refuse missing keys before database access");
+                  }
+                }
+                const { request: nativeRequest } = await import("node:http");
+                const form = (path, extra = {}, method = "POST") => new Promise((done, reject) => {
+                  const request = nativeRequest("http://127.0.0.1:4173" + path, {
+                    method, headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", ...extra }
+                  }, response => {
+                    let text = "";
+                    response.on("data", chunk => { text += chunk; });
+                    response.on("end", () => done({ status: response.statusCode, text, headers: response.headers }));
+                    response.on("error", reject);
+                  });
+                  request.on("error", reject);
+                  request.setTimeout(5000, () => request.destroy(new Error("Local form probe timed out")));
+                  request.end("grant_type=authorization_code");
+                });
+                for (const path of ["token", "revoke", "introspect"]) {
+                  const native = await form("/api/auth/oauth2/" + path);
+                  if (native.status !== 503 || native.text.includes("Cross-site") || !native.headers["cache-control"]?.includes("no-store")) {
+                    throw new Error("Native OAuth forms must reach the unconfigured provider and fail closed");
+                  }
+                  const nodeFetch = await fetch("http://127.0.0.1:4173/api/auth/oauth2/" + path, {
+                    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: "grant_type=authorization_code"
+                  });
+                  if (nodeFetch.status !== 503 || (await nodeFetch.text()).includes("Cross-site") || !nodeFetch.headers.get("cache-control")?.includes("no-store")) {
+                    throw new Error("Node Fetch OAuth forms must reach the unconfigured provider and fail closed");
+                  }
+                }
+                for (const [path, headers, method] of [
+                  ["/api/teaching/classes", {}, "POST"],
+                  ["/api/teaching/classes", { Origin: "https://foreign.example.test" }, "POST"],
+                  ["/api/mcp/consent", {}, "POST"],
+                  ["/api/auth/oauth2/token", { Origin: "null" }, "POST"],
+                  ["/api/auth/oauth2/token", { Cookie: "coursely.session_token=fictional" }, "POST"],
+                  ["/api/auth/oauth2/token", { "Sec-Fetch-Site": "cross-site" }, "POST"],
+                  ["/api/auth/oauth2/token", {}, "PUT"],
+                  ["/api/auth/oauth2/token", { "Content-Type": "text/plain" }, "POST"]
+                ]) {
+                  const blocked = await form(path, headers, method);
+                  if (blocked.status !== 403 || !blocked.text.includes("Cross-site") || !blocked.headers["cache-control"]?.includes("no-store")) {
+                    throw new Error("Browser and unrelated form mutations must retain CSRF protection");
+                  }
+                }
+                for (const path of ["/modules/not-an-id", "/classes/not-an-id"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path);
+                  if (page.status !== 404 || !page.headers.get("cache-control")?.includes("no-store") || !page.headers.get("x-robots-tag")?.includes("noindex")) {
+                    throw new Error("Invalid public links must fail closed and remain uncached");
+                  }
+                }
+                for (const path of ["/modules/00000000-0000-4000-8000-000000000001", "/classes/00000000-0000-4000-8000-000000000001"]) {
+                  const page = await fetch("http://127.0.0.1:4173" + path);
+                  if (page.status !== 503 || !page.headers.get("cache-control")?.includes("no-store") || !page.headers.get("x-robots-tag")?.includes("noindex")) {
+                    throw new Error("Unconfigured public readers must fail closed without auth configuration");
+                  }
+                }
+                const keyManagement = await fetch("http://127.0.0.1:4173/api/auth/api-key/create", { method: "POST", headers: { "Content-Type": "application/json", Origin: "http://127.0.0.1:4173" }, body: "{}" });
+                if (keyManagement.status !== 403 || !keyManagement.headers.get("cache-control")?.includes("no-store")) {
+                  throw new Error("API-key management must remain operator-only");
+                }
+                const response = await fetch("http://127.0.0.1:4173/api/session");
+                if (response.status !== 401 || !response.headers.get("cache-control")?.includes("no-store")) {
+                  throw new Error("The private session endpoint must refuse anonymous access without caching");
+                }
+              '
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat "$RUNNER_TEMP/campus-preview.log"
+          exit 1
+
+  deploy:
+    name: Deploy production
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Nekxio/Campus' && needs.quality.result == 'success' && vars.COURSELY_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Deployment uses repository variables and secrets, without a GitHub environment.
+    # New checks cannot cancel a running deploy. Stale pending commits are skipped below.
+    concurrency:
+      group: campus-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: false
+      WRANGLER_LOG_PATH: /tmp/campus-wrangler.log
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require successful checks of this push commit
+        run: pnpm exec tsx scripts/production.ts validate-release
+        env:
+          COURSELY_CHECKED_SHA: ${{ needs.quality.outputs.commit }}
+          COURSELY_QUALITY_RESULT: ${{ needs.quality.result }}
+          COURSELY_PRODUCTION_ENABLED: ${{ vars.COURSELY_PRODUCTION_ENABLED }}
+
+      - name: Build without production secrets
+        run: pnpm build
+
+      - name: Verify release merge provenance
+        run: pnpm exec tsx scripts/release-flow.ts inspect
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Prepare exact production target
+        run: pnpm production:prepare
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          COURSELY_PRODUCTION_ORIGIN: ${{ vars.COURSELY_PRODUCTION_ORIGIN }}
+
+      - name: Validate the production package without uploading
+        run: pnpm worker:dry-run .wrangler/production/wrangler.json
+
+      - name: Check that main has not advanced
+        id: current
+        run: pnpm exec tsx scripts/production.ts check-current-main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Deploy the tested current main commit
+        if: steps.current.outputs.current == 'true'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$RUNNER_TEMP/campus-production-secrets.json"' EXIT
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CLOUDFLARE_API_TOKEN is required'; exit 1; }
+          pnpm exec tsx scripts/production.ts secrets
+          pnpm exec wrangler deploy --config .wrangler/production/wrangler.json --secrets-file "$RUNNER_TEMP/campus-production-secrets.json"
+
+      - name: Remove ephemeral secrets on all outcomes
+        if: always()
+        run: rm -f "$RUNNER_TEMP/campus-production-secrets.json"
+
+  deploy-preview:
+    name: Deploy preview
+    needs: quality
+    if: needs.quality.result == 'success' && needs.quality.outputs.commit == github.sha && github.ref_protected == true && github.repository == 'Nekxio/Campus' && vars.CAMPUS_PREVIEW_ENABLED == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop' && inputs.expected_sha == github.sha))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: campus-preview
+      cancel-in-progress: false
+    env:
+      COURSELY_CHECKED_SHA: ${{ needs.quality.outputs.commit }}
+      COURSELY_QUALITY_RESULT: ${{ needs.quality.result }}
+      CAMPUS_PREVIEW_ENABLED: ${{ vars.CAMPUS_PREVIEW_ENABLED }}
+      WRANGLER_LOG_PATH: /tmp/campus-preview-wrangler.log
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate the checked preview commit
+        run: pnpm exec tsx scripts/preview-deployment.ts validate
+      - name: Build without preview secrets
+        run: pnpm build
+      - name: Prepare the isolated preview target
+        run: pnpm exec tsx scripts/preview-deployment.ts prepare
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CAMPUS_PREVIEW_ORIGIN: ${{ vars.CAMPUS_PREVIEW_ORIGIN }}
+      - name: Validate preview packaging without uploading
+        run: pnpm worker:dry-run .wrangler/preview/wrangler.json
+      - name: Skip superseded branch commits
+        id: current
+        run: pnpm exec tsx scripts/preview-deployment.ts current
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Deploy the current checked preview commit
+        if: steps.current.outputs.current == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN }}
+          CAMPUS_PREVIEW_AUTH_SECRET: ${{ secrets.CAMPUS_PREVIEW_AUTH_SECRET }}
+          CAMPUS_PREVIEW_TURSO_URL: ${{ secrets.CAMPUS_PREVIEW_TURSO_URL }}
+          CAMPUS_PREVIEW_TURSO_TOKEN: ${{ secrets.CAMPUS_PREVIEW_TURSO_TOKEN }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$RUNNER_TEMP/campus-preview-secrets.json"' EXIT
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN is required'; exit 1; }
+          pnpm exec tsx scripts/preview-deployment.ts secrets
+          pnpm exec wrangler deploy --config .wrangler/preview/wrangler.json --secrets-file "$RUNNER_TEMP/campus-preview-secrets.json" --env-file /dev/null
+      - name: Verify preview HTTPS and database access
+        if: steps.current.outputs.current == 'true'
+        run: |
+          node --input-type=module <<'JS'
+          import { readFile } from 'node:fs/promises';
+          const { vars: { ORIGIN: origin } } = JSON.parse(await readFile('.wrangler/preview/wrangler.json', 'utf8'));
+          const missingId = crypto.randomUUID();
+          for (const [path, expected] of [
+            ['/connexion', 200], ['/', 303], ['/api/session', 401],
+            [`/modules/${missingId}`, 404], [`/classes/${missingId}`, 404]
+          ]) {
+            const response = await fetch(origin + path, { redirect: 'manual', signal: AbortSignal.timeout(15000) });
+            if (response.status !== expected) throw new Error(`Preview HTTPS probe failed: ${path} (${response.status})`);
+            if (path !== '/connexion' && !response.headers.get('cache-control')?.includes('no-store'))
+              throw new Error('Preview must preserve private and public cache protections');
+            if (path === '/' && response.headers.get('location') !== '/connexion')
+              throw new Error('Preview must redirect anonymous users to sign-in');
+          }
+          JS
+      - name: Remove ephemeral preview secrets
+        if: always()
+        run: rm -f "$RUNNER_TEMP/campus-preview-secrets.json"
+
+  gitflow:
+    name: Tag release and synchronize develop
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Nekxio/Campus'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: write
+    concurrency:
+      group: campus-gitflow
+      cancel-in-progress: false
+    steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.quality.outputs.commit }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Tag the exact production release commit
+        run: pnpm exec tsx scripts/release-flow.ts tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Merge release into develop with its explicit next version
+        run: pnpm exec tsx scripts/release-flow.ts sync
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

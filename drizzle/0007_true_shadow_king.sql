@@ -1,0 +1,1 @@
+CREATE INDEX `auth_rate_limit_started_at_key` ON `auth_rate_limit` (`started_at`,`key`);

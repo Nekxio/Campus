@@ -1,0 +1,19 @@
+{
+	"title": "Demo · Web application",
+	"description": "Fictional material for local import validation.",
+	"objectives": ["Build a small application"],
+	"preparation": {
+		"framing": "Approved fictional framing",
+		"nextSteps": "Review",
+		"sourceLinks": []
+	},
+	"resources": [
+		{
+			"key": "slides",
+			"label": "Slides",
+			"kind": "course",
+			"url": "https://example.test/slides.pdf"
+		}
+	],
+	"contexts": []
+}

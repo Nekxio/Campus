@@ -1,15 +1,35 @@
-node_modules
-.idea
+# Dependencies and package-manager caches
+node_modules/
+/.pnpm-store/
 
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
+# Generated output and local Worker state
+/.output/
+/.vercel/
+/.netlify/
+/.wrangler/
+/.svelte-kit/
+/build/
 
-# OS
+# Test reports and disposable validation environments
+/.stryker-tmp/
+/reports/mutation/
+/.playwright-mcp/
+/playwright-report/
+/test-results/
+
+# Personal tooling and agent output
+/.idea/
+/.agents/skills/
+/.codex/
+/.mcp.json
+/skills-lock.json
+/.impeccable/
+**/.impeccable-live/
+**/.impeccable-live.json
+/src/lib/impeccable/
+/floorplan/
+
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -30,26 +50,3 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-
-# Impeccable
-/.agents/skills/impeccable/scripts/bin/
-**/.impeccable/config.local.json
-**/.impeccable/hook.cache.json
-**/.impeccable/hook.pending.json
-**/.impeccable/*.png
-**/.impeccable/review/
-**/.impeccable/questions/
-**/.impeccable/live/server.json
-**/.impeccable/live/sessions/
-**/.impeccable/live/previews/
-**/.impeccable/live/annotations/
-**/.impeccable/live/cache/
-**/.impeccable/live/manual-edit-apply-transaction.json
-**/.impeccable/live/manual-edit-events.jsonl
-**/.impeccable/live/manual-edit-evidence/
-**/.impeccable/live/pending-manual-edits.json
-**/.impeccable/live/deferred-svelte-component-accepts.json
-**/.impeccable/live/*.png
-
-# Local browser automation artifacts
-/.playwright-mcp/

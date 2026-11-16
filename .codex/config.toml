@@ -1,7 +1,0 @@
-[mcp_servers.svelte]
-url = "https://mcp.svelte.dev/mcp"
-default_tools_approval_mode = "approve"
-
-[mcp_servers.playwright]
-command = "pnpm"
-args = ["dlx", "@playwright/mcp@0.0.83"]

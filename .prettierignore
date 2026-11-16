@@ -5,15 +5,55 @@ yarn.lock
 bun.lock
 bun.lockb
 
-# Miscellaneous
-/static/
-/drizzle/
+# Generated metadata and third-party notices
+/drizzle/meta/
+/static/licenses/
+/floorplan/
 
-# Skills tiers gérés par leurs installeurs
+# Local and generated output
+node_modules/
+/.pnpm-store/
+/.output/
+/.vercel/
+/.netlify/
+/.wrangler/
+/.svelte-kit/
+/build/
+/.stryker-tmp/
+/reports/mutation/
+/.playwright-mcp/
+/playwright-report/
+/test-results/
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.log
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Personal tooling and installer-managed skills
 /.agents/skills/
 /.agents/THIRD_PARTY_NOTICES.md
 /.impeccable/
+**/.impeccable-live/
+**/.impeccable-live.json
+/src/lib/impeccable/
+/.mcp.json
 /skills-lock.json
+/.codex/
+/.idea/
 
-# Types générés par Wrangler
+# Wrangler-generated types
 /worker-configuration.d.ts
