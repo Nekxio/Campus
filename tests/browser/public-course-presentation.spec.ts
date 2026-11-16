@@ -117,8 +117,9 @@ async function enrichSavedDraft(page: Page, app: BrowserFixture, instructions = 
 				id: randomUUID(),
 				title: 'Exercice libre · 013',
 				instructions:
-					'Construire une navigation accessible sans attendre une date de déverrouillage.\n\n```svelte\n<script>\n  let name = "Ada";\n</script>\n```\n\nCompléter le composant.',
-				solution: 'Corrigé librement accessible · 013\n\n```svelte\nlet count = 0;\n```\n\nAfficher `count`.',
+					'Construire une navigation accessible sans attendre une date de déverrouillage.\n\n## À réaliser\n\n1. Lire **le code**.\n2. Vérifier `name`.\n\n```svelte\n<script>\n  let name = "Ada";\n</script>\n```\n\nCompléter le composant.',
+				solution:
+					'Corrigé librement accessible · 013\n\n## Une solution\n\n- Préserver **le nom**.\n- Afficher la valeur.\n\n```svelte\nlet count = 0;\n```\n\nAfficher `count`.',
 				code: 'const message = "Bonjour, 世界 👋";'
 			}
 		]
@@ -547,6 +548,7 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 	page,
 	context
 }, info) => {
+	if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
 	await activate(page, app);
 	await enrichSavedDraft(page, app);
 	await page.goto(
@@ -560,6 +562,7 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 	const publicPath = await publish(page, app, app.ids.publicationModule, app.ids.publicationContext);
 	const publicPage = await context.newPage();
 	try {
+		if (info.project.name === 'mobile') await publicPage.setViewportSize({ width: 320, height: 844 });
 		await publicPage.goto(app.origin + publicPath);
 		const panels = [
 			await selectReview(page, app.ids.publicationContext, sections[0], page.viewportSize()!.width),
@@ -573,6 +576,24 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 			await expect(panel.getByRole('heading', { name: 'Exercice libre · 013', exact: true })).toBeFocused();
 			const statement = panel.getByRole('tab', { name: 'Énoncé', exact: true });
 			const solution = panel.getByRole('tab', { name: 'Corrigé', exact: true });
+			const statementBox = await statement.boundingBox();
+			const solutionBox = await solution.boundingBox();
+			expect(statementBox).not.toBeNull();
+			expect(solutionBox).not.toBeNull();
+			expect(Math.abs(statementBox!.y - solutionBox!.y), 'Exercise tabs stay on one horizontal line').toBeLessThan(1);
+			expect(solutionBox!.x).toBeGreaterThanOrEqual(statementBox!.x + statementBox!.width);
+			await expect(panel.getByRole('heading', { name: 'À réaliser', exact: true })).toBeVisible();
+			await expect(panel.locator('ol > li')).toHaveText(['Lire le code.', 'Vérifier name.']);
+			await expect(panel.locator('ol strong')).toHaveText('le code');
+			await expect(panel.getByRole('region', { name: 'Exemple de code', exact: true }).locator('code')).toHaveText(
+				'<script>\n  let name = "Ada";\n</script>'
+			);
+			for (const theme of ['light', 'dark'] as const) {
+				await panel.page().emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+				await panel.screenshot({
+					path: info.outputPath(`exercise-statement-${panel === panels[0] ? 'preview' : 'public'}-${theme}.png`)
+				});
+			}
 			await statement.focus();
 			await panel.page().keyboard.press('ArrowRight');
 			await expect(solution).toBeFocused();
@@ -588,6 +609,28 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 			await solution.click();
 			await confirm.click();
 			await expect(panel.getByText('Corrigé librement accessible · 013', { exact: true })).toBeVisible();
+			await expect(panel.getByRole('heading', { name: 'Une solution', exact: true })).toBeVisible();
+			await expect(panel.getByRole('tabpanel', { name: 'Corrigé', exact: true }).locator('ul > li')).toHaveText([
+				'Préserver le nom.',
+				'Afficher la valeur.'
+			]);
+			await expect(panel.getByRole('region', { name: 'Exemple de code', exact: true }).locator('code')).toHaveText(
+				'let count = 0;'
+			);
+			expect(await panel.page().evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+			const complementaryCode = panel.getByRole('region', {
+				name: 'Code de l’exercice · Exercice libre · 013',
+				exact: true
+			});
+			await complementaryCode.focus();
+			await expect(complementaryCode).toBeFocused();
+			await expect(complementaryCode).toHaveCSS('white-space', 'pre');
+			for (const theme of ['light', 'dark'] as const) {
+				await panel.page().emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+				await panel.screenshot({
+					path: info.outputPath(`exercise-solution-${panel === panels[0] ? 'preview' : 'public'}-${theme}.png`)
+				});
+			}
 			await panel.getByRole('button', { name: 'Retour aux supports', exact: true }).click();
 			await expect(card).toBeFocused();
 			await expect(panel.locator('button button, a button, button a, a a')).toHaveCount(0);

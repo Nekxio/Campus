@@ -419,7 +419,7 @@
 		min-width: 0;
 		height: auto;
 	}
-	.public-course :global([data-slot='tabs-trigger']) {
+	.public-course :global(.course-tabs-list > [data-slot='tabs-trigger']) {
 		min-height: 2.75rem;
 		min-width: 0;
 		height: auto;
@@ -427,7 +427,7 @@
 		line-height: 1.4;
 		touch-action: manipulation;
 	}
-	.public-course :global([data-slot='tabs-trigger']:last-child) {
+	.public-course :global(.course-tabs-list > [data-slot='tabs-trigger']:last-child) {
 		grid-column: 1 / -1;
 	}
 	.preview {
@@ -443,7 +443,7 @@
 		.public-course :global(.course-tabs-list) {
 			grid-template-columns: repeat(5, minmax(0, 1fr));
 		}
-		.public-course :global([data-slot='tabs-trigger']:last-child) {
+		.public-course :global(.course-tabs-list > [data-slot='tabs-trigger']:last-child) {
 			grid-column: auto;
 		}
 		.public-course:not(.preview) .course-panels {

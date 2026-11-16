@@ -193,6 +193,12 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   Session titles lead, with the sequence number and date grouped underneath; no leading calendar
   icon or internal chevron. Filled cards expose hover, active and full-card keyboard focus.
   CodeBlock remains keyboard-scrollable; revealing a correction is an ordinary action.
+  Exercise detail uses horizontally aligned, underlined Énoncé and Corrigé tabs, matching the
+  teacher module navigation, including inside the vertical course navigation. Both views render
+  authored paragraphs, Markdown headings, simple numbered or bulleted lists, bold text and inline
+  code with a 75ch reading measure. Fenced code retains
+  its whitespace, language label and syntax colors; HTML remains literal text. Supplemental
+  correction code uses the same labelled block with a separate 16px gap.
 - **Access/applications:** compact passkey card and separate activation help. Preserve native
   profile/consent/revocation forms, grouped requested permissions, real authorization state,
   clipboard fallback and conflict recovery. Keep technical identifiers out of consent.

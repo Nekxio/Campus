@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { parseExerciseInstructions, parseInlineExerciseText } from './exercise-instructions.js';
+	import { parseExerciseInstructions, parseExerciseProse, parseInlineExerciseText } from './exercise-instructions.js';
 	import { formatLessonDate, formatTeachingDate } from '#lib/teaching/calendar.js';
 	import { tick } from 'svelte';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
@@ -146,17 +146,38 @@
 	}
 </script>
 
+{#snippet exerciseInline(text: string)}
+	{#each parseInlineExerciseText(text) as inline, inlineIndex (inlineIndex)}{#if inline.kind === 'code'}<code
+				class="inline-code">{inline.text}</code
+			>{:else if inline.kind === 'strong'}<strong>{@render exerciseInline(inline.text)}</strong
+			>{:else}{inline.text}{/if}{/each}
+{/snippet}
+
 {#snippet exerciseContent(parts: ReturnType<typeof parseExerciseInstructions>, codeLabel = 'Exemple de code')}
 	<div class="exercise-copy flex flex-col gap-4">
 		{#each parts as part, partIndex (partIndex)}
 			{#if part.kind === 'text'}
-				{#if part.text.trim()}<p class="whitespace-pre-wrap">
-						{#each parseInlineExerciseText(parts.length === 1 ? part.text : part.text.trim()) as inline, inlineIndex (inlineIndex)}{#if inline.kind === 'code'}<code
-									class="rounded bg-muted px-1 py-1 font-mono text-[0.9em]">{inline.text}</code
-								>{:else}{inline.text}{/if}{/each}
-					</p>{/if}
+				{#each parseExerciseProse(part.text) as block, blockIndex (blockIndex)}
+					{#if block.kind === 'heading'}
+						<svelte:element this={`h${Math.min(6, Math.max(4, block.level + 2))}`} class="exercise-heading">
+							{@render exerciseInline(block.text)}
+						</svelte:element>
+					{:else if block.kind === 'list'}
+						<svelte:element
+							this={block.ordered ? 'ol' : 'ul'}
+							start={block.ordered ? block.start : undefined}
+							class="exercise-list"
+						>
+							{#each block.items as item, itemIndex (itemIndex)}
+								<li>{@render exerciseInline(item)}</li>
+							{/each}
+						</svelte:element>
+					{:else}
+						<p class="whitespace-pre-wrap">{@render exerciseInline(block.text)}</p>
+					{/if}
+				{/each}
 			{:else}
-				<CodeBlock label={codeLabel} language={part.language ? `Exemple · ${part.language}` : 'Exemple'}>
+				<CodeBlock label={codeLabel} language={part.language ? `Code · ${part.language}` : 'Code'}>
 					{#each part.tokens as token, tokenIndex (tokenIndex)}<span
 							style:color={token.kind === 'plain' ? undefined : `var(--syntax-${token.kind})`}>{token.text}</span
 						>{/each}
@@ -294,9 +315,10 @@
 						</h3>
 						<p class="mt-2 text-sm text-muted-foreground">Exercice non noté</p>
 						<Tabs.Root bind:value={() => exerciseTab, selectExerciseTab} activationMode="manual" class="mt-6">
-							<Tabs.List aria-label="Contenu de l’exercice">
-								<Tabs.Trigger value="instructions">Énoncé</Tabs.Trigger>
-								<Tabs.Trigger value="solution">Corrigé</Tabs.Trigger>
+							<Tabs.List aria-label="Contenu de l’exercice" variant="line" class="w-full gap-6">
+								<Tabs.Trigger value="instructions" class="flex-none px-0 data-active:font-semibold">Énoncé</Tabs.Trigger
+								>
+								<Tabs.Trigger value="solution" class="flex-none px-0 data-active:font-semibold">Corrigé</Tabs.Trigger>
 							</Tabs.List>
 							<Tabs.Content value="instructions" class="pt-3 text-base leading-relaxed">
 								{@render exerciseContent(exerciseInstructions)}
@@ -304,9 +326,11 @@
 							<Tabs.Content value="solution" class="pt-3 text-base leading-relaxed">
 								{@render exerciseContent(parseExerciseInstructions(selectedExercise.solution))}
 								{#if selectedExercise.code}
-									<CodeBlock label={`Code de l’exercice · ${selectedExercise.title}`}>
-										{selectedExercise.code}
-									</CodeBlock>
+									<div class="mt-4">
+										<CodeBlock label={`Code de l’exercice · ${selectedExercise.title}`} language="Code complémentaire">
+											{selectedExercise.code}
+										</CodeBlock>
+									</div>
 								{/if}
 							</Tabs.Content>
 						</Tabs.Root>
@@ -831,8 +855,44 @@
 	.deadline > p {
 		max-width: 70ch;
 	}
-	.exercise-copy > p {
+	.exercise-copy {
+		min-width: 0;
+		line-height: 1.65;
+		overflow-wrap: anywhere;
+	}
+	.exercise-copy > p,
+	.exercise-list,
+	.exercise-heading {
 		max-width: var(--reading-measure);
+	}
+	.exercise-copy strong {
+		font-weight: 600;
+	}
+	.exercise-heading {
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.5;
+		margin-block-end: -0.5rem;
+	}
+	.exercise-heading:not(:first-child) {
+		margin-block-start: 0.5rem;
+	}
+	.exercise-list {
+		padding-inline-start: 1.5rem;
+		list-style-type: disc;
+	}
+	ol.exercise-list {
+		list-style-type: decimal;
+	}
+	.exercise-list li + li {
+		margin-block-start: 0.5rem;
+	}
+	.inline-code {
+		border-radius: var(--radius-control);
+		background: var(--muted);
+		padding: 0.125rem 0.25rem;
+		font-family: var(--font-mono);
+		font-size: 0.9em;
 	}
 	.rubric-section {
 		min-width: 0;
