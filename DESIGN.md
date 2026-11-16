@@ -199,6 +199,12 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   code with a 75ch reading measure. Fenced code retains
   its whitespace, language label and syntax colors; HTML remains literal text. Supplemental
   correction code uses the same labelled block with a separate 16px gap.
+  Exercise code blocks place the language on the left and an always-visible, icon-only copy
+  button on the right, with a 44px target and an accessible French name. Copy preserves the raw
+  source, including whitespace, without the language label. A check icon and polite announcement
+  confirm success for two seconds; failure selects the code and explains how to copy it manually.
+  Partial text selection and horizontal keyboard scrolling remain available. Bash, sh and shell
+  blocks highlight commands, strings, comments and variables; Svelte blocks also highlight runes.
 - **Access/applications:** compact passkey card and separate activation help. Preserve native
   profile/consent/revocation forms, grouped requested permissions, real authorization state,
   clipboard fallback and conflict recovery. Keep technical identifiers out of consent.

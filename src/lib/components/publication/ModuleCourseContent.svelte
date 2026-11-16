@@ -177,7 +177,7 @@
 					{/if}
 				{/each}
 			{:else}
-				<CodeBlock label={codeLabel} language={part.language ? `Code · ${part.language}` : 'Code'}>
+				<CodeBlock label={codeLabel} language={part.language ? `Code · ${part.language}` : 'Code'} value={part.code}>
 					{#each part.tokens as token, tokenIndex (tokenIndex)}<span
 							style:color={token.kind === 'plain' ? undefined : `var(--syntax-${token.kind})`}>{token.text}</span
 						>{/each}
@@ -327,7 +327,11 @@
 								{@render exerciseContent(parseExerciseInstructions(selectedExercise.solution))}
 								{#if selectedExercise.code}
 									<div class="mt-4">
-										<CodeBlock label={`Code de l’exercice · ${selectedExercise.title}`} language="Code complémentaire">
+										<CodeBlock
+											label={`Code de l’exercice · ${selectedExercise.title}`}
+											language="Code complémentaire"
+											value={selectedExercise.code}
+										>
 											{selectedExercise.code}
 										</CodeBlock>
 									</div>
