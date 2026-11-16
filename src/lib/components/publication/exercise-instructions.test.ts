@@ -2,6 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { parseExerciseInstructions, parseExerciseProse, parseInlineExerciseText } from './exercise-instructions.js';
 
 describe('exercise instructions', () => {
+	it.each(['bash', 'sh', 'shell'])('preserves copyable %s source while highlighting shell syntax', (language) => {
+		const source = '# Inspect the sandbox\r\ncd "atelier démo"\r\nprintf \'%s\\n\' "$PWD"\r\n\n';
+		const [part] = parseExerciseInstructions('```' + language + '\n' + source + '\n```');
+		if (part.kind !== 'code') throw new Error('Expected a code block');
+		expect(part.code).toBe(source);
+		expect(part.tokens.map((token) => token.text).join('')).toBe(source);
+		expect(part.tokens).toContainEqual({ kind: 'comment', text: '# Inspect the sandbox\r' });
+		expect(part.tokens).toContainEqual({ kind: 'keyword', text: 'cd' });
+		expect(part.tokens).toContainEqual({ kind: 'string', text: '"$PWD"' });
+	});
+
+	it('highlights Svelte runes without changing literal markup or indentation', () => {
+		const source = '<script>\n\tlet visible = $state(false);\n</script>\n\n<p hidden={!visible}>Conseil</p>';
+		const [part] = parseExerciseInstructions('```svelte\n' + source + '\n```');
+		if (part.kind !== 'code') throw new Error('Expected a code block');
+		expect(part.code).toBe(source);
+		expect(part.tokens.map((token) => token.text).join('')).toBe(source);
+		expect(part.tokens).toContainEqual({ kind: 'keyword', text: '$state' });
+	});
+
 	it('structures paragraphs, headings and lists while retaining authored line breaks', () => {
 		expect(
 			parseExerciseProse(

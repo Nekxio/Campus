@@ -3,7 +3,8 @@ type CodeToken = {
 	text: string;
 };
 
-type InstructionPart = { kind: 'text'; text: string } | { kind: 'code'; language: string; tokens: CodeToken[] };
+type InstructionPart =
+	{ kind: 'text'; text: string } | { kind: 'code'; language: string; code: string; tokens: CodeToken[] };
 type InlinePart = { kind: 'text' | 'code' | 'strong'; text: string };
 type ProseBlock =
 	| { kind: 'paragraph'; text: string }
@@ -11,9 +12,12 @@ type ProseBlock =
 	| { kind: 'list'; ordered: boolean; start: number; items: string[] };
 
 const tokenPattern =
-	/<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|<\/?[a-zA-Z][\w.-]*|\/?>|\$props\b|\b(?:let|const|var|function|return|export|import|from|if|else|each|as|true|false|null|undefined|new|class|await|async)\b|\b\d+(?:\.\d+)?\b/g;
+	/<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|<\/?[a-zA-Z][\w.-]*|\/?>|\$(?:props|state|derived|effect|bindable|inspect)\b|\b(?:let|const|var|function|return|export|import|from|if|else|each|as|true|false|null|undefined|new|class|await|async)\b|\b\d+(?:\.\d+)?\b/g;
 const keywordPattern =
-	/^(?:\$props|let|const|var|function|return|export|import|from|if|else|each|as|true|false|null|undefined|new|class|await|async)$/;
+	/^(?:\$(?:props|state|derived|effect|bindable|inspect)|let|const|var|function|return|export|import|from|if|else|each|as|true|false|null|undefined|new|class|await|async)$/;
+const shellTokenPattern =
+	/(?<!\S)#[^\n]*|"(?:\\.|[^"\\])*"|'[^']*'|\$\{[^}]*\}|\$[a-zA-Z_][\w]*|\b(?:if|then|else|elif|fi|for|in|do|done|case|esac|while|function|export|printf|echo|cd|pwd|ls|mkdir|cat|sed|grep|diff|wc|test|true|false)\b|\b\d+\b/g;
+const shellLanguages = new Set(['bash', 'sh', 'shell']);
 const supportedLanguages = new Set(['svelte', 'html', 'javascript', 'js', 'typescript', 'ts']);
 
 export const parseInlineExerciseText = (text: string): InlinePart[] => {
@@ -61,18 +65,19 @@ export const parseExerciseProse = (text: string): ProseBlock[] => {
 };
 
 const highlightCode = (code: string, language: string): CodeToken[] => {
-	if (!supportedLanguages.has(language.toLowerCase())) return [{ kind: 'plain', text: code }];
+	const shell = shellLanguages.has(language.toLowerCase());
+	if (!shell && !supportedLanguages.has(language.toLowerCase())) return [{ kind: 'plain', text: code }];
 	const tokens: CodeToken[] = [];
 	let position = 0;
-	for (const match of code.matchAll(tokenPattern)) {
+	for (const match of code.matchAll(shell ? shellTokenPattern : tokenPattern)) {
 		if (match.index > position) tokens.push({ kind: 'plain', text: code.slice(position, match.index) });
 		const text = match[0];
 		const kind: CodeToken['kind'] =
-			text.startsWith('<!--') || text.startsWith('/*') || text.startsWith('//')
+			(shell && text.startsWith('#')) || text.startsWith('<!--') || text.startsWith('/*') || text.startsWith('//')
 				? 'comment'
 				: text.startsWith('"') || text.startsWith("'")
 					? 'string'
-					: keywordPattern.test(text)
+					: keywordPattern.test(text) || (shell && !/^\d/.test(text))
 						? 'keyword'
 						: /^\d/.test(text)
 							? 'number'
@@ -91,7 +96,8 @@ export const parseExerciseInstructions = (instructions: string): InstructionPart
 	for (const match of instructions.matchAll(fences)) {
 		if (match.index > position) parts.push({ kind: 'text', text: instructions.slice(position, match.index) });
 		const language = match[1] ?? '';
-		parts.push({ kind: 'code', language, tokens: highlightCode(match[2] ?? '', language) });
+		const code = match[2] ?? '';
+		parts.push({ kind: 'code', language, code, tokens: highlightCode(code, language) });
 		position = match.index + match[0].length;
 	}
 	if (position < instructions.length || parts.length === 0) {
