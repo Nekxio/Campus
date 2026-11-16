@@ -102,6 +102,18 @@ describe('isolated preview target', () => {
 		};
 		expect(() => validatePreview(settings, sha)).not.toThrow();
 		expect(() => validatePreview({ ...settings, GITHUB_REF: 'refs/heads/release/1.0.0' }, sha)).not.toThrow();
+		for (const version of ['1.0.0', '2.3.4']) {
+			const release = { ...settings, GITHUB_REF: `refs/heads/release/${version}`, GITHUB_REF_PROTECTED: 'false' };
+			expect(() => validatePreview(release, sha)).not.toThrow();
+			for (const override of [
+				{ GITHUB_EVENT_NAME: 'pull_request' },
+				{ GITHUB_EVENT_NAME: 'workflow_dispatch' },
+				{ GITHUB_REPOSITORY: 'someone/fork' },
+				{ COURSELY_CHECKED_SHA: releaseSha },
+				{ CAMPUS_PREVIEW_ENABLED: 'false' }
+			])
+				expect(() => validatePreview({ ...release, ...override }, sha)).toThrow();
+		}
 		for (const override of [
 			{ GITHUB_REF_PROTECTED: 'false' },
 			{ GITHUB_REPOSITORY: 'someone/fork' },
@@ -312,6 +324,14 @@ describe('preview workflow trust boundary', () => {
 			expect(permits(override)).toBe(false);
 		for (const ref of ['refs/heads/develop', 'refs/heads/release/1.0.0'])
 			expect(permits({ event_name: 'push', ref }, sha, '')).toBe(true);
+		for (const version of ['1.0.0', '2.3.4']) {
+			const release = { event_name: 'push', ref: `refs/heads/release/${version}`, ref_protected: false };
+			expect(permits(release)).toBe(true);
+			expect(permits(release, releaseSha)).toBe(false);
+			expect(permits({ ...release, repository: 'someone/fork' })).toBe(false);
+			expect(permits({ ...release, event_name: 'pull_request' })).toBe(false);
+			expect(permits({ ...release, event_name: 'workflow_dispatch' })).toBe(false);
+		}
 		expect(previewJob).toContain('secrets.CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN');
 		expect(previewJob).not.toContain('secrets.CLOUDFLARE_API_TOKEN');
 	});

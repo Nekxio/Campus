@@ -18,7 +18,7 @@ export const previewDatabaseUrl = 'libsql://campus-dev-nekxio.aws-eu-west-1.turs
 export const validatePreview = (settings: ProductionEnvironment, checkout: string) => {
 	if (
 		settings.GITHUB_REPOSITORY?.toLowerCase() !== 'nekxio/campus' ||
-		settings.GITHUB_REF_PROTECTED !== 'true' ||
+		(settings.GITHUB_REF === 'refs/heads/develop' && settings.GITHUB_REF_PROTECTED !== 'true') ||
 		!['push', 'workflow_dispatch'].includes(settings.GITHUB_EVENT_NAME ?? '') ||
 		(settings.GITHUB_EVENT_NAME === 'workflow_dispatch' && settings.GITHUB_REF !== 'refs/heads/develop') ||
 		!(

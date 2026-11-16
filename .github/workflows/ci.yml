@@ -311,7 +311,7 @@ jobs:
   deploy-preview:
     name: Deploy preview
     needs: quality
-    if: needs.quality.result == 'success' && needs.quality.outputs.commit == github.sha && github.ref_protected == true && github.repository == 'Nekxio/Campus' && vars.CAMPUS_PREVIEW_ENABLED == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop' && inputs.expected_sha == github.sha))
+    if: needs.quality.result == 'success' && needs.quality.outputs.commit == github.sha && (github.ref_protected == true || startsWith(github.ref, 'refs/heads/release/')) && github.repository == 'Nekxio/Campus' && vars.CAMPUS_PREVIEW_ENABLED == 'true' && ((github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/release/'))) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop' && inputs.expected_sha == github.sha))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
