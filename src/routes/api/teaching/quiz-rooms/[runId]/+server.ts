@@ -51,6 +51,7 @@ export const GET = quizEndpoint(async (event) => {
 						teacherId: teacher.id,
 						sessionId: event.locals.session!.id
 					}),
+					'x-campus-quiz-issued-at': String(Date.now()),
 					'x-campus-quiz-expires-at': String(event.locals.session!.expiresAt.getTime())
 				}
 			})
