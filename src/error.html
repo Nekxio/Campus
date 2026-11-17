@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="robots" content="noindex, nofollow" />
+		<meta name="referrer" content="no-referrer" />
+		<title>Page indisponible · Campus</title>
+		<meta name="description" content="Campus ne peut pas afficher cette page. Vérifiez l’adresse ou réessayez." />
+		<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+		<style>
+			:root {
+				color-scheme: light dark;
+				--background: #f7f6f2;
+				--card: #ffffff;
+				--primary: oklch(0.48 0.19 263);
+				--primary-hover: oklch(0.42 0.18 263);
+				--primary-foreground: #ffffff;
+				--foreground: #282c33;
+				--muted: #5a6068;
+				--border: #d5d4cc;
+				--sidebar: var(--card);
+				--radius: 0.5rem;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				font-family: system-ui, sans-serif;
+				color: var(--foreground);
+				background: var(--background);
+				line-height: 1.55;
+			}
+			header {
+				background: var(--sidebar);
+				border-bottom: 1px solid var(--border);
+			}
+			.header-inner,
+			main {
+				max-width: 80rem;
+				margin: auto;
+				padding-inline: max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-right));
+			}
+			.header-inner {
+				display: flex;
+				align-items: center;
+				min-height: 4.5rem;
+				padding-top: env(safe-area-inset-top);
+				font-size: 1.5rem;
+				color: var(--primary);
+				font-weight: 600;
+				letter-spacing: -0.025em;
+			}
+			main {
+				padding-top: 3rem;
+				padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+			}
+			.content {
+				max-width: 50rem;
+				padding: 1.5rem;
+				border-radius: var(--radius);
+				background: var(--card);
+				overflow-wrap: anywhere;
+			}
+			.status {
+				display: inline-flex;
+				min-height: 1.75rem;
+				align-items: center;
+				padding: 0.25rem 0.75rem;
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				font-size: 0.75rem;
+				color: var(--muted);
+			}
+			h1 {
+				margin: 1.5rem 0 1.25rem;
+				font-size: 2rem;
+				font-weight: 600;
+				line-height: 1.2;
+				letter-spacing: -0.035em;
+				text-wrap: balance;
+			}
+			p {
+				max-width: 75ch;
+				line-height: 1.65;
+				color: var(--muted);
+			}
+			.actions {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.75rem;
+				margin-top: 2.5rem;
+				border-top: 1px solid var(--border);
+				padding-top: 1.75rem;
+			}
+			a {
+				color: inherit;
+				text-underline-offset: 0.2em;
+				touch-action: manipulation;
+			}
+			.button {
+				min-height: 2.75rem;
+				padding: 0.75rem 1rem;
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				text-decoration: none;
+				font-size: 0.875rem;
+				font-weight: 600;
+				transition: background-color 140ms ease-out;
+			}
+			.primary {
+				color: var(--primary-foreground);
+				background: var(--primary);
+				border-color: var(--primary);
+			}
+			@media (hover: hover) {
+				.primary:hover {
+					background: var(--primary-hover);
+				}
+			}
+			a:focus-visible {
+				outline: 2px solid var(--primary);
+				outline-offset: 3px;
+			}
+			.skip {
+				position: fixed;
+				top: 1rem;
+				left: 1rem;
+				transform: translateY(-200%);
+				padding: 0.75rem 1rem;
+				background: var(--background);
+				border-radius: var(--radius);
+			}
+			.skip:focus {
+				transform: none;
+			}
+			::selection {
+				color: var(--primary-foreground);
+				background: var(--primary);
+			}
+			@media (max-width: 47.99rem) {
+				h1 {
+					font-size: 1.75rem;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.button {
+					transition: none;
+				}
+			}
+			@media (max-width: 25rem) {
+				.actions {
+					flex-direction: column;
+				}
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--background: #202226;
+					--card: #292c31;
+					--primary: oklch(0.78 0.111 260);
+					--primary-hover: oklch(0.85 0.074 260);
+					--primary-foreground: #17253f;
+					--foreground: #f2f1ed;
+					--muted: #b3b6be;
+					--border: #4d5157;
+					--sidebar: var(--card);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<a class="skip" href="#contenu">Aller au contenu principal</a>
+		<header><div class="header-inner">Campus</div></header>
+		<main id="contenu" tabindex="-1">
+			<div class="content">
+				<span class="status">Erreur %sveltekit.status%</span>
+				<h1>Campus ne peut pas afficher cette page</h1>
+				<p>Une erreur empêche le chargement. Réessayez dans un instant.</p>
+				<p>Vérifiez l’adresse de la page.</p>
+				<div class="actions">
+					<a class="button primary" href="">Réessayer</a>
+				</div>
+			</div>
+		</main>
+	</body>
+</html>

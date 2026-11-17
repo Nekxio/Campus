@@ -1,0 +1,3 @@
+# Campus is shared by link. This is a crawling preference, not access control.
+User-agent: *
+Disallow: /

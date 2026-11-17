@@ -1,0 +1,12 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"strict": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"checkJs": false,
+		"types": ["$app/types", "node", "./worker-configuration.d.ts"]
+	},
+	"include": ["src", "src/routes/.well-known/**/*.ts", "vite.config.ts", "vitest.config.ts"]
+}

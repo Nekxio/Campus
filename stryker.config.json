@@ -1,0 +1,54 @@
+{
+	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"testRunner": "vitest",
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"vitest": {
+		"configFile": "vitest.mutation.config.ts",
+		"pool": "forks"
+	},
+	"mutate": [
+		"src/lib/domain/academic-year.ts",
+		"src/lib/domain/grade-calculation.ts",
+		"src/lib/domain/grade-export.ts",
+		"src/lib/domain/grading-selection.ts",
+		"src/lib/domain/publication.ts",
+		"src/lib/domain/quiz-content.ts",
+		"src/lib/domain/quiz-session.ts",
+		"src/lib/domain/roster-import.ts",
+		"src/lib/domain/rubric-points.ts",
+		"src/lib/teaching/calendar.ts"
+	],
+	"ignorePatterns": [
+		"**",
+		"!src/**",
+		"!scripts/**",
+		"!tests/**",
+		"!drizzle/**",
+		"!package.json",
+		"!pnpm-workspace.yaml",
+		"!tsconfig.json",
+		"!vitest.config.ts",
+		"!vitest.mutation.config.ts",
+		"!vite.config.ts",
+		"!playwright.config.ts",
+		"!drizzle.config.ts",
+		"!worker-configuration.d.ts",
+		"!wrangler.jsonc",
+		"!stryker.config.json",
+		"!README.md",
+		"!.github/workflows/**",
+		"**/.env*",
+		"**/.dev.vars*",
+		"**/*.{db,db-shm,db-wal,pem,key,p12,pfx}"
+	],
+	"concurrency": 2,
+	"disableTypeChecks": false,
+	"reporters": ["clear-text", "progress", "html", "json"],
+	"clearTextReporter": {
+		"reportTests": false,
+		"reportMutants": false
+	},
+	"htmlReporter": { "fileName": "reports/mutation/index.html" },
+	"jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+	"incrementalFile": "reports/mutation/incremental.json"
+}
