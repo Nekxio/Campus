@@ -1,0 +1,23 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "campus-mds",
+	"compatibility_date": "2026-10-11",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"durable_objects": {
+		"bindings": [{ "name": "QUIZ_ROOMS", "class_name": "QuizRoom" }]
+	},
+	"exports": {
+		"QuizRoom": { "type": "durable-object", "storage": "sqlite" },
+		"QuizAuthorization": { "type": "worker" }
+	},
+	"workers_dev": true,
+	"preview_urls": false,
+	"placement": {
+		"region": "gcp:europe-west1"
+	}
+}

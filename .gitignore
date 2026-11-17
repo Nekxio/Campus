@@ -1,0 +1,52 @@
+# Dependencies and package-manager caches
+node_modules/
+/.pnpm-store/
+
+# Generated output and local Worker state
+/.output/
+/.vercel/
+/.netlify/
+/.wrangler/
+/.svelte-kit/
+/build/
+
+# Test reports and disposable validation environments
+/.stryker-tmp/
+/reports/mutation/
+/.playwright-mcp/
+/playwright-report/
+/test-results/
+
+# Personal tooling and agent output
+/.idea/
+/.agents/skills/
+/.codex/
+/.mcp.json
+/skills-lock.json
+/.impeccable/
+**/.impeccable-live/
+**/.impeccable-live.json
+/src/lib/impeccable/
+/floorplan/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Private invitations, database copies and local Workers secrets
+/data/
+*.db
+*.db-shm
+*.db-wal
+.dev.vars
+.dev.vars.*
+*.log
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

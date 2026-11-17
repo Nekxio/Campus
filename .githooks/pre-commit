@@ -1,0 +1,3 @@
+#!/bin/sh
+# Keep existing installed delegates valid; quality checks run at push and in CI.
+exit 0
