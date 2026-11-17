@@ -73,7 +73,8 @@
 		{/each}
 	</div>
 	<p id={`${id}-instructions`} class="max-w-prose text-sm leading-relaxed text-muted-foreground">
-		Copiez la commande de votre agent, exécutez-la dans un terminal puis autorisez l’accès à Campus.
+		Copiez la commande de votre agent et exécutez-la dans un terminal. Toutes les permissions sont proposées ; vous
+		pouvez les ajuster avant d’autoriser l’accès à Campus.
 	</p>
 	{#if failed}
 		<div class="flex min-w-0 flex-col gap-2">

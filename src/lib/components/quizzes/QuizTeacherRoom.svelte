@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isQuizSocketHeartbeat, startQuizSocketHeartbeat } from '#lib/quizzes/socket-heartbeat.js';
 	import { onMount, untrack } from 'svelte';
 	import { MediaQuery, SvelteURL } from 'svelte/reactivity';
 	import { goto, beforeNavigate } from '$app/navigation';
@@ -166,6 +167,7 @@
 		clockOffset = next.serverNow - Date.now();
 		serverNow = next.serverNow;
 	};
+	let stopHeartbeat: (() => void) | undefined;
 	const connect = () => {
 		if (stopped) return;
 		clearTimeout(reconnectTimer);
@@ -176,9 +178,12 @@
 		connection = 'connecting';
 		const url = new SvelteURL(endpoint, window.location.href);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+		stopHeartbeat?.();
 		const current = new WebSocket(url);
 		socket = current;
 		current.onmessage = (event) => {
+			if (stopped || socket !== current) return;
+			if (isQuizSocketHeartbeat(event.data)) return;
 			try {
 				const message: unknown = JSON.parse(String(event.data));
 				const parsed = z.object({ type: z.literal('state'), view: quizTeacherProjectionSchema }).safeParse(message);
@@ -190,12 +195,14 @@
 				current.close();
 			}
 		};
-		current.onclose = () => {
+		const interrupted = () => {
 			if (stopped || socket !== current) return;
+			socket = undefined;
 			connection = 'paused';
 			if (retryCount < 5) reconnectTimer = setTimeout(connect, Math.min(15000, 1000 * 2 ** retryCount++));
 		};
-		current.onerror = () => current.close();
+		current.onclose = interrupted;
+		stopHeartbeat = startQuizSocketHeartbeat(current, interrupted);
 	};
 	onMount(() => {
 		if (initial.view.status === 'closed' && page.url.searchParams.get('nouvelle-salle') === '1') void showNewRoom();
@@ -205,6 +212,7 @@
 		}, 1000);
 		return () => {
 			stopped = true;
+			stopHeartbeat?.();
 			clearInterval(timer);
 			clearTimeout(reconnectTimer);
 			socket?.close();

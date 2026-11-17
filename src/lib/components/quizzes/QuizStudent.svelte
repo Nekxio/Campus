@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isQuizSocketHeartbeat, startQuizSocketHeartbeat } from '#lib/quizzes/socket-heartbeat.js';
 	import CodeBlock from '#lib/components/shared/CodeBlock.svelte';
 	import { flushSync, onMount, tick } from 'svelte';
 	import { SvelteSet, SvelteURL } from 'svelte/reactivity';
@@ -257,6 +258,7 @@
 		await tick();
 		document.getElementById('quiz-review-title')?.focus({ preventScroll: true });
 	};
+	let stopHeartbeat: (() => void) | undefined;
 	const connect = () => {
 		if (
 			disposed ||
@@ -271,23 +273,30 @@
 		connecting = true;
 		const url = new SvelteURL(endpoint, window.location.origin);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+		stopHeartbeat?.();
 		const current = new WebSocket(url);
 		socket = current;
 		current.onmessage = (event) => {
+			if (isQuizSocketHeartbeat(event.data)) return;
 			if (socket === current && !disposed && typeof event.data === 'string') receive(event.data);
 		};
-		current.onclose = (event) => {
+		const interrupted = (code: number, reason = '') => {
 			if (socket !== current) return;
 			socket = null;
 			connected = false;
 			connecting = false;
 			if (disposed || view?.status === 'closed') return;
-			if (event.code === 1008 || reconnectAttempt >= 5) {
-				problem = 'La connexion à la salle est interrompue. Réessayez ou prévenez l’enseignant.';
+			if (code === 1008 || reconnectAttempt >= 5) {
+				problem =
+					code === 1008 && reason === 'Connection replaced'
+						? 'Ce quiz a été ouvert dans un autre onglet. Continuez dans cet autre onglet ou réessayez ici pour reprendre.'
+						: 'La connexion à la salle est interrompue. Réessayez ou prévenez l’enseignant.';
 				return;
 			}
 			retry = setTimeout(connect, Math.min(1000 * 2 ** reconnectAttempt++, 5000));
 		};
+		current.onclose = (event) => interrupted(event.code, event.reason);
+		stopHeartbeat = startQuizSocketHeartbeat(current, () => interrupted(3001));
 	};
 	const loadRoom = async () => {
 		loading = true;
@@ -408,6 +417,7 @@
 		else reportFullscreenExit();
 	};
 	const clearSession = () => {
+		stopHeartbeat?.();
 		disposed = true;
 		clearTimeout(retry);
 		socket?.close();

@@ -2,7 +2,7 @@
 	import { tv, type VariantProps } from 'tailwind-variants/lite';
 
 	export const tabsListVariants = tv({
-		base: 'rounded-control p-1 group-data-vertical/tabs:rounded-control data-[variant=line]:rounded-none group/tabs-list inline-flex w-fit items-center justify-center text-muted-foreground group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col',
+		base: 'rounded-control p-1 data-[orientation=vertical]:rounded-control data-[variant=line]:rounded-none group/tabs-list inline-flex w-fit items-center justify-center text-muted-foreground data-[orientation=vertical]:h-fit data-[orientation=vertical]:flex-col',
 		variants: {
 			variant: {
 				default: 'bg-muted',

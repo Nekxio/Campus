@@ -32,6 +32,7 @@ import { createDatabase, createTursoClient } from '../db/index.js';
 import { isQuizTeacherAuthorized } from './teacher-authorization.js';
 import { reportQuizRoomGrade } from '../teaching/quiz-rooms.js';
 import { privateFailureReason } from '../auth/failure-reason.js';
+import { readQuizConnectionExpiry } from './connection-lease.js';
 
 type QuizRoomInput = Parameters<typeof createQuizSession>[0];
 type ParticipantActor = Extract<QuizSessionActor, { kind: 'participant' }>;
@@ -56,7 +57,6 @@ const participantKeyPrefix = 'quiz-participant:';
 const initializationKey = 'quiz-initialization';
 const purgedKey = 'quiz-purged';
 const maxMessageBytes = 256 * 1024;
-const maxConnectionLifetime = 8 * 60 * 60 * 1000;
 const participantSocketCommands = new Set<QuizSessionCommand['type']>([
 	'save_answers',
 	'submit',
@@ -88,8 +88,8 @@ const connectionFromRequest = (request: Request, now: number): QuizRoomConnectio
 		if (!rawActor || rawActor.length > 1024) return null;
 		const rawTeacher = request.headers.get('x-campus-quiz-teacher');
 		if (rawTeacher && rawTeacher.length > 1024) return null;
-		const expiresAt = Number(request.headers.get('x-campus-quiz-expires-at'));
-		if (!Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + maxConnectionLifetime) return null;
+		const expiresAt = readQuizConnectionExpiry(request.headers, now);
+		if (expiresAt === null) return null;
 		const connection = quizRoomConnectionSchema.safeParse({
 			actor: JSON.parse(rawActor),
 			expiresAt,
@@ -302,16 +302,44 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 		return projectQuizSessionForParticipant(this.#load(), parsedActor, Date.now());
 	}
 
-	override async fetch(request: Request): Promise<Response> {
+	override fetch(request: Request): Promise<Response> {
+		// Enter the input gate before any await: already admitted events are not gated retroactively.
+		return this.ctx.blockConcurrencyWhile(() => this.#upgradeRequest(request));
+	}
+
+	#upgradeRequest = async (request: Request): Promise<Response> => {
 		if (request.method !== 'GET' || request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
 			return new Response(null, { status: 426 });
 		// Only the authenticated application gateway may construct these internal headers.
 		const connection = connectionFromRequest(request, Date.now());
 		if (!connection) return new Response(null, { status: 403 });
 		if (!(await this.#authorized(connection))) return new Response(null, { status: 403 });
+		// Keep the reconnect, durable commit and socket acceptance in one admission gate.
+		// Otherwise two handshakes can replace each other's actor while awaiting persistence.
+		const response = await this.#acceptConnection(connection);
+		if (response.status === 101 && connection.actor.kind === 'participant')
+			await this.#broadcast(
+				connection.actor.participantId,
+				this.ctx.getWebSockets().find((socket) => {
+					const attached = quizRoomConnectionSchema.safeParse(socket.deserializeAttachment());
+					return (
+						socket.readyState === 1 &&
+						attached.success &&
+						attached.data.actor.kind === 'participant' &&
+						connection.actor.kind === 'participant' &&
+						attached.data.actor.connectionId === connection.actor.connectionId
+					);
+				})
+			);
+		return response;
+	};
+
+	#acceptConnection = async (connection: QuizRoomConnection): Promise<Response> => {
 		await this.#expire();
 		let view;
 		try {
+			if (connection.actor.kind === 'participant')
+				await this.#execute(connection.actor, { type: 'reconnect', requestId: crypto.randomUUID() }, true);
 			view = projectForActor(this.#load(), connection.actor, Date.now());
 		} catch (cause) {
 			if (cause instanceof QuizSessionError) return new Response(null, { status: 403 });
@@ -326,12 +354,24 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 			return new Response(null, { status: 403 });
 		}
 		server.send(JSON.stringify({ type: 'state', view }));
+		if (connection.actor.kind === 'participant') {
+			for (const previous of this.ctx.getWebSockets()) {
+				if (previous === server) continue;
+				const old = quizRoomConnectionSchema.safeParse(previous.deserializeAttachment());
+				if (
+					old.success &&
+					old.data.actor.kind === 'participant' &&
+					old.data.actor.participantId === connection.actor.participantId
+				)
+					previous.close(1008, 'Connection replaced');
+			}
+		}
 		return new Response(null, {
 			status: 101,
 			webSocket: client,
 			headers: { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' }
 		});
-	}
+	};
 
 	override async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer) {
 		const connection = this.#connection(socket);
@@ -431,12 +471,17 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 		if (this.ctx.storage.kv.get<string>(key) !== serialized) this.ctx.storage.kv.put(key, serialized);
 	};
 
-	#execute = async (actor: QuizSessionActor, command: QuizSessionCommand) => {
+	#execute = async (actor: QuizSessionActor, command: QuizSessionCommand, socketValidated = false) => {
 		const parsedActor = quizSessionActorSchema.parse(actor);
 		const parsedCommand = quizSessionCommandSchema.parse(command);
 		const now = Date.now();
 		const result = this.ctx.storage.transactionSync(() => {
 			const transition = applyQuizSessionCommand(this.#load(), parsedActor, parsedCommand, now);
+			// HTTP admission claims an identity, not a working realtime connection.
+			if (parsedActor.kind === 'participant' && ['join', 'reconnect'].includes(parsedCommand.type)) {
+				const participant = transition.state.participants.find((entry) => entry.id === parsedActor.participantId);
+				if (participant) participant.connected = socketValidated;
+			}
 			this.#writeState(transition.state);
 			return transition;
 		});
@@ -492,10 +537,10 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 		}
 	};
 
-	#broadcast = async (participantId?: string) => {
-		const state = this.#load();
+	#broadcast = async (participantId?: string, skipSocket?: WebSocket) => {
 		const permissions = new Map<string, Promise<boolean>>();
 		for (const socket of this.ctx.getWebSockets()) {
+			if (socket === skipSocket) continue;
 			const connection = this.#connection(socket);
 			if (!connection) continue;
 			if (participantId && connection.actor.kind === 'participant' && connection.actor.participantId !== participantId)
@@ -513,7 +558,8 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 						continue;
 					}
 				}
-				const view = projectForActor(state, connection.actor, Date.now());
+				// Authorization may yield; never broadcast a snapshot predating a replacement.
+				const view = projectForActor(this.#load(), connection.actor, Date.now());
 				socket.send(JSON.stringify({ type: 'state', view }));
 			} catch {
 				socket.close(1008, 'Connection replaced');
@@ -527,6 +573,22 @@ export class QuizRoom extends DurableObject<Cloudflare.Env> {
 		if (!parsed.success) return;
 		const connection = parsed.data;
 		if (connection.actor.kind !== 'participant') return;
+		// A delayed close from an older transport must not disconnect its replacement.
+		if (
+			this.ctx.getWebSockets().some((other) => {
+				if (other === socket || other.readyState !== 1) return false;
+				const attached = quizRoomConnectionSchema.safeParse(other.deserializeAttachment());
+				return (
+					attached.success &&
+					attached.data.expiresAt > Date.now() &&
+					attached.data.actor.kind === 'participant' &&
+					connection.actor.kind === 'participant' &&
+					attached.data.actor.participantId === connection.actor.participantId &&
+					attached.data.actor.connectionId === connection.actor.connectionId
+				);
+			})
+		)
+			return;
 		try {
 			await this.#execute(connection.actor, { type: 'disconnect', requestId: crypto.randomUUID() });
 			await this.#broadcast(connection.actor.participantId);

@@ -117,8 +117,9 @@ async function enrichSavedDraft(page: Page, app: BrowserFixture, instructions = 
 				id: randomUUID(),
 				title: 'Exercice libre · 013',
 				instructions:
-					'Construire une navigation accessible sans attendre une date de déverrouillage.\n\n```svelte\n<script>\n  let name = "Ada";\n</script>\n```\n\nCompléter le composant.',
-				solution: 'Corrigé librement accessible · 013\n\n```svelte\nlet count = 0;\n```\n\nAfficher `count`.',
+					'Construire une navigation accessible sans attendre une date de déverrouillage.\n\n## À réaliser\n\n1. Lire **le code**.\n2. Vérifier `name`.\n\n```svelte\n<script>\n  let name = $state("Ada");\n</script>\n```\n\nCompléter le composant.',
+				solution:
+					'Corrigé librement accessible · 013\n\n## Une solution\n\n- Préserver **le nom**.\n- Afficher la valeur.\n\n```bash\nname="Ada"\nprintf "%s\\n" "$name"\n```\n\nAfficher `name`.',
 				code: 'const message = "Bonjour, 世界 👋";'
 			}
 		]
@@ -542,11 +543,57 @@ test('the public course initially opens its first available section', async ({ a
 	}
 });
 
+const verifyCodeCopy = async (region: Locator, expected: string, exerciseFailure = false) => {
+	const page = region.page();
+	const block = region.locator('..');
+	const copy = block.getByRole('button', { name: /^(Copier le code|Code copié)$/ });
+	await expect(copy).toBeVisible();
+	await expect(copy).toHaveText('');
+	const bounds = await copy.boundingBox();
+	expect(bounds?.width).toBeGreaterThanOrEqual(44);
+	expect(bounds?.height).toBeGreaterThanOrEqual(44);
+	if (exerciseFailure) {
+		await page.evaluate(() => {
+			Object.defineProperty(navigator, 'clipboard', {
+				configurable: true,
+				value: {
+					writeText: async () => {
+						throw new Error('Clipboard refused');
+					}
+				}
+			});
+		});
+		await copy.click();
+		await expect(block.getByRole('status')).toContainText('Copie impossible');
+		await expect(region).toBeFocused();
+		expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(expected);
+		await block.screenshot({ path: test.info().outputPath('code-copy-failure.png') });
+	}
+	await page.evaluate(() => {
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: {
+				writeText: async (value: string) => {
+					document.body.dataset.copiedCode = value;
+				}
+			}
+		});
+	});
+	await copy.focus();
+	await page.keyboard.press('Enter');
+	await expect.poll(() => page.evaluate(() => document.body.dataset.copiedCode)).toBe(expected);
+	await expect(block.getByRole('status')).toHaveText('Le code a été copié.');
+	await expect(copy).toBeFocused();
+	await expect(copy).toHaveAccessibleName('Copier le code');
+	await expect(block.getByRole('status')).toBeEmpty();
+};
+
 test('shared content cards preserve preview boundaries, keyboard focus and deliberate correction access', async ({
 	app,
 	page,
 	context
 }, info) => {
+	if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
 	await activate(page, app);
 	await enrichSavedDraft(page, app);
 	await page.goto(
@@ -560,6 +607,7 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 	const publicPath = await publish(page, app, app.ids.publicationModule, app.ids.publicationContext);
 	const publicPage = await context.newPage();
 	try {
+		if (info.project.name === 'mobile') await publicPage.setViewportSize({ width: 320, height: 844 });
 		await publicPage.goto(app.origin + publicPath);
 		const panels = [
 			await selectReview(page, app.ids.publicationContext, sections[0], page.viewportSize()!.width),
@@ -573,6 +621,29 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 			await expect(panel.getByRole('heading', { name: 'Exercice libre · 013', exact: true })).toBeFocused();
 			const statement = panel.getByRole('tab', { name: 'Énoncé', exact: true });
 			const solution = panel.getByRole('tab', { name: 'Corrigé', exact: true });
+			const statementBox = await statement.boundingBox();
+			const solutionBox = await solution.boundingBox();
+			expect(statementBox).not.toBeNull();
+			expect(solutionBox).not.toBeNull();
+			expect(Math.abs(statementBox!.y - solutionBox!.y), 'Exercise tabs stay on one horizontal line').toBeLessThan(1);
+			expect(solutionBox!.x).toBeGreaterThanOrEqual(statementBox!.x + statementBox!.width);
+			await expect(panel.getByRole('heading', { name: 'À réaliser', exact: true })).toBeVisible();
+			await expect(panel.locator('ol > li')).toHaveText(['Lire le code.', 'Vérifier name.']);
+			await expect(panel.locator('ol strong')).toHaveText('le code');
+			await expect(panel.getByRole('region', { name: 'Exemple de code', exact: true }).locator('code')).toHaveText(
+				'<script>\n  let name = $state("Ada");\n</script>'
+			);
+			await verifyCodeCopy(
+				panel.getByRole('region', { name: 'Exemple de code', exact: true }),
+				'<script>\n  let name = $state("Ada");\n</script>',
+				true
+			);
+			for (const theme of ['light', 'dark'] as const) {
+				await panel.page().emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+				await panel.screenshot({
+					path: info.outputPath(`exercise-statement-${panel === panels[0] ? 'preview' : 'public'}-${theme}.png`)
+				});
+			}
 			await statement.focus();
 			await panel.page().keyboard.press('ArrowRight');
 			await expect(solution).toBeFocused();
@@ -588,6 +659,33 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 			await solution.click();
 			await confirm.click();
 			await expect(panel.getByText('Corrigé librement accessible · 013', { exact: true })).toBeVisible();
+			await expect(panel.getByRole('heading', { name: 'Une solution', exact: true })).toBeVisible();
+			await expect(panel.getByRole('tabpanel', { name: 'Corrigé', exact: true }).locator('ul > li')).toHaveText([
+				'Préserver le nom.',
+				'Afficher la valeur.'
+			]);
+			await expect(panel.getByRole('region', { name: 'Exemple de code', exact: true }).locator('code')).toHaveText(
+				'name="Ada"\nprintf "%s\\n" "$name"'
+			);
+			expect(await panel.page().evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+			const complementaryCode = panel.getByRole('region', {
+				name: 'Code de l’exercice · Exercice libre · 013',
+				exact: true
+			});
+			await verifyCodeCopy(
+				panel.getByRole('region', { name: 'Exemple de code', exact: true }),
+				'name="Ada"\nprintf "%s\\n" "$name"'
+			);
+			await verifyCodeCopy(complementaryCode, 'const message = "Bonjour, 世界 👋";');
+			await complementaryCode.focus();
+			await expect(complementaryCode).toBeFocused();
+			await expect(complementaryCode).toHaveCSS('white-space', 'pre');
+			for (const theme of ['light', 'dark'] as const) {
+				await panel.page().emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+				await panel.screenshot({
+					path: info.outputPath(`exercise-solution-${panel === panels[0] ? 'preview' : 'public'}-${theme}.png`)
+				});
+			}
 			await panel.getByRole('button', { name: 'Retour aux supports', exact: true }).click();
 			await expect(card).toBeFocused();
 			await expect(panel.locator('button button, a button, button a, a a')).toHaveCount(0);
@@ -814,7 +912,7 @@ test('five shared panels retain their content, deadlines and project documents a
 							).toBeVisible();
 							const example = panel.getByRole('region', { name: 'Exemple de code', exact: true });
 							await expect(example).toBeVisible();
-							await expect(example.locator('code')).toHaveText('<script>\n  let name = "Ada";\n</script>');
+							await expect(example.locator('code')).toHaveText('<script>\n  let name = $state("Ada");\n</script>');
 							const keyword = example.locator('code span').filter({ hasText: 'let' });
 							expect(await keyword.evaluate((element) => getComputedStyle(element).color)).not.toBe(
 								await example.evaluate((element) => getComputedStyle(element).color)
@@ -849,14 +947,14 @@ test('five shared panels retain their content, deadlines and project documents a
 							const solutionExample = solutionPanel.getByRole('region', {
 								name: 'Exemple de code'
 							});
-							await expect(solutionExample.locator('code')).toHaveText('let count = 0;');
+							await expect(solutionExample.locator('code')).toHaveText('name="Ada"\nprintf "%s\\n" "$name"');
 							expect(
 								await solutionExample
 									.locator('span')
-									.filter({ hasText: 'let' })
+									.filter({ hasText: 'printf' })
 									.evaluate((element) => getComputedStyle(element).color)
 							).not.toBe(await solutionExample.evaluate((element) => getComputedStyle(element).color));
-							await expect(solutionPanel.locator('p code')).toHaveText('count');
+							await expect(solutionPanel.locator('p code')).toHaveText('name');
 						}
 						await expect(publicPanel.getByText('Corrigé librement accessible · 013', { exact: true })).toBeVisible();
 						await expect(

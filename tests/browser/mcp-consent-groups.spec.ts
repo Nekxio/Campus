@@ -41,7 +41,15 @@ test('requested permissions are preselected in compact, adjustable groups', asyn
 		await expect(page.locator('form[action*="/decideConsent"]')).toHaveAttribute('data-enhanced', 'true');
 	};
 	await context.route(callback + '**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Callback</p>' }));
-	await openConsent(mcpScopes);
+	const discovery = await request.get(app.origin + '/mcp');
+	expect(discovery.status()).toBe(401);
+	const discoveredScopes =
+		discovery
+			.headers()
+			['www-authenticate'].match(/\bscope="([^"]+)"/)?.[1]
+			.split(' ') ?? [];
+	expect(discoveredScopes).toEqual([...mcpScopes]);
+	await openConsent(discoveredScopes);
 	await expect(page.locator('.permission-group')).toHaveCount(8);
 	await expect(page.locator('.permission-group details[open]')).toHaveCount(0);
 	for (const scope of mcpScopes)

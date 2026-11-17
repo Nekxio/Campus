@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
 import { migrate } from 'drizzle-orm/libsql/migrator';
 import { eq } from 'drizzle-orm';
@@ -144,7 +144,10 @@ beforeEach(async () => {
 		confirm: true
 	});
 });
-afterEach(() => client.close());
+afterEach(() => {
+	vi.restoreAllMocks();
+	client.close();
+});
 const opening = () => ({ id: crypto.randomUUID(), quizId, expectedQuizRevision: 1 });
 const close = (id: string) =>
 	commandQuizRoom(db, roomFor, ids.teacher, id, {
@@ -223,6 +226,37 @@ const saveManualCorrection = async (points: number | null, status: CorrectionWri
 };
 
 describe('quiz room orchestration', () => {
+	it.each([-7, 0, 7])('opens and starts a quiz with its lesson scheduled %i days from today', async (days) => {
+		vi.spyOn(Date, 'now').mockReturnValue(now);
+		const [quiz] = await db.select().from(t.quizDrafts).where(eq(t.quizDrafts.id, quizId));
+		const startsAt = new Date(now + days * 24 * 3600000);
+		await db
+			.update(t.lessons)
+			.set({ startsAt, endsAt: new Date(startsAt.getTime() + 3600000) })
+			.where(eq(t.lessons.id, quiz.lessonId!));
+		const { selected } = await getPublicationReview(db, ids.module, ids.currentContext);
+		await decidePublication(db, ids.teacher, ids.module, {
+			requestId: crypto.randomUUID(),
+			contextId: ids.currentContext,
+			action: 'publish',
+			expectedRevision: selected!.publicationRevision,
+			moduleRevision: selected!.moduleRevision,
+			contextRevision: selected!.contextRevision,
+			classRevision: selected!.classRevision,
+			confirm: true
+		});
+		const input = opening();
+		expect((await openQuizRoom(db, roomFor, ids.teacher, input, now)).status).toBe('lobby');
+		const started = await commandQuizRoom(db, roomFor, ids.teacher, input.id, {
+			type: 'start',
+			requestId: crypto.randomUUID()
+		});
+		expect(started.view.status).toBe('running');
+		expect((await requirePublicQuizRun(db, ids.currentContext, input.id)).status).toBe('running');
+		const [lesson] = await db.select().from(t.lessons).where(eq(t.lessons.id, quiz.lessonId!));
+		expect(lesson.startsAt).toEqual(startsAt);
+	});
+
 	it('transfers a twelve-student room within separate simulated fifty-request invocation budgets', async () => {
 		const input = await startRoom(opening());
 		const parent = simulateSqlRequestBudget(client);

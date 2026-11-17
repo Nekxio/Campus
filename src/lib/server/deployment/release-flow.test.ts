@@ -4,7 +4,8 @@ import {
 	checkCurrentPreview,
 	previewConfig,
 	previewSecrets,
-	validatePreview
+	validatePreview,
+	verifyPreview
 } from '../../../../scripts/preview-deployment.js';
 import { readFile } from 'node:fs/promises';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -157,6 +158,85 @@ const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
 const qualityJob = workflow.split('  quality:')[1].split('\n  deploy:')[0];
 const previewJob = workflow.split('  deploy-preview:')[1].split('\n  gitflow:')[0];
 
+describe('preview HTTPS verification', () => {
+	const origin = 'https://campus-preview.leohilaire-1f7.workers.dev';
+	const healthyResponse = (input: string | URL | Request) => {
+		const path = new URL(String(input)).pathname;
+		return new Response(null, {
+			status: path === '/connexion' ? 200 : path === '/' ? 303 : path === '/api/session' ? 401 : 404,
+			headers: { 'cache-control': 'no-store', ...(path === '/' ? { location: '/connexion' } : {}) }
+		});
+	};
+
+	it('recovers from a transient timeout and identifies every checked route', async () => {
+		const request = vi
+			.fn<typeof fetch>()
+			.mockRejectedValueOnce(new DOMException('Sensitive transport detail', 'TimeoutError'))
+			.mockImplementation(async (input) => healthyResponse(input));
+		const pause = vi.fn().mockResolvedValue(undefined);
+		const report = vi.fn();
+		await expect(verifyPreview(origin, { request, pause, report })).resolves.toBeUndefined();
+		expect(request).toHaveBeenCalledTimes(6);
+		expect(pause).toHaveBeenCalledOnce();
+		expect(
+			request.mock.calls.every(([, init]) => init?.redirect === 'manual' && init.signal instanceof AbortSignal)
+		).toBe(true);
+		const messages = report.mock.calls.flat().join('\n');
+		expect(messages).toContain('/connexion');
+		expect(messages).toContain('/api/session');
+		expect(messages).toContain('/modules/');
+		expect(messages).toContain('/classes/');
+		expect(messages).not.toContain('Sensitive transport detail');
+	});
+
+	it.each([502, 503, 504])('retries temporary HTTP %s responses within a fixed budget', async (status) => {
+		const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(null, { status }));
+		const pause = vi.fn().mockResolvedValue(undefined);
+		const report = vi.fn();
+		await expect(verifyPreview(origin, { request, pause, report })).rejects.toThrow('/connexion');
+		expect(request).toHaveBeenCalledTimes(3);
+		expect(pause).toHaveBeenCalledTimes(2);
+		expect(report.mock.calls.flat().join('\n')).toContain(`HTTP ${status}`);
+	});
+
+	it('fails after repeated transport errors without leaking their details', async () => {
+		const request = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Sensitive transport detail'));
+		const report = vi.fn();
+		await expect(verifyPreview(origin, { request, pause: async () => {}, report })).rejects.toThrow('3 attempts');
+		expect(request).toHaveBeenCalledTimes(3);
+		expect(report.mock.calls.flat().join('\n')).not.toContain('Sensitive transport detail');
+	});
+
+	it.each(['status', 'cache', 'redirect'])('never retries a broken %s contract', async (failure) => {
+		const request = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+			if (new URL(String(input)).pathname !== '/') return healthyResponse(input);
+			return new Response(null, {
+				status: failure === 'status' ? 200 : 303,
+				headers: {
+					'cache-control': failure === 'cache' ? 'public' : 'no-store',
+					location: failure === 'redirect' ? '/enseignant' : '/connexion'
+				}
+			});
+		});
+		const pause = vi.fn().mockResolvedValue(undefined);
+		await expect(verifyPreview(origin, { request, pause, report: () => {} })).rejects.toThrow();
+		expect(request).toHaveBeenCalledTimes(2);
+		expect(pause).not.toHaveBeenCalled();
+	});
+
+	it('refuses any other origin before making a request', async () => {
+		const request = vi.fn<typeof fetch>();
+		await expect(verifyPreview('https://example.test', { request, report: () => {} })).rejects.toThrow(
+			'preview origin'
+		);
+		expect(request).not.toHaveBeenCalled();
+	});
+
+	it('runs the bounded verifier after deployment in CI', () => {
+		expect(previewJob).toContain('run: pnpm exec tsx scripts/preview-deployment.ts verify');
+	});
+});
+
 describe('preview workflow trust boundary', () => {
 	const settings = {
 		GITHUB_EVENT_NAME: 'workflow_dispatch',
@@ -251,7 +331,7 @@ describe('preview workflow trust boundary', () => {
 				encoding: 'utf8'
 			});
 			expect(result.status).toBe(eventSha === checkout ? 0 : 1);
-			if (eventSha !== checkout) expect(result.stderr).toContain('Preview preparation failed');
+			if (eventSha !== checkout) expect(result.stderr).toContain('Preview command failed');
 		}
 	});
 });

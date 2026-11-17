@@ -1,7 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { parseExerciseInstructions, parseInlineExerciseText } from './exercise-instructions.js';
+import { parseExerciseInstructions, parseExerciseProse, parseInlineExerciseText } from './exercise-instructions.js';
 
 describe('exercise instructions', () => {
+	it.each(['bash', 'sh', 'shell'])('preserves copyable %s source while highlighting shell syntax', (language) => {
+		const source = '# Inspect the sandbox\r\ncd "atelier démo"\r\nprintf \'%s\\n\' "$PWD"\r\n\n';
+		const [part] = parseExerciseInstructions('```' + language + '\n' + source + '\n```');
+		if (part.kind !== 'code') throw new Error('Expected a code block');
+		expect(part.code).toBe(source);
+		expect(part.tokens.map((token) => token.text).join('')).toBe(source);
+		expect(part.tokens).toContainEqual({ kind: 'comment', text: '# Inspect the sandbox\r' });
+		expect(part.tokens).toContainEqual({ kind: 'keyword', text: 'cd' });
+		expect(part.tokens).toContainEqual({ kind: 'string', text: '"$PWD"' });
+	});
+
+	it('highlights Svelte runes without changing literal markup or indentation', () => {
+		const source = '<script>\n\tlet visible = $state(false);\n</script>\n\n<p hidden={!visible}>Conseil</p>';
+		const [part] = parseExerciseInstructions('```svelte\n' + source + '\n```');
+		if (part.kind !== 'code') throw new Error('Expected a code block');
+		expect(part.code).toBe(source);
+		expect(part.tokens.map((token) => token.text).join('')).toBe(source);
+		expect(part.tokens).toContainEqual({ kind: 'keyword', text: '$state' });
+	});
+
+	it('structures paragraphs, headings and lists while retaining authored line breaks', () => {
+		expect(
+			parseExerciseProse(
+				'## À réaliser\r\n\r\nLisez le code.\r\nGardez les noms.\r\n\r\n- Première étape\r\n- Deuxième étape\r\n\r\n3. Vérifier\r\n4. Expliquer'
+			)
+		).toEqual([
+			{ kind: 'heading', level: 2, text: 'À réaliser' },
+			{ kind: 'paragraph', text: 'Lisez le code.\nGardez les noms.' },
+			{ kind: 'list', ordered: false, start: 1, items: ['Première étape', 'Deuxième étape'] },
+			{ kind: 'list', ordered: true, start: 3, items: ['Vérifier', 'Expliquer'] }
+		]);
+	});
+
+	it('keeps HTML and incomplete markup as text instead of interpreting it', () => {
+		expect(parseExerciseProse('<img src=x onerror=alert(1)>\n#\n-')).toEqual([
+			{ kind: 'paragraph', text: '<img src=x onerror=alert(1)>\n#\n-' }
+		]);
+		expect(parseExerciseProse('  \n\n')).toEqual([]);
+		expect(parseInlineExerciseText('**incomplete and `unfinished')).toEqual([
+			{ kind: 'text', text: '**incomplete and `unfinished' }
+		]);
+	});
+
+	it('distinguishes emphasis from literal code', () => {
+		expect(parseInlineExerciseText('Vérifiez **le résultat** avec `**literal**`.')).toEqual([
+			{ kind: 'text', text: 'Vérifiez ' },
+			{ kind: 'strong', text: 'le résultat' },
+			{ kind: 'text', text: ' avec ' },
+			{ kind: 'code', text: '**literal**' },
+			{ kind: 'text', text: '.' }
+		]);
+	});
+
 	it('separates inline code and preserves unmatched backticks as text', () => {
 		expect(parseInlineExerciseText('Use `count` and `double`, then keep `unfinished.')).toEqual([
 			{ kind: 'text', text: 'Use ' },

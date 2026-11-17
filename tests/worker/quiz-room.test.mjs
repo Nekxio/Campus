@@ -51,9 +51,9 @@ const createRoomRuntime = async (persistDirectory) => {
 	const bundled = await build({
 		stdin: {
 			contents: `
-import { QuizRoom } from './src/lib/server/quizzes/room.ts';
+import { QuizRoom as BaseRoom } from './src/lib/server/quizzes/room.ts';
 import { WorkerEntrypoint } from 'cloudflare:workers';
-export { QuizRoom };
+export class QuizRoom extends BaseRoom { async socketsForTest() { return this.ctx.getWebSockets().map(s => ({ready:s.readyState, connectionId:s.deserializeAttachment()?.actor.connectionId})); } }
 export class QuizAuthorization extends WorkerEntrypoint {
 	async canReadTeacher(identity) {
 		return identity.teacherId === 'fictional-teacher' && identity.sessionId === 'fictional-session' && identity.runId === '${sessionId}';
@@ -65,6 +65,7 @@ export default {
 		const room = env.QUIZ_ROOMS.getByName(url.searchParams.get('id') ?? '${sessionId}');
 		const action = url.pathname.slice(1);
 		if (action === 'socket') return room.fetch(request);
+		if (action === 'sockets-for-test') return Response.json(await room.socketsForTest());
 		try {
 			const body = await request.json();
 			if (action === 'rpc') return Response.json(await room.rpc(body));
@@ -149,6 +150,7 @@ const openSocket = async (runtime, issuingActor) => {
 						})
 					}
 				: {}),
+			'x-campus-quiz-issued-at': String(Date.now()),
 			'x-campus-quiz-expires-at': String(Date.now() + 60_000)
 		}
 	});
@@ -200,6 +202,114 @@ test('quiz RPC preserves safe business error codes across the Worker boundary', 
 		assert.equal(rejected.error.code, 'invalid_state');
 		assert.equal(typeof rejected.error.message, 'string');
 		assert.deepEqual(Object.keys(rejected.error).sort(), ['code', 'kind', 'message']);
+	} finally {
+		await runtime.dispose();
+	}
+});
+
+test('HTTP admission and a rejected handshake never advertise a connected student', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'campus-quiz-presence-'));
+	const runtime = await createRoomRuntime(directory);
+	try {
+		await callRoom(runtime, 'initialize', input);
+		await issue(runtime, actor, { type: 'join' });
+		assert.equal((await callRoom(runtime, 'teacher', {})).participants[0].connected, false);
+		const refused = await runtime.dispatchFetch('http://localhost/socket', {
+			headers: {
+				Upgrade: 'websocket',
+				'x-campus-quiz-actor': JSON.stringify(actor),
+				'x-campus-quiz-issued-at': String(Date.now()),
+				'x-campus-quiz-expires-at': String(Date.now() - 1000)
+			}
+		});
+		assert.equal(refused.status, 403);
+		assert.equal((await callRoom(runtime, 'teacher', {})).participants[0].connected, false);
+		const socket = await openSocket(runtime, { ...actor, connectionId: crypto.randomUUID() });
+		assert.equal((await callRoom(runtime, 'teacher', {})).participants[0].connected, true);
+		socket.close();
+	} finally {
+		await runtime.dispose();
+	}
+});
+
+test('simultaneous reconnects accept atomically and leave only the newest student transport active', async () => {
+	const runtime = await createRoomRuntime(await mkdtemp(join(tmpdir(), 'campus-quiz-concurrent-')));
+	try {
+		await callRoom(runtime, 'initialize', input);
+		await issue(runtime, actor, { type: 'join' });
+		await issue(runtime, teacher, { type: 'start' });
+		const actors = Array.from({ length: 6 }, () => ({ ...actor, connectionId: crypto.randomUUID() }));
+		const sockets = await Promise.all(actors.map((candidate) => openSocket(runtime, candidate)));
+		// Miniflare's upgraded clients can retain OPEN after a server-side close before accept.
+		// Inspect the actual Durable Object transports, not the client shim's readyState.
+		const registered = await (await runtime.dispatchFetch('http://localhost/sockets-for-test')).json();
+		const activeServer = registered.filter((socket) => socket.ready === 1);
+		assert.equal(activeServer.length, 1);
+		const active = [sockets[actors.findIndex((candidate) => candidate.connectionId === activeServer[0].connectionId)]];
+		assert.equal((await callRoom(runtime, 'teacher', {})).participants[0].connected, true);
+		const ack = nextMessage(active[0], (message) => message.type === 'ack');
+		active[0].send(
+			JSON.stringify({
+				type: 'save_answers',
+				requestId: crypto.randomUUID(),
+				version: 1,
+				answers: [{ questionId, optionIds: [correctOptionId] }]
+			})
+		);
+		assert.equal((await ack).view.participant.answerVersion, 1);
+		active[0].close();
+	} finally {
+		await runtime.dispose();
+	}
+});
+
+test('hibernating quiz sockets answer heartbeat without changing answers or session revision', async () => {
+	const runtime = await createRoomRuntime(await mkdtemp(join(tmpdir(), 'campus-quiz-heartbeat-')));
+	try {
+		await callRoom(runtime, 'initialize', input);
+		await issue(runtime, actor, { type: 'join' });
+		const socket = await openSocket(runtime, actor);
+		const before = await callRoom(runtime, 'teacher', {});
+		const pong = new Promise((resolve, reject) => {
+			const timer = setTimeout(() => reject(new Error('Heartbeat response missing')), 5000);
+			socket.addEventListener(
+				'message',
+				(event) => {
+					clearTimeout(timer);
+					resolve(event.data);
+				},
+				{ once: true }
+			);
+		});
+		socket.send('ping');
+		assert.equal(await pong, 'pong');
+		const after = await callRoom(runtime, 'teacher', {});
+		assert.equal(after.revision, before.revision);
+		assert.equal(after.participants[0].answerVersion, 0);
+		socket.close();
+	} finally {
+		await runtime.dispose();
+	}
+});
+
+test('room accepts a valid ahead-clock lease without exceeding its receiver-clock bound', async () => {
+	const runtime = await createRoomRuntime(await mkdtemp(join(tmpdir(), 'campus-quiz-clock-')));
+	try {
+		await callRoom(runtime, 'initialize', input);
+		await issue(runtime, actor, { type: 'join' });
+		// This is a deterministic synthetic skew, not evidence of deployed clock skew.
+		const gatewayNow = Date.now() + 60_000;
+		const refused = await runtime.dispatchFetch('http://localhost/socket', {
+			headers: {
+				Upgrade: 'websocket',
+				'x-campus-quiz-actor': JSON.stringify(actor),
+				'x-campus-quiz-issued-at': String(gatewayNow),
+				'x-campus-quiz-expires-at': String(gatewayNow + 8 * 3600000)
+			}
+		});
+		assert.equal(refused.status, 101);
+		refused.webSocket.accept();
+		refused.webSocket.close();
 	} finally {
 		await runtime.dispose();
 	}

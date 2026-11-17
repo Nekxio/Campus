@@ -14,6 +14,8 @@ const mockStudentParticipation = async (page: Page, fixture: NativeQuizFixture, 
 	const roomPath = `/api/quizzes/${fixture.contextId}/rooms/${fixture.runId}`;
 	const commands: QuizSessionCommand[] = [];
 	const connections: { closed: boolean }[] = [];
+	let heartbeats = 0;
+	let silent = false;
 	let channel: WebSocketRoute | null = null;
 	let view: QuizParticipantProjection = {
 		id: fixture.runId,
@@ -94,16 +96,84 @@ const mockStudentParticipation = async (page: Page, fixture: NativeQuizFixture, 
 		});
 		channel = socket;
 		socket.send(JSON.stringify({ type: 'state', view }));
-		socket.onMessage((raw) => commands.push(JSON.parse(String(raw)) as QuizSessionCommand));
+		socket.onMessage((raw) => {
+			if (raw === 'ping') {
+				heartbeats++;
+				if (!silent) socket.send('pong');
+				return;
+			}
+			commands.push(JSON.parse(String(raw)) as QuizSessionCommand);
+		});
 	});
 	return {
 		commands,
+		heartbeats: () => heartbeats,
+		setSilent: (value: boolean) => {
+			silent = value;
+		},
 		connections,
 		publish,
 		acknowledge,
-		disconnect: () => channel?.close({ code: 1008, reason: 'Fictional connection interruption' })
+		disconnect: (reason = 'Fictional connection interruption') => channel?.close({ code: 1008, reason })
 	};
 };
+
+test('student heartbeat keeps reading connected without treating pong as an answer acknowledgement', async ({
+	app,
+	page
+}) => {
+	const fixture = await app.call<NativeQuizFixture>('native-quiz-ui');
+	const participation = await mockStudentParticipation(page, fixture);
+	await page.clock.install();
+	await page.goto(`${app.origin}/modules/${fixture.contextId}/quiz/${fixture.runId}`);
+	await expect(page.getByRole('radio', { name: 'Première option', exact: true })).toBeEnabled();
+	for (let tick = 1; tick <= 3; tick++) {
+		await page.clock.runFor(20_000);
+		await expect.poll(participation.heartbeats).toBe(tick);
+	}
+	await expect(page.getByRole('radio', { name: 'Première option', exact: true })).toBeEnabled();
+	await expect(page.getByText(/La réponse du serveur est illisible/)).toHaveCount(0);
+	expect(participation.commands.filter((command) => command.type === 'save_answers')).toHaveLength(0);
+	expect(participation.connections).toHaveLength(1);
+	expect(participation.connections[0].closed).toBe(false);
+});
+
+test('student heartbeat reconnects a silent transport and preserves unacknowledged answers', async ({ app, page }) => {
+	const fixture = await app.call<NativeQuizFixture>('native-quiz-ui');
+	const participation = await mockStudentParticipation(page, fixture);
+	await page.clock.install();
+	await page.goto(`${app.origin}/modules/${fixture.contextId}/quiz/${fixture.runId}`);
+	const option = page.getByRole('radio', { name: 'Première option', exact: true });
+	await expect(option).toBeEnabled();
+	await option.check();
+	await page.clock.runFor(1000);
+	await expect.poll(() => participation.commands.filter((command) => command.type === 'save_answers').length).toBe(1);
+	const pending = participation.commands.find((command) => command.type === 'save_answers')!;
+	participation.setSilent(true);
+	await page.clock.runFor(34_000);
+	await expect.poll(() => participation.connections[0].closed).toBe(true);
+	participation.setSilent(false);
+	await page.clock.runFor(2000);
+	await expect.poll(() => participation.connections.length).toBe(2);
+	await expect.poll(() => participation.commands.filter((command) => command.type === 'save_answers').length).toBe(2);
+	const retried = participation.commands.filter((command) => command.type === 'save_answers')[1];
+	expect(retried).toEqual(pending);
+	participation.acknowledge(retried);
+	await expect(option).toBeChecked();
+	await expect(option).toBeEnabled();
+});
+
+test('a replaced student socket does not fight the newer tab with automatic retries', async ({ app, page }) => {
+	const fixture = await app.call<NativeQuizFixture>('native-quiz-ui');
+	const participation = await mockStudentParticipation(page, fixture);
+	await page.clock.install();
+	await page.goto(`${app.origin}/modules/${fixture.contextId}/quiz/${fixture.runId}`);
+	await expect(page.getByRole('radio', { name: 'Première option', exact: true })).toBeEnabled();
+	participation.disconnect('Connection replaced');
+	await expect(page.locator('#quiz').getByText(/Ce quiz a été ouvert dans un autre onglet/)).toBeVisible();
+	await page.clock.runFor(120_000);
+	expect(participation.connections).toHaveLength(1);
+});
 
 test('quiz history navigation replaces the room and closes the previous socket', async ({ app, page }) => {
 	const firstFixture = await app.call<NativeQuizFixture>('native-quiz-ui');
@@ -395,6 +465,10 @@ test('an unreadable quiz response preserves choices and waits for confirmed reco
 		channel = socket;
 		broadcast();
 		socket.onMessage((raw) => {
+			if (raw === 'ping') {
+				socket.send('pong');
+				return;
+			}
 			const command = JSON.parse(String(raw)) as QuizSessionCommand;
 			if (command.type === 'save_answers') saves.push(command);
 		});
@@ -499,6 +573,10 @@ test('student keeps newer choices through ACKs and receives one ephemeral review
 		channel = socket;
 		broadcast();
 		socket.onMessage((raw) => {
+			if (raw === 'ping') {
+				socket.send('pong');
+				return;
+			}
 			const command = JSON.parse(String(raw)) as QuizSessionCommand;
 			if (command.type === 'save_answers') saved.push(command);
 			if (command.type === 'report_incident') {
@@ -824,6 +902,10 @@ for (const capability of ['disabled', 'missing'] as const) {
 			channel = socket;
 			socket.send(JSON.stringify({ type: 'state', view }));
 			socket.onMessage((raw) => {
+				if (raw === 'ping') {
+					socket.send('pong');
+					return;
+				}
 				const command = JSON.parse(String(raw)) as QuizSessionCommand;
 				if (command.type === 'report_incident') incidents.push(command.incident);
 			});

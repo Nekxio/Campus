@@ -147,6 +147,7 @@ export const GET = async ({ request, params }) => {
 	const room = env.QUIZ_ROOMS.getByName(params.runId);
 	return room.fetch(new Request('https://quiz-room.internal/socket', { headers: {
 		Upgrade: 'websocket', 'x-campus-quiz-actor': ${JSON.stringify(JSON.stringify(actor))},
+		'x-campus-quiz-issued-at': String(Date.now()),
 		'x-campus-quiz-expires-at': String(Date.now() + 60000)
 	} }));
 };`

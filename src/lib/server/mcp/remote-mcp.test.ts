@@ -1289,16 +1289,16 @@ describe('MCP distant et OAuth réels sur base fictive', () => {
 				expect(new URL(response.headers.get('location')!, origin).pathname).toBe('/connexion/application');
 		}
 	});
-	it('annonce le minimum et le point de découverte dans le challenge anonyme', async () => {
+	it.each(['GET', 'POST'])('offers every permission for anonymous %s connection discovery', async (method) => {
 		const response = await handleRemoteMcp(
-			new Request(origin + '/mcp', { method: 'POST', body: '{bad' }),
+			new Request(origin + '/mcp', { method, ...(method === 'POST' ? { body: '{bad' } : {}) }),
 			auth,
 			client,
 			origin
 		);
 		expect(response.status).toBe(401);
 		expect(response.headers.get('WWW-Authenticate')).toContain('/.well-known/oauth-protected-resource/mcp');
-		expect(response.headers.get('WWW-Authenticate')).toContain('scope="modules:read"');
+		expect(response.headers.get('WWW-Authenticate')).toContain(`scope="${mcpScopes.join(' ')}"`);
 		const metadata = await auth.handler(new Request(origin + '/.well-known/oauth-protected-resource/mcp'));
 		expect(metadata.status).toBe(200);
 		expect(await metadata.json()).toMatchObject({

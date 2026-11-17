@@ -1,6 +1,7 @@
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { isHttpError, json, error } from '@sveltejs/kit';
 import type { Client } from '@libsql/client/web';
+import { mcpScopes } from '../../domain/remote-mcp.js';
 import type { Auth } from '../auth.js';
 import { createDatabase } from '../db/index.js';
 import { authenticateMcp } from './principal.js';
@@ -8,15 +9,13 @@ import { createRemoteMcp, requiredToolScopes } from './tools.js';
 import { withBoundedAuthRequest } from '../auth/request-body.js';
 import type { TeachingToolDependencies } from './teaching-tools.js';
 
-export function mcpChallenge(origin: string, scopes = ['modules:read'], status = 401) {
-	return {
-		status,
-		headers: {
-			'Cache-Control': 'private, no-store',
-			'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="${scopes.join(' ')}"${status === 403 ? ', error="insufficient_scope"' : ''}`
-		}
-	};
-}
+export const mcpChallenge = (origin: string, scopes: readonly string[] = mcpScopes, status = 401) => ({
+	status,
+	headers: {
+		'Cache-Control': 'private, no-store',
+		'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="${scopes.join(' ')}"${status === 403 ? ', error="insufficient_scope"' : ''}`
+	}
+});
 export async function handleRemoteMcp(
 	request: Request,
 	auth: Auth,
