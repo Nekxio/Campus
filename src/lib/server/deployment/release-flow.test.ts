@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { releasePlan, releasePullRequest, synchronizeRelease, tagRelease } from '../../../../scripts/release-flow.js';
+import {
+	inspectRelease,
+	releasePlan,
+	releasePullRequest,
+	synchronizeRelease,
+	tagRelease
+} from '../../../../scripts/release-flow.js';
 import {
 	checkCurrentPreview,
 	previewConfig,
@@ -23,6 +29,47 @@ const pull = {
 };
 
 describe('explicit Gitflow versions and release provenance', () => {
+	it.each([sha, releaseSha])('inspects GitHub release provenance with merge commit %s', async (mergeSha) => {
+		const request = vi.fn<typeof fetch>(async (url, options) => {
+			const path = new URL(String(url)).pathname;
+			if (path.endsWith(`/git/commits/${sha}`))
+				return Response.json({
+					sha,
+					tree: { sha },
+					parents: [{ sha: 'c'.repeat(40) }, { sha: releaseSha }],
+					message: 'Merge release'
+				});
+			if (path.endsWith('/pulls')) {
+				const currentPull = { merged_at: pull.merged_at, base: pull.base, head: pull.head };
+				return Response.json([
+					new Headers(options?.headers).get('X-GitHub-Api-Version') === '2022-11-28'
+						? { ...currentPull, merge_commit_sha: mergeSha }
+						: currentPull
+				]);
+			}
+			if (path.endsWith('/contents/package.json') || path.endsWith('/contents/.github/release-plan.json'))
+				return Response.json({
+					encoding: 'base64',
+					content: Buffer.from(JSON.stringify(path.endsWith('/package.json') ? { version: '1.0.0' } : plan)).toString(
+						'base64'
+					)
+				});
+			throw new Error(`Unexpected GitHub request: ${path}`);
+		});
+		const inspection = inspectRelease(
+			{
+				GITHUB_EVENT_NAME: 'push',
+				GITHUB_REF: 'refs/heads/main',
+				GITHUB_SHA: sha,
+				GITHUB_REPOSITORY: 'Nekxio/Campus',
+				GITHUB_TOKEN: 'fictional-token'
+			},
+			request
+		);
+		if (mergeSha === sha) await expect(inspection).resolves.toEqual({ mainSha: sha, releaseSha, plan });
+		else await expect(inspection).rejects.toThrow('Production requires a real merge commit');
+		expect(request.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
+	});
 	it('accepts an explicitly selected next version without inventing an increment', () => {
 		expect(releasePlan(plan, '1.0.0')).toEqual(plan);
 		expect(releasePlan({ ...plan, nextDevelopmentVersion: '1.0.1-SNAPSHOT' }, '1.0.0').nextDevelopmentVersion).toBe(
@@ -102,6 +149,18 @@ describe('isolated preview target', () => {
 		};
 		expect(() => validatePreview(settings, sha)).not.toThrow();
 		expect(() => validatePreview({ ...settings, GITHUB_REF: 'refs/heads/release/1.0.0' }, sha)).not.toThrow();
+		for (const version of ['1.0.0', '2.3.4']) {
+			const release = { ...settings, GITHUB_REF: `refs/heads/release/${version}`, GITHUB_REF_PROTECTED: 'false' };
+			expect(() => validatePreview(release, sha)).not.toThrow();
+			for (const override of [
+				{ GITHUB_EVENT_NAME: 'pull_request' },
+				{ GITHUB_EVENT_NAME: 'workflow_dispatch' },
+				{ GITHUB_REPOSITORY: 'someone/fork' },
+				{ COURSELY_CHECKED_SHA: releaseSha },
+				{ CAMPUS_PREVIEW_ENABLED: 'false' }
+			])
+				expect(() => validatePreview({ ...release, ...override }, sha)).toThrow();
+		}
 		for (const override of [
 			{ GITHUB_REF_PROTECTED: 'false' },
 			{ GITHUB_REPOSITORY: 'someone/fork' },
@@ -312,6 +371,14 @@ describe('preview workflow trust boundary', () => {
 			expect(permits(override)).toBe(false);
 		for (const ref of ['refs/heads/develop', 'refs/heads/release/1.0.0'])
 			expect(permits({ event_name: 'push', ref }, sha, '')).toBe(true);
+		for (const version of ['1.0.0', '2.3.4']) {
+			const release = { event_name: 'push', ref: `refs/heads/release/${version}`, ref_protected: false };
+			expect(permits(release)).toBe(true);
+			expect(permits(release, releaseSha)).toBe(false);
+			expect(permits({ ...release, repository: 'someone/fork' })).toBe(false);
+			expect(permits({ ...release, event_name: 'pull_request' })).toBe(false);
+			expect(permits({ ...release, event_name: 'workflow_dispatch' })).toBe(false);
+		}
 		expect(previewJob).toContain('secrets.CAMPUS_PREVIEW_CLOUDFLARE_API_TOKEN');
 		expect(previewJob).not.toContain('secrets.CLOUDFLARE_API_TOKEN');
 	});

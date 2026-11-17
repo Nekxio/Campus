@@ -75,7 +75,8 @@ const githubClient = (settings: ProductionEnvironment, request: typeof fetch) =>
 				headers: {
 					Authorization: `Bearer ${settings.GITHUB_TOKEN}`,
 					Accept: 'application/vnd.github+json',
-					'X-GitHub-Api-Version': '2026-03-10',
+					// Release provenance requires merge_commit_sha, removed in the 2026-03-10 API.
+					'X-GitHub-Api-Version': '2022-11-28',
 					'Content-Type': 'application/json'
 				},
 				...(body === undefined ? {} : { body: JSON.stringify(body) }),
