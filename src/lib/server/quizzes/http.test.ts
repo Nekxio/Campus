@@ -319,12 +319,15 @@ describe('student quiz admission and projection', () => {
 			});
 			vi.mocked(withPublicDatabase).mockResolvedValue(undefined);
 			const fetch = vi.fn<(request: Request) => Promise<Response>>(async () => new Response('Fictional socket bridge'));
+			const command = vi.fn(async () => ({}));
 			mockRoom({
-				command: vi.fn(async () => ({})),
+				command,
 				fetch,
 				admissionState: async () => ({ joined: true, participantId: id, available: name === 'initial' })
 			});
 			expect((await publicRead(current)).status).toBe(200);
+			// Admission must not announce a connection before the room accepts the upgrade.
+			expect(command).not.toHaveBeenCalled();
 			const internal = fetch.mock.calls[0][0] as Request;
 			expect(JSON.parse(internal.headers.get('x-campus-quiz-actor')!)).toMatchObject({
 				kind: 'participant',

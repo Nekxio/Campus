@@ -199,14 +199,16 @@ export const readStudentQuizRoom = quizEndpoint(async (event) => {
 	const admission = await stub.admissionState(preparedActor);
 	if (!admission.participantId) error(401, 'Rejoignez la salle avec votre nom.');
 	const actor = { ...preparedActor, participantId: admission.participantId };
-	await stub.command(actor, { type: 'reconnect', requestId: crypto.randomUUID() });
+	const issuedAt = Date.now();
+	// Reconnect only inside the room after the WebSocket request has been validated.
 	// Reconstruct the entire internal request: client-supplied actor headers never cross this boundary.
 	return stub.fetch(
 		new Request('https://quiz-room.internal/socket', {
 			headers: {
 				Upgrade: 'websocket',
 				'x-campus-quiz-actor': JSON.stringify(actor),
-				'x-campus-quiz-expires-at': String(Date.now() + 8 * 3600000)
+				'x-campus-quiz-issued-at': String(issuedAt),
+				'x-campus-quiz-expires-at': String(issuedAt + 8 * 3600000)
 			}
 		})
 	);

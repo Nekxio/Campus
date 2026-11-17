@@ -98,6 +98,7 @@ const memoryContext = () => {
 			return commits;
 		},
 		setWebSocketAutoResponse: () => {},
+		blockConcurrencyWhile: <T>(callback: () => Promise<T>) => callback(),
 		acceptWebSocket: (socket: MemorySocket) => sockets.push(socket),
 		getWebSockets: () => sockets.filter((socket) => !socket.closed),
 		storage: {
@@ -354,6 +355,7 @@ it.each([
 						Upgrade: 'websocket',
 						'x-campus-quiz-actor': '{"kind":"teacher"}',
 						'x-campus-quiz-teacher': JSON.stringify({ teacherId: ids.teacher, sessionId: session.id }),
+						'x-campus-quiz-issued-at': String(Date.now()),
 						'x-campus-quiz-expires-at': String(session.expiresAt.getTime())
 					}
 				})
