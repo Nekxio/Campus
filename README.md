@@ -508,7 +508,7 @@ state and HTTPS passkey acceptance remain separate operator checks; a CI result 
 
 The production and shared preview targets are fixed in operator tooling. Production is the
 Worker named in `scripts/production.ts`; preview is the distinct Worker in
-`scripts/preview-deployment.ts`. Both protected `develop` pushes and protected `release/*` pushes update the same
+`scripts/preview-deployment.ts`. Protected `develop` pushes and `release/*` pushes update the same
 preview after successful checks; the last successful serialized upload wins. Opening a PR does
 not deploy. Manual checks do not deploy production.
 
@@ -537,10 +537,10 @@ Unexpected access, redirect or cache behavior fails immediately. A failed post-u
 does not roll back the Worker version already deployed.
 Keep preview data fictional.
 Configure branch protections or rulesets for the required checks and merge policy on `develop`
-and `main`, accounting for the Gitflow job's scoped writes. Protect release branches before preview
-uploads as well. Preview requires GitHub to report the event ref as protected and the checked SHA
-to match the immutable event SHA, independently of repository scripts. These gates fail closed
-until protections and a dedicated preview token are configured; they do not configure merge policy.
+and `main`, accounting for the Gitflow job's scoped writes. Preview requires GitHub to report
+`develop` as protected; release branches are exempt from this protection requirement. Every preview
+upload requires the checked SHA to match the immutable event SHA, independently of repository scripts,
+and a dedicated preview token. These gates do not configure merge policy.
 The workflow uses repository variables and secrets without a GitHub environment or duplicate Cloudflare Workers Builds integration.
 
 Quality and deployment build separately; the guarantee concerns the checked SHA, not promotion
