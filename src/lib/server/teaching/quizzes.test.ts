@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { createDatabase, type Database } from '../db/index.js';
 import { seedFoundationFixtures } from '../db/testing/fixtures.js';
 import * as t from '../db/schema.js';
-import { saveQuizDraft, patchQuizDraft, getQuizDraft, applyQuizGrade } from './quizzes.js';
+import { saveQuizDraft, patchQuizDraft, getQuizDraft, applyQuizGrade, setQuizArchive } from './quizzes.js';
 import type { QuizContent, QuizDraftWrite, QuizGradeWrite } from '../../domain/quiz-content.js';
 
 let client: Client;
@@ -197,6 +197,49 @@ describe('private native quiz drafts', () => {
 		).rejects.toMatchObject({ status: 409 });
 		expect(await saveQuizDraft(db, ids.teacher, input)).toEqual(receipt);
 		expect((await getQuizDraft(db, input.id)).content).toEqual(input.content);
+	});
+
+	it('requires the exact active scope and revisions for archival without changing points or editing the frozen draft', async () => {
+		await saveQuizDraft(db, ids.teacher, input);
+		const command = {
+			requestId: crypto.randomUUID(),
+			id: input.id,
+			moduleId: ids.module,
+			contextId: ids.currentContext,
+			expectedRevision: 1,
+			expectedContextRevision: 1,
+			archived: true
+		};
+		for (const stale of [{ expectedRevision: 5 }, { expectedContextRevision: 6 }]) {
+			await expect(setQuizArchive(db, ids.teacher, { ...command, ...stale })).rejects.toMatchObject({ status: 409 });
+		}
+		await expect(setQuizArchive(db, ids.teacher, { ...command, contextId: ids.secondContext })).rejects.toMatchObject({
+			status: 404
+		});
+		const id = await run();
+		await applyQuizGrade(db, ids.teacher, grade(id));
+		const before = await db.select().from(t.scores).where(eq(t.scores.correctionId, correctionId));
+		for (const status of ['lobby', 'running'] as const) {
+			await db.update(t.quizRuns).set({ status }).where(eq(t.quizRuns.id, id));
+			await expect(setQuizArchive(db, ids.teacher, command)).rejects.toMatchObject({ status: 409 });
+			expect((await getQuizDraft(db, input.id)).archived).toBe(false);
+		}
+		await db.update(t.quizRuns).set({ status: 'closed' }).where(eq(t.quizRuns.id, id));
+		await setQuizArchive(db, ids.teacher, command);
+		expect(await db.select().from(t.scores).where(eq(t.scores.correctionId, correctionId))).toEqual(before);
+		expect(await getQuizDraft(db, input.id)).toMatchObject({ revision: 1, archived: true, content: input.content });
+		await db
+			.update(t.teachingContexts)
+			.set({ archivedAt: new Date() })
+			.where(eq(t.teachingContexts.id, command.contextId));
+		await expect(
+			setQuizArchive(db, ids.teacher, {
+				...command,
+				requestId: crypto.randomUUID(),
+				expectedContextRevision: 2,
+				archived: false
+			})
+		).rejects.toMatchObject({ status: 409 });
 	});
 });
 

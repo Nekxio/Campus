@@ -338,8 +338,9 @@ describe('MCP distant et OAuth réels sur base fictive', () => {
 		});
 		await client.execute({ sql: 'UPDATE quiz_draft SET needs_review = 1 WHERE id = ?', args: [fixture.quizId] });
 		const draft = await getQuizDraft(db, fixture.quizId);
-		const { revision, needsReview, ...content } = draft;
+		const { revision, needsReview, archived, ...content } = draft;
 		expect(needsReview).toBe(true);
+		expect(archived).toBe(false);
 		const command = {
 			quiz: { ...content, expectedRevision: revision, requestId: crypto.randomUUID() },
 			confirmReview: true
@@ -350,6 +351,9 @@ describe('MCP distant et OAuth réels sur base fictive', () => {
 		const invoke = async (args: unknown) =>
 			(await quizRpc(reviewed.token.access_token, 'tools/call', 'save_quiz_draft', args)).json();
 		expect(await invoke({ ...command, confirmReview: false })).toMatchObject({ result: { isError: true } });
+		expect(await invoke({ ...command, quiz: { ...command.quiz, archived: true } })).toMatchObject({
+			result: { isError: true }
+		});
 		expect((await getQuizDraft(db, fixture.quizId)).needsReview).toBe(true);
 		const saved = await invoke(command);
 		expect(saved).toMatchObject({ result: { structuredContent: { quizId: fixture.quizId, revision: 2 } } });

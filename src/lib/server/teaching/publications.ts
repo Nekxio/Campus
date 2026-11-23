@@ -1,5 +1,5 @@
 import { error, isHttpError } from '@sveltejs/kit';
-import { and, asc, desc, eq, isNull, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, inArray, or } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import {
 	modules,
@@ -8,6 +8,7 @@ import {
 	resources,
 	lessons,
 	assessments,
+	quizDrafts,
 	rubricGroups,
 	rubricLines,
 	assessmentDeadlines,
@@ -52,12 +53,19 @@ const contextChoice = (
 	archived: !!context.archivedAt || !annualClass
 });
 
-const readPublicationRubric = async (db: Store, moduleId: string): Promise<PublicationSnapshot['rubric']> => {
+type PublicRubricGroup = PublicationSnapshot['rubric'][number]['groups'][number];
+const readPublicationRubric = async (
+	db: Store,
+	moduleId: string,
+	contextId: string
+): Promise<PublicationSnapshot['rubric']> => {
 	const rows = await db
 		.select({
 			assessment: { id: assessments.id, title: assessments.title, kind: assessments.kind },
 			group: { id: rubricGroups.id, title: rubricGroups.title },
-			line: { label: rubricLines.label, description: rubricLines.description, maxPoints: rubricLines.maxPoints }
+			line: { label: rubricLines.label, description: rubricLines.description, maxPoints: rubricLines.maxPoints },
+			quizId: quizDrafts.id,
+			lesson: { id: lessons.id, startsAt: lessons.startsAt }
 		})
 		.from(assessments)
 		.leftJoin(rubricGroups, and(eq(rubricGroups.assessmentId, assessments.id), isNull(rubricGroups.retiredAt)))
@@ -69,11 +77,31 @@ const readPublicationRubric = async (db: Store, moduleId: string): Promise<Publi
 				isNull(rubricLines.retiredAt)
 			)
 		)
-		.where(and(eq(assessments.moduleId, moduleId), isNull(assessments.retiredAt)))
-		.orderBy(asc(assessments.position), asc(rubricGroups.position), asc(rubricLines.position));
+		.leftJoin(
+			quizDrafts,
+			and(
+				eq(assessments.kind, 'quiz'),
+				eq(quizDrafts.assessmentId, assessments.id),
+				eq(quizDrafts.lineId, rubricLines.id),
+				eq(quizDrafts.contextId, contextId)
+			)
+		)
+		.leftJoin(lessons, and(eq(lessons.id, quizDrafts.lessonId), eq(lessons.contextId, contextId)))
+		.where(
+			and(
+				eq(assessments.moduleId, moduleId),
+				isNull(assessments.retiredAt),
+				or(isNull(quizDrafts.id), eq(quizDrafts.archived, false))
+			)
+		)
+		.orderBy(asc(assessments.position), asc(rubricGroups.position), asc(rubricLines.position), asc(rubricLines.id));
 	const rubric: PublicationSnapshot['rubric'] = [];
 	const evaluations = new Map<string, PublicationSnapshot['rubric'][number]>();
-	const groups = new Map<string, PublicationSnapshot['rubric'][number]['groups'][number]>();
+	const groups = new Map<string, PublicRubricGroup>();
+	const nativeQuizzes = new Map<
+		PublicRubricGroup,
+		{ index: number; line: PublicRubricGroup['lines'][number]; startsAt: number; lessonId: string; quizId: string }[]
+	>();
 	for (const row of rows) {
 		let assessment = evaluations.get(row.assessment.id);
 		if (!assessment) {
@@ -93,7 +121,28 @@ const readPublicationRubric = async (db: Store, moduleId: string): Promise<Publi
 			groups.set(row.group.id, group);
 			assessment.groups.push(group);
 		}
-		if (row.line) group.lines.push(row.line);
+		if (!row.line) continue;
+		const index = group.lines.push(row.line) - 1;
+		if (row.quizId && row.lesson) {
+			const quizzes = nativeQuizzes.get(group) ?? [];
+			quizzes.push({
+				index,
+				line: row.line,
+				startsAt: row.lesson.startsAt.getTime(),
+				lessonId: row.lesson.id,
+				quizId: row.quizId
+			});
+			nativeQuizzes.set(group, quizzes);
+		}
+	}
+	for (const [group, quizzes] of nativeQuizzes) {
+		// External quiz lines keep their authored positions among the ordered native quizzes.
+		const sorted = quizzes.toSorted(
+			(a, b) => a.startsAt - b.startsAt || a.lessonId.localeCompare(b.lessonId) || a.quizId.localeCompare(b.quizId)
+		);
+		quizzes.forEach(({ index }, order) => {
+			group.lines[index] = sorted[order].line;
+		});
 	}
 	return rubric;
 };
@@ -146,7 +195,7 @@ async function projectDraft(
 			.from(lessons)
 			.where(and(eq(lessons.contextId, context.id), activeLessonFilter))
 			.orderBy(asc(lessons.startsAt), asc(lessons.id)),
-		readPublicationRubric(db, module.id)
+		readPublicationRubric(db, module.id, context.id)
 	]);
 	const visibleAssessments = new Set(rubric.map((assessment) => assessment.assessmentId));
 	const parsed = publicationSnapshotSchema.safeParse({

@@ -140,6 +140,7 @@ export const openQuizRoom = async (
 			return existing;
 		}
 		const quiz = await getQuizDraft(tx, input.quizId);
+		if (quiz.archived) error(409, 'Restaurez ce quiz avant d’ouvrir une salle.');
 		if (quiz.revision !== input.expectedQuizRevision || quiz.needsReview || !quiz.lessonId) conflict();
 		await requirePublishedQuizContext(tx, quiz.contextId);
 		const baselines = await getQuizGradeBaselines(tx, quiz.id);
@@ -191,7 +192,13 @@ export const openQuizRoom = async (
 		return created;
 	});
 	const quiz = await getQuizDraft(db, run.quizId);
-	if (quiz.revision !== run.quizRevision || quiz.contextId !== run.contextId || quiz.needsReview || !quiz.lessonId)
+	if (
+		quiz.revision !== run.quizRevision ||
+		quiz.contextId !== run.contextId ||
+		quiz.archived ||
+		quiz.needsReview ||
+		!quiz.lessonId
+	)
 		conflict();
 	try {
 		return await roomFor(run.id).teacherState();
@@ -299,7 +306,7 @@ const freezeStartingCohort = async (db: Database, teacherId: string, runId: stri
 		await requirePublishedQuizContext(tx, run.contextId);
 		if (run.status !== 'lobby') return run;
 		const quiz = await getQuizDraft(tx, run.quizId);
-		if (quiz.revision !== run.quizRevision || quiz.needsReview || !quiz.lessonId) conflict();
+		if (quiz.revision !== run.quizRevision || quiz.archived || quiz.needsReview || !quiz.lessonId) conflict();
 		const baselines = await getQuizGradeBaselines(tx, run.quizId);
 		const expected = run.sourceRunId
 			? await selectRetakeBaselines(

@@ -80,6 +80,7 @@ export const readQuizContext = async (db: Database, value: QuizContextRequest): 
 				lineId: quizDrafts.lineId,
 				revision: quizDrafts.revision,
 				needsReview: quizDrafts.needsReview,
+				archived: quizDrafts.archived,
 				title: sql<string>`json_extract(${quizDrafts.content}, '$.title')`,
 				durationSeconds: sql<number>`json_extract(${quizDrafts.content}, '$.durationSeconds')`,
 				questionCount: sql<number>`json_array_length(${quizDrafts.content}, '$.questions')`,

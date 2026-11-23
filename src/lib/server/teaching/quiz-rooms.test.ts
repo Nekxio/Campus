@@ -155,6 +155,29 @@ const close = (id: string) =>
 		requestId: crypto.randomUUID()
 	});
 
+it('keeps archived quizzes out of new sittings and retakes while preserving the closed teacher room', async () => {
+	await db.update(t.quizDrafts).set({ archived: true }).where(eq(t.quizDrafts.id, quizId));
+	await expect(openQuizRoom(db, roomFor, ids.teacher, opening(), now)).rejects.toMatchObject({ status: 409 });
+	await db.update(t.quizDrafts).set({ archived: false }).where(eq(t.quizDrafts.id, quizId));
+	const source = await finishFirstRoom();
+	await db.update(t.quizDrafts).set({ archived: true }).where(eq(t.quizDrafts.id, quizId));
+	expect(await getQuizRoomCandidates(db, source.id, ids.teacher)).toEqual([]);
+	await expect(
+		openQuizRoom(
+			db,
+			roomFor,
+			ids.teacher,
+			{
+				...opening(),
+				sourceRunId: source.id,
+				participantIds: [ids.students[0]]
+			},
+			now
+		)
+	).rejects.toMatchObject({ status: 409 });
+	expect((await roomFor(source.id).teacherState()).status).toBe('closed');
+});
+
 const addStudent = async (name: string) => {
 	const id = crypto.randomUUID();
 	await db.insert(t.students).values({ id, classId: ids.currentClass, name, position: 20 });

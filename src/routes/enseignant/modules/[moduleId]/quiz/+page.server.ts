@@ -1,5 +1,5 @@
 import { error, isHttpError } from '@sveltejs/kit';
-import { quizDraftWriteSchema } from '#lib/domain/quiz-content.js';
+import { quizArchiveSchema, quizDraftWriteSchema } from '#lib/domain/quiz-content.js';
 import { quizRoomOpenSchema } from '#lib/domain/quiz-session.js';
 import { requireTeacher } from '#lib/server/auth/access.js';
 import { quizRoomStub } from '#lib/server/quizzes/http.js';
@@ -12,7 +12,7 @@ import { withTeacherDatabase } from '#lib/server/teaching/database.js';
 import { getModule } from '#lib/server/teaching/service.js';
 import { getRubric } from '#lib/server/teaching/grading.js';
 import { teachingId } from '#lib/server/teaching/http.js';
-import { getQuizDraft, listQuizDrafts, saveQuizDraft } from '#lib/server/teaching/quizzes.js';
+import { getQuizDraft, listQuizDrafts, saveQuizDraft, setQuizArchive } from '#lib/server/teaching/quizzes.js';
 import { quizDrafts, quizRuns } from '#lib/server/db/schema.js';
 import { currentAcademicYear } from '#lib/domain/academic-year.js';
 
@@ -74,6 +74,10 @@ export const actions = {
 	saveQuiz: teacherFormAction(quizDraftWriteSchema, (input, event) => {
 		if (input.moduleId !== teachingId(event.params.moduleId)) error(422, 'Choisissez le module exact.');
 		return withTeacherDatabase(event.locals, (db) => saveQuizDraft(db, requireTeacher(event.locals).id, input));
+	}),
+	setArchive: teacherFormAction(quizArchiveSchema, (input, event) => {
+		if (input.moduleId !== teachingId(event.params.moduleId)) error(422, 'Choisissez le module exact.');
+		return withTeacherDatabase(event.locals, (db) => setQuizArchive(db, requireTeacher(event.locals).id, input));
 	}),
 	openRoom: teacherFormAction(quizRoomOpenSchema, (input, event) =>
 		withTeacherDatabase(event.locals, async (db) => {

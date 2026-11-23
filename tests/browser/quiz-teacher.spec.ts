@@ -1,6 +1,6 @@
 import { readFormActionCommand, fulfillFormAction } from './support/form-actions.js';
 import type { Page } from '@playwright/test';
-import type { QuizDraft, QuizDraftWrite } from '../../src/lib/domain/quiz-content.js';
+import type { QuizArchive, QuizDraft, QuizDraftWrite } from '../../src/lib/domain/quiz-content.js';
 import type { NativeQuizFixture } from '../../src/lib/server/db/testing/quiz-fixtures.js';
 import { test, expect } from './fixtures.js';
 import { activate } from './support/auth.js';
@@ -30,6 +30,114 @@ test.beforeEach(async ({ page }, info) => {
 	page.on('pageerror', (error) => {
 		void info.attach('teacher-quiz-client-error', { body: error.stack ?? error.message });
 	});
+});
+
+test('quiz actions align across draft, open and archived rows', async ({ app, page }, info) => {
+	await activate(page, app);
+	const draft = await app.call<NativeQuizFixture>('native-quiz');
+	await app.call<NativeQuizFixture>('native-quiz-ui');
+	await page.goto(`${app.origin}/enseignant/modules/${draft.moduleId}/quiz?contexte=${draft.contextId}`);
+	await readyWorkspace(page);
+	const quiz = page.getByRole('button', { name: `Modifier ${draft.content.title}`, exact: true });
+	const room = page.getByRole('button', { name: `Consulter ${draft.content.title}`, exact: true });
+	const opening = page.getByRole('button', { name: 'Ouvrir une salle', exact: true });
+	const managing = page.getByRole('link', { name: 'Piloter la salle', exact: true });
+	const library = page.getByRole('table', { name: /Quiz de/ });
+	const draftRow = library.getByRole('row').filter({ has: opening });
+	const openRow = library.getByRole('row').filter({ has: managing });
+	const archive = { name: `Archiver ${draft.content.title}`, exact: true };
+	const left = () => quiz.evaluate((button) => button.getBoundingClientRect().left);
+	const draftLeft = await left();
+	const roomLeft = await room.evaluate((button) => button.getBoundingClientRect().left);
+	expect(Math.abs(draftLeft - roomLeft)).toBeLessThan(1);
+	const archiveLeft = await draftRow
+		.getByRole('button', archive)
+		.evaluate((button) => button.getBoundingClientRect().left);
+	expect(
+		Math.abs(
+			archiveLeft -
+				(await openRow.getByRole('button', archive).evaluate((button) => button.getBoundingClientRect().left))
+		)
+	).toBeLessThan(1);
+	expect(Math.abs((await opening.boundingBox())!.x - (await managing.boundingBox())!.x)).toBeLessThan(1);
+	await page.screenshot({ path: info.outputPath('quiz-actions.png'), fullPage: true });
+	await draftRow.getByRole('button', archive).click();
+	const restore = page.getByRole('button', { name: `Restaurer ${draft.content.title}`, exact: true });
+	await expect(restore).toBeEnabled();
+	const archivedRow = library.getByRole('row').filter({ has: restore });
+	expect((await archivedRow.getByRole('button', { name: /^Consulter / }).boundingBox())!.x).toBeCloseTo(draftLeft, 0);
+	expect((await restore.boundingBox())!.x).toBeCloseTo(archiveLeft, 0);
+	if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
+	expect(await library.evaluate((table) => table.parentElement!.scrollWidth <= table.parentElement!.clientWidth)).toBe(
+		true
+	);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('the teacher archives and restores a quiz with one retryable decision and keeps its history accessible', async ({
+	app,
+	page,
+	request
+}) => {
+	await activate(page, app);
+	const fixture = await app.call<NativeQuizFixture>('native-quiz');
+	await page.goto(`${app.origin}/enseignant/modules/${fixture.moduleId}/quiz?contexte=${fixture.contextId}`);
+	await readyWorkspace(page);
+	const commands: QuizArchive[] = [];
+	await page.route(`${app.origin}/enseignant/modules/${fixture.moduleId}/quiz?/setArchive`, async (route) => {
+		commands.push(await readFormActionCommand<QuizArchive>(route.request()));
+		if (commands.length !== 1) return route.continue();
+		const response = await route.fetch();
+		expect(response.status()).toBe(200);
+		await route.abort('failed');
+	});
+	const row = page.getByRole('row').filter({ hasText: fixture.content.title });
+	await row.getByRole('button', { name: `Archiver ${fixture.content.title}`, exact: true }).click();
+	await row.getByRole('button', { name: /Réessayer l’archivage/ }).click();
+	await expect(row.getByText('Archivé', { exact: true }).filter({ visible: true })).toBeVisible();
+	await expect(row.getByRole('button', { name: 'Ouvrir une salle' })).toHaveCount(0);
+	await expect(row.getByRole('button', { name: `Consulter ${fixture.content.title}`, exact: true })).toBeEnabled();
+	expect(commands[1]).toEqual(commands[0]);
+	const publicUrl = `${app.origin}/api/quizzes/${fixture.contextId}`;
+	expect(await (await request.get(publicUrl)).json()).not.toContainEqual(
+		expect.objectContaining({ id: fixture.quizId })
+	);
+	await row.getByRole('button', { name: `Restaurer ${fixture.content.title}`, exact: true }).click();
+	await expect(row.getByRole('button', { name: 'Ouvrir une salle' })).toBeEnabled();
+	expect(await (await request.get(publicUrl)).json()).toContainEqual(expect.objectContaining({ id: fixture.quizId }));
+});
+
+test('an editor keeps pending changes until reloading a quiz archived in another tab', async ({
+	app,
+	page,
+	context
+}) => {
+	await activate(page, app);
+	const fixture = await app.call<NativeQuizFixture>('native-quiz');
+	const workspace = `${app.origin}/enseignant/modules/${fixture.moduleId}/quiz?contexte=${fixture.contextId}`;
+	await page.goto(workspace);
+	await readyWorkspace(page);
+	await page.getByRole('button', { name: `Modifier ${fixture.content.title}`, exact: true }).click();
+	await page.getByRole('button', { name: 'Paramètres', exact: true }).click();
+	const settings = page.getByRole('dialog', { name: 'Paramètres du quiz', exact: true });
+	await settings.getByLabel('Titre du quiz', { exact: true }).fill('Saisie en cours');
+	await page.keyboard.press('Escape');
+	const library = await context.newPage();
+	await library.goto(workspace);
+	await readyWorkspace(library);
+	const row = library.getByRole('row').filter({ hasText: fixture.content.title });
+	await row.getByRole('button', { name: `Archiver ${fixture.content.title}`, exact: true }).click();
+	await expect(row.getByText('Archivé', { exact: true }).filter({ visible: true })).toBeVisible();
+	await library.close();
+	await page.getByRole('button', { name: 'Enregistrer le quiz', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Saisie en cours', exact: true })).toBeVisible();
+	const reload = { name: 'Recharger la version enregistrée', exact: true };
+	await page.getByRole('button', reload).click();
+	await page.getByRole('alertdialog').getByRole('button', reload).click();
+	await expect(page.getByRole('heading', { name: fixture.content.title, exact: true })).toBeVisible();
+	await expect(page.getByText('Quiz archivé', { exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Enregistrer le quiz', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Consulter la question 1', exact: true })).toBeEnabled();
 });
 
 test('teacher quiz editor preserves later edits, retries the exact save and keeps a conflict draft', async ({
@@ -217,10 +325,14 @@ test('teacher opens and operates a real durable room through authenticated HTTP 
 	await expect(page).toHaveURL(new RegExp(`/enseignant/quiz/[a-f0-9-]{36}$`));
 	await expect(page.getByRole('heading', { name: `Quiz : ${fixture.content.title}`, exact: true })).toBeVisible();
 	const runId = new URL(page.url()).pathname.split('/').at(-1)!;
-	const joined = await context.request.post(`${app.origin}/api/quizzes/${fixture.contextId}/rooms/${runId}`, {
+	const roomUrl = `${app.origin}/api/quizzes/${fixture.contextId}/rooms/${runId}`;
+	const admission = {
 		headers: { Origin: app.origin },
 		data: { participantId: fixture.roster[0].id, fullscreenConfirmed: true }
-	});
+	};
+	const prepared = await context.request.put(roomUrl, admission);
+	expect(prepared.status()).toBe(200);
+	const joined = await context.request.post(roomUrl, admission);
 	expect(joined.status()).toBe(200);
 	await expect(
 		page.getByRole('row').filter({ hasText: fixture.roster[0].name }).getByText('Prêt', { exact: true })

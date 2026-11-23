@@ -18,12 +18,16 @@ import {
 } from '../db/schema.js';
 import {
 	mergeQuizContentPatch,
+	quizArchiveSchema,
+	quizArchiveReceiptSchema,
 	quizDraftPatchSchema,
 	quizDraftReceiptSchema,
 	quizDraftSchema,
 	quizDraftWriteSchema,
 	quizGradeReceiptSchema,
 	quizGradeWriteSchema,
+	type QuizArchive,
+	type QuizArchiveReceipt,
 	type QuizDraft,
 	type QuizDraftPatch,
 	type QuizDraftReceipt,
@@ -59,6 +63,7 @@ export const getQuizDraft = async (db: Pick<Database, 'select'>, id: string): Pr
 		lineId: record.lineId,
 		revision: record.revision,
 		needsReview: record.needsReview,
+		archived: record.archived,
 		content: record.content
 	});
 };
@@ -124,6 +129,7 @@ const writeDraft = async (
 ): Promise<QuizDraftReceipt> => {
 	const [previous] = await db.select().from(quizDrafts).where(eq(quizDrafts.id, input.id));
 	if ((previous?.revision ?? 0) !== input.expectedRevision) conflict();
+	if (previous?.archived) error(409, 'Restaurez ce quiz avant de le modifier.');
 	await requireQuizContext(db, input.contextId, input.moduleId);
 	const [lesson] = await db.select().from(lessons).where(eq(lessons.id, input.lessonId));
 	if (!lesson || lesson.contextId !== input.contextId) error(422, 'Choisissez une séance de ce contexte.');
@@ -168,14 +174,20 @@ const writeDraft = async (
 	return receipt;
 };
 
-const replayDraft = async (db: Store, teacherId: string, requestId: string, fingerprint: string) => {
+const replayDraft = async <T>(
+	db: Store,
+	teacherId: string,
+	requestId: string,
+	fingerprint: string,
+	schema: z.ZodType<T>
+) => {
 	const [saved] = await db
 		.select()
 		.from(quizDraftReceipts)
 		.where(and(eq(quizDraftReceipts.teacherId, teacherId), eq(quizDraftReceipts.requestId, requestId)));
 	if (!saved) return null;
 	if (saved.fingerprint !== fingerprint) conflict();
-	return quizDraftReceiptSchema.parse(saved.receipt);
+	return schema.parse(saved.receipt);
 };
 
 export const saveQuizDraft = async (
@@ -192,7 +204,7 @@ export const saveQuizDraft = async (
 	});
 	return db.transaction(
 		async (tx) =>
-			(await replayDraft(tx, teacherId, input.requestId, fingerprint)) ??
+			(await replayDraft(tx, teacherId, input.requestId, fingerprint, quizDraftReceiptSchema)) ??
 			writeDraft(tx, teacherId, input, fingerprint, options)
 	);
 };
@@ -210,7 +222,7 @@ export const patchQuizDraft = async (
 		markForReview: options.markForReview ?? false
 	});
 	return db.transaction(async (tx) => {
-		const replay = await replayDraft(tx, teacherId, input.requestId, fingerprint);
+		const replay = await replayDraft(tx, teacherId, input.requestId, fingerprint, quizDraftReceiptSchema);
 		if (replay) return replay;
 		const current = await getQuizDraft(tx, input.id);
 		if (!current.lessonId) conflict();
@@ -240,8 +252,66 @@ export const patchQuizDraft = async (
 	});
 };
 
+export const setQuizArchive = async (
+	db: Pick<Database, 'transaction'>,
+	teacherId: string,
+	value: QuizArchive
+): Promise<QuizArchiveReceipt> => {
+	const input = validated(quizArchiveSchema, value);
+	const fingerprint = await importFingerprint({ action: 'set-quiz-archive', input });
+	return db.transaction(async (tx) => {
+		const replay = await replayDraft(tx, teacherId, input.requestId, fingerprint, quizArchiveReceiptSchema);
+		if (replay) return replay;
+		const [quiz] = await tx
+			.select({ revision: quizDrafts.revision, archived: quizDrafts.archived })
+			.from(quizDrafts)
+			.where(
+				and(
+					eq(quizDrafts.id, input.id),
+					eq(quizDrafts.moduleId, input.moduleId),
+					eq(quizDrafts.contextId, input.contextId)
+				)
+			);
+		if (!quiz) return unavailable();
+		const context = await requireQuizContext(tx, input.contextId, input.moduleId);
+		if (
+			quiz.revision !== input.expectedRevision ||
+			context.revision !== input.expectedContextRevision ||
+			quiz.archived === input.archived
+		)
+			conflict();
+		const [open] = await tx
+			.select({ id: quizRuns.id })
+			.from(quizRuns)
+			.where(and(eq(quizRuns.quizId, input.id), ne(quizRuns.status, 'closed')))
+			.limit(1);
+		if (open) error(409, 'Fermez la salle en cours avant d’archiver ce quiz.');
+		// Visibility affects the reviewed publication. Frozen sittings retain the content revision.
+		const [updated] = await tx
+			.update(teachingContexts)
+			.set({ revision: sql`${teachingContexts.revision} + 1` })
+			.where(
+				and(eq(teachingContexts.id, input.contextId), eq(teachingContexts.revision, input.expectedContextRevision))
+			)
+			.returning({ revision: teachingContexts.revision });
+		if (!updated) return conflict();
+		await tx.update(quizDrafts).set({ archived: input.archived }).where(eq(quizDrafts.id, input.id));
+		const receipt = {
+			requestId: input.requestId,
+			quizId: input.id,
+			contextRevision: updated.revision,
+			archived: input.archived
+		};
+		await tx
+			.insert(quizDraftReceipts)
+			.values({ teacherId, requestId: input.requestId, quizId: input.id, fingerprint, receipt });
+		return receipt;
+	});
+};
+
 export const getQuizGradeBaselines = async (db: Store, quizId: string) => {
 	const quiz = await getQuizDraft(db, quizId);
+	if (quiz.archived) return [];
 	const context = await requireQuizContext(db, quiz.contextId, quiz.moduleId);
 	const records = await db
 		.select({

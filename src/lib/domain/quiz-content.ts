@@ -203,6 +203,7 @@ export const quizDraftSchema = z.strictObject({
 	lessonId: idSchema.nullable(),
 	revision: z.int().positive(),
 	needsReview: z.boolean(),
+	archived: z.boolean().default(false),
 	content: quizContentSchema
 });
 export type QuizDraft = z.infer<typeof quizDraftSchema>;
@@ -221,6 +222,24 @@ export const quizDraftReceiptSchema = z.strictObject({
 	revision: z.int().positive()
 });
 export type QuizDraftReceipt = z.infer<typeof quizDraftReceiptSchema>;
+
+export const quizArchiveSchema = z.strictObject({
+	id: idSchema,
+	moduleId: idSchema,
+	contextId: idSchema,
+	requestId: idSchema,
+	expectedRevision: z.int().positive(),
+	expectedContextRevision: z.int().positive(),
+	archived: z.boolean()
+});
+export type QuizArchive = z.infer<typeof quizArchiveSchema>;
+export const quizArchiveReceiptSchema = z.strictObject({
+	requestId: idSchema,
+	quizId: idSchema,
+	contextRevision: z.int().positive(),
+	archived: z.boolean()
+});
+export type QuizArchiveReceipt = z.infer<typeof quizArchiveReceiptSchema>;
 
 export const quizGradeWriteSchema = z
 	.strictObject({

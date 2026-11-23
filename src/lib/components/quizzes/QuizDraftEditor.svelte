@@ -239,7 +239,7 @@
 			baseline = JSON.stringify(saved.baseline);
 			needsReview = false;
 			pendingCommand = null;
-			onSaved({ id: command.id, ...saved.baseline, revision: saved.revision, needsReview: false });
+			onSaved({ id: command.id, ...saved.baseline, revision: saved.revision, needsReview: false, archived: false });
 			notice = 'Quiz enregistré.';
 		} catch (cause) {
 			errorMessage = cause instanceof Error ? cause.message : 'Enregistrement non confirmé. Réessayez.';
@@ -400,25 +400,32 @@
 			)} · Un point par question
 		</p>
 		<span role="status" class="text-muted-foreground"
-			>{frozen
-				? 'Version figée après ouverture d’une salle'
-				: pending
-					? 'Enregistrement…'
-					: pendingCommand
-						? 'Enregistrement à confirmer'
-						: dirty
-							? 'Modifications non enregistrées'
-							: revision > 0
-								? 'Enregistré'
-								: 'Nouveau brouillon'}</span
+			>{initial?.archived
+				? 'Archivé'
+				: frozen
+					? 'Version figée après ouverture d’une salle'
+					: pending
+						? 'Enregistrement…'
+						: pendingCommand
+							? 'Enregistrement à confirmer'
+							: dirty
+								? 'Modifications non enregistrées'
+								: revision > 0
+									? 'Enregistré'
+									: 'Nouveau brouillon'}</span
 		>
 	</div>
-	{#if needsReview}<Alert.Root
+	{#if needsReview && !initial?.archived}<Alert.Root
 			><CircleAlert /><Alert.Title>Quiz importé à vérifier</Alert.Title><Alert.Description
 				>Relisez les questions, les bonnes réponses et les paramètres, puis enregistrez pour autoriser son lancement.</Alert.Description
 			></Alert.Root
 		>{/if}
-	{#if frozen}<Alert.Root
+	{#if initial?.archived}<Alert.Root>
+			<CircleAlert /><Alert.Title>Quiz archivé</Alert.Title><Alert.Description
+				>Vous pouvez consulter les questions et les paramètres. Pour réutiliser le quiz, restaurez-le dans la
+				bibliothèque.</Alert.Description
+			>
+		</Alert.Root>{:else if frozen}<Alert.Root
 			><CircleAlert /><Alert.Title>Cette version est figée</Alert.Title><Alert.Description
 				>Une salle a déjà été ouverte. Les questions et paramètres restent consultables ; le rattrapage réutilise cette
 				même version.</Alert.Description

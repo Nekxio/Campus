@@ -81,6 +81,9 @@ identity. The public dossier brings these together with its own blank rubric and
 Workshops can belong to a semester, refer to the module's resources and be assigned to a lesson
 in the current teaching context. Only a workshop with a written correction or correction code
 offers the correction view. Existing publications remain readable without these associations.
+Archiving a native quiz retains its teacher history and grades and removes it from student room
+discovery. The next reviewed publication excludes its grading line. Available quizzes follow
+the chronological order of their scheduled lessons.
 
 Modules and their preparation, materials, rubrics and calendar history are reusable and durable.
 Annual classes and student identities, corrections, submissions, proposals and comments can be

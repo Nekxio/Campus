@@ -222,6 +222,8 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   disclosures of connected AI tools and data processing.
 - **Quizzes:** keep visible library actions, contextual drawers, explicit saves/frozen state,
   eligible-student selection with loading/error/empty states, and factual incident wording.
+  Library actions keep their column positions across quiz states. On narrow screens, the
+  room or results action sits on a second line within the same cell.
   Wide monitoring retains its nonmodal 24rem inspector below the measured header; mobile uses a
   modal sheet. Preserve student timer/save status, fullscreen fallback, question navigation,
   pre-submission summary and confirmed submission after acknowledged saves.
