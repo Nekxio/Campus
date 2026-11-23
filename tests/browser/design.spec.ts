@@ -6,6 +6,40 @@ import type { ModuleDetail } from '../../src/lib/teaching/types.js';
 
 const widths = [320, 390, 768, 1440];
 
+test('inactive course tabs meet text contrast in both themes', async ({ page, app }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto(`${app.origin}/modules/${app.ids.publicationContext}`);
+	const tab = page.getByRole('tab', { name: 'Quiz', exact: true, selected: false });
+	for (const theme of ['light', 'dark'] as const) {
+		await page.emulateMedia({ colorScheme: theme });
+		await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*dark)/);
+		const ratio = await tab.evaluate((element) => {
+			const canvas = document.createElement('canvas');
+			const context = canvas.getContext('2d', { willReadFrequently: true })!;
+			const layers = [];
+			for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+				layers.unshift(getComputedStyle(ancestor).backgroundColor);
+			}
+			const luminance = (colors: string[]) => {
+				for (const color of colors) {
+					context.fillStyle = color;
+					context.fillRect(0, 0, 1, 1);
+				}
+				const pixel = context.getImageData(0, 0, 1, 1).data;
+				const linear = (value: number) => {
+					const channel = value / 255;
+					return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+				};
+				return 0.2126 * linear(pixel[0]) + 0.7152 * linear(pixel[1]) + 0.0722 * linear(pixel[2]);
+			};
+			const background = luminance(['white', ...layers]);
+			const foreground = luminance(['white', ...layers, getComputedStyle(element).color]);
+			return (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05);
+		});
+		expect(ratio, `${theme} inactive tab contrast`).toBeGreaterThanOrEqual(4.5);
+	}
+});
+
 test('chosen compositions reflow in both themes and retain their accessible controls', async ({
 	page,
 	app

@@ -4,6 +4,7 @@
 	import { focusFirstInvalidField } from '#lib/client/form-feedback.js';
 	import { onMount, tick, untrack } from 'svelte';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import { createFormActionTransport } from '#lib/teaching/form-actions.js';
 	import { TeachingRequestError } from '#lib/teaching/api.js';
 	import { consentRedirectResponse } from '#lib/teaching/action-responses.js';
@@ -239,8 +240,9 @@
 		{/each}
 		<Form.FieldErrors />
 	</Form.Fieldset>
-	{#if privateData}<Alert.Root class="mt-5" role="note"
-			><Alert.Title>Des données d’étudiants sont concernées</Alert.Title><Alert.Description
+	{#if privateData}<Alert.Root appearance="inline" class="mt-5" role="note"
+			><InfoIcon aria-hidden="true" /><Alert.Title>Des données d’étudiants sont concernées</Alert.Title
+			><Alert.Description
 				>Les droits cochés donnent accès à des données privées. Vérifiez les conditions de l’application.
 				<a
 					class="underline underline-offset-4"
@@ -253,7 +255,7 @@
 	<p class="mt-4 text-sm leading-normal text-muted-foreground">
 		Vous pourrez retirer cet accès depuis « Applications connectées ».
 	</p>
-	{#if issue}<Alert.Root variant="destructive" class="mt-4" bind:ref={issueElement} tabindex={-1}
+	{#if issue}<Alert.Root variant="destructive" appearance="inline" class="mt-4" bind:ref={issueElement} tabindex={-1}
 			><Alert.Title>Décision non confirmée</Alert.Title><Alert.Description>{issue}</Alert.Description></Alert.Root
 		>{/if}
 	<div class="consent-actions">

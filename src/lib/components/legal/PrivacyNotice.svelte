@@ -13,6 +13,7 @@
 
 <style>
 	.privacy-notice {
+		max-inline-size: var(--legal-reading-measure);
 		margin-block: 1rem;
 		color: var(--muted-foreground);
 		font-size: 0.875rem;

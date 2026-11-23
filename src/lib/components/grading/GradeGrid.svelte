@@ -707,7 +707,7 @@
 		min-width: 0;
 	}
 	.grading-scope :global(.grade-export) {
-		padding: 1rem;
+		padding: 0.75rem 1.25rem;
 	}
 
 	.grading-identity {
@@ -736,6 +736,9 @@
 		padding-inline: 0.25rem;
 	}
 	@media (max-width: 39.99rem) {
+		.grading-scope :global(.grade-export) {
+			padding-inline: 1rem;
+		}
 		.context-controls,
 		.grading-identity,
 		.student-summary {
@@ -814,6 +817,7 @@
 	.student-row[data-selected='true'] {
 		background: var(--accent);
 	}
+	.student-row[data-selected='true'] dt,
 	.student-row[data-selected='true'] :global([data-slot='button'][aria-pressed='true']) {
 		color: var(--accent-foreground);
 	}

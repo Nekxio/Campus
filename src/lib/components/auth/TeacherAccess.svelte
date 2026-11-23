@@ -275,7 +275,7 @@
 		</p>
 
 		{#if activeIssue}
-			<Alert.Root class="mb-7" bind:ref={issueElement} tabindex={-1}>
+			<Alert.Root appearance="inline" class="mb-7" bind:ref={issueElement} tabindex={-1}>
 				<CircleAlertIcon aria-hidden="true" />
 				<Alert.Title>{activeIssue.title}</Alert.Title>
 				<Alert.Description>{activeIssue.description}</Alert.Description>

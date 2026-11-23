@@ -132,6 +132,12 @@
 		margin-top: 2.5rem;
 		scroll-margin-top: 1.5rem;
 	}
+	.legal-copy :global(p) {
+		max-inline-size: var(--legal-reading-measure);
+	}
+	.legal-copy :global(:is(dd, li)) {
+		text-wrap: pretty;
+	}
 	.legal-copy :global(section + section) {
 		padding-top: 2rem;
 		border-top: 1px solid var(--border);

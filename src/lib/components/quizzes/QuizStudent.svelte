@@ -14,6 +14,7 @@
 	import { formatDurationSeconds } from '#lib/teaching/duration.js';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import CircleAlertIcon from '@lucide/svelte/icons/circle-alert';
 	import ExpandIcon from '@lucide/svelte/icons/expand';
 	import ListIcon from '@lucide/svelte/icons/list';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -487,10 +488,10 @@
 		{#if view}<p class="mt-2 text-sm text-muted-foreground">{view.participant.name}</p>{/if}
 	</header>
 	<ActionNotice message={displayedProblem} kind="error" dismissOnClear />
-	{#if displayedProblem}<Alert.Root variant="destructive" class="mb-5"
-			><Alert.Title>{problem ? 'Vérifiez votre accès' : 'Sauvegarde à vérifier'}</Alert.Title><Alert.Description
-				>{displayedProblem}</Alert.Description
-			></Alert.Root
+	{#if displayedProblem}<Alert.Root variant="destructive" appearance="inline" class="mb-5"
+			><CircleAlertIcon aria-hidden="true" /><Alert.Title
+				>{problem ? 'Vérifiez votre accès' : 'Sauvegarde à vérifier'}</Alert.Title
+			><Alert.Description>{displayedProblem}</Alert.Description></Alert.Root
 		>{/if}
 	{#if loading}<p role="status" class="py-8 text-muted-foreground">Ouverture de la salle…</p>
 	{:else if !room}<Button variant="outline" onclick={loadRoom}>Réessayer</Button>

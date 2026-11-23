@@ -126,7 +126,7 @@
 
 <div class="grade-export flex min-w-0 flex-col gap-3" data-compact={compact}>
 	{#if compact}
-		<section aria-label="Export PDF du module" class="export-strip flex min-w-0 flex-wrap items-center gap-3">
+		<section aria-label="Export PDF du module" class="flex min-w-0 flex-wrap items-center gap-3">
 			<details class="min-w-0 flex-1 basis-64" bind:open={expanded}>
 				<summary class="export-summary flex min-h-11 cursor-pointer items-center gap-3 text-sm">
 					<DownloadIcon class="size-4 shrink-0" aria-hidden="true" />
@@ -198,7 +198,11 @@
 
 <style>
 	.export-summary {
+		border-radius: var(--radius-control);
 		list-style: none;
+	}
+	.export-summary:hover {
+		color: var(--primary);
 	}
 	.export-summary::-webkit-details-marker {
 		display: none;
@@ -210,18 +214,6 @@
 	details[open] :global(.export-chevron) {
 		transform: rotate(180deg);
 	}
-	.export-strip {
-		padding: 1rem 1.25rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--card);
-	}
-	@media (max-width: 39.99rem) {
-		.export-strip {
-			padding: 1rem;
-		}
-	}
-
 	@media (max-width: 39.99rem) {
 		.grade-export:not([data-compact='true']) :global(.export-download) {
 			width: 100%;

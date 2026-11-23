@@ -56,7 +56,8 @@ practice fill for exercises. Hover and keyboard focus mix 8% semantic ink into t
   labels/supporting text 14px, captions/table headings 12px. Correction titles retain 20px,
   growing to 24px at 40rem. The Campus wordmark uses 24px, weight 600 in both spaces.
 - Weights: 400 prose, 500 labels, 600 headings/emphasis. Heading tracking between -0.035em and 0;
-  body line height 1.55, reading text 1.65, maximum measure 75ch. Scores use tabular figures.
+  body line height 1.55, reading text 1.65, maximum measure 75ch. Paragraphs use pretty wrapping
+  to reduce isolated words. Scores use tabular figures.
 - French interface, **vous** in instructions; personal actions may use “Me connecter” or “Mon atelier”.
   Name the task, object and consequence. Prefer one short sentence per instruction.
 - No “Transformez votre business”, “Libérez votre potentiel”, “La solution tout-en-un”, “Boostez”,
@@ -91,7 +92,8 @@ practice fill for exercises. Hover and keyboard focus mix 8% semantic ink into t
 - Flat persistent surfaces. Only floating content uses 0 12px 40px var(--shadow-color).
   Modal scrims dim without backdrop blur. Selection, caret, scrollbars and focus use palette tokens.
 - Use spacing before separators. A group boundary has at most one divider; filled work surfaces
-  do not need enclosing rules. Student complementary resources use space without dividers. Interactive
+  do not need enclosing rules. Embedded alerts use the surrounding surface and retain their icon,
+  heading and semantic color. Student complementary resources use space without dividers. Interactive
   state belongs to the actual target, not static headings.
 - Main actions sit at the trailing edge of the content heading or selected context. Long forms
   repeat the same command in their existing bottom save bar, with one form and one pending state.
@@ -223,10 +225,11 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   Account routes share one persistent shell with two views: personal information/access, and
   connected applications (calendar and MCP). Keep existing URLs and native form actions. Protect
   unsaved profile and calendar input when changing views; retain route titles and active navigation.
-- **Legal:** existing public shell, 70ch article, collapsed native contents with 44px links,
-  divided definitions and readable cookie inventory. Footer appears on public courses/legal/error
-  pages; private workspaces, access and fatal fallback keep their established shell. Keep truthful
-  disclosures of connected AI tools and data processing.
+- **Legal:** existing public shell, 70ch article, paragraphs and privacy notices capped at 58ch,
+  collapsed native contents with 44px links, divided definitions and readable cookie inventory.
+  The footer belongs to public course, legal and error pages. Private workspaces, access and the
+  fatal fallback use their established shells. Keep truthful disclosures of connected AI tools
+  and data processing.
 - **Quizzes:** keep visible library actions, contextual drawers, explicit saves/frozen state,
   eligible-student selection with loading/error/empty states, and factual incident wording.
   Library actions keep their column positions across quiz states. On narrow screens, the
