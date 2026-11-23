@@ -92,6 +92,16 @@ export const publicationSnapshotSchema = z
 	});
 export type PublicationSnapshot = z.infer<typeof publicationSnapshotSchema>;
 
+export const complementaryResources = ({ resources, studentContent }: PublicationSnapshot) => {
+	const associatedResourceIds = new Set([
+		...(studentContent.dossiers ?? []).flatMap((dossier) => dossier.resourceIds),
+		...studentContent.exercises.flatMap((exercise) => exercise.resourceIds ?? [])
+	]);
+	return resources.filter(
+		(resource) => resource.kind !== 'course' && (resource.kind === 'resource' || associatedResourceIds.has(resource.id))
+	);
+};
+
 export const publicationDecisionSchema = z.strictObject({
 	requestId: idSchema,
 	contextId: idSchema,
@@ -205,6 +215,6 @@ export const publicationSections = [
 	{ id: 'supports', label: 'Supports du cours' },
 	{ id: 'consignes', label: 'Consignes et barèmes' },
 	{ id: 'remise', label: 'Échéances et remise' },
-	{ id: 'ressources', label: 'Ressources utiles' },
+	{ id: 'ressources', label: 'Ressources complémentaires' },
 	{ id: 'suivi', label: 'Vu en cours / à faire' }
 ] as const;

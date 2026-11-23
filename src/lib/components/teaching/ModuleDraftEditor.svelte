@@ -207,7 +207,7 @@
 			nextSteps: 'Prochaines étapes',
 			label: 'Intitulé',
 			url: 'Lien HTTPS',
-			kind: 'Type de support',
+			kind: 'Type de lien',
 			contexts: 'Classe et planning',
 			resources: 'Supports et liens',
 			sourceLinks: 'Références privées',

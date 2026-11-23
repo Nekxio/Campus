@@ -145,7 +145,7 @@ test('calendar, draft recovery, contextual returns and public preview keep the c
 		'Supports du cours',
 		'Consignes et barèmes',
 		'Échéances et remise',
-		'Ressources utiles',
+		'Ressources complémentaires',
 		'Vu en cours / à faire'
 	];
 	await expect(preview.getByRole('tab')).toHaveCount(0);

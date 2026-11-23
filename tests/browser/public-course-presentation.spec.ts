@@ -67,7 +67,7 @@ const sections = [
 	{ id: 'supports', label: 'Supports du cours' },
 	{ id: 'consignes', label: 'Consignes et barèmes' },
 	{ id: 'remise', label: 'Échéances et remise' },
-	{ id: 'ressources', label: 'Ressources utiles' },
+	{ id: 'ressources', label: 'Ressources complémentaires' },
 	{ id: 'suivi', label: 'Vu en cours / à faire' }
 ] as const;
 type Section = (typeof sections)[number];
@@ -851,6 +851,10 @@ test('a teacher links a dossier and a workshop to their files and the published 
 	expect((await saved).status()).toBe(200);
 	await expect(page.getByText('Module enregistré.', { exact: true })).toBeVisible();
 	await page.goto(modulePath + '/publication?contexte=' + contextId);
+	const width = page.viewportSize()!.width;
+	const navigation = await reviewNavigation(page, width);
+	await expect(navigation.getByRole('link', { name: /Ressources complémentaires/ })).toContainText('Modifié');
+	if (width < 1024) await page.keyboard.press('Escape');
 	const publicPath = await publish(page, app, app.ids.publicationModule, contextId);
 	const student = await context.newPage();
 	student.setDefaultTimeout(20000);
@@ -1179,6 +1183,10 @@ test('five shared panels retain their content, deadlines and project documents a
 					if (section.id === 'ressources') {
 						await expect(privatePanel.locator('[data-slot="separator"]')).toHaveCount(0);
 						await expect(publicPanel.locator('[data-slot="separator"]')).toHaveCount(0);
+						for (const panel of [privatePanel, publicPanel]) {
+							await expect(panel.getByRole('link', { name: /^Documentation Svelte/ })).toBeVisible();
+							await expect(panel.getByRole('link', { name: /^Diaporama du module/ })).toHaveCount(0);
+						}
 						await capture(publicPage, app, info, `public-ressources-${width}-${theme}`);
 					}
 					if (section.id === 'supports') {

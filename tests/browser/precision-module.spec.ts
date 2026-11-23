@@ -108,18 +108,20 @@ test('student content groups links and exercises while keeping the single-class 
 	await expect(page.getByRole('group', { name: 'Consignes et exercices', exact: true })).toBeVisible();
 	await expect(page.getByText(/accessibles avec leurs corrigés après votre publication/)).toBeVisible();
 	await page.getByRole('button', { name: 'Ajouter un support', exact: true }).click();
+	await expect(page.getByLabel('Type de lien', { exact: true }).last().locator('option:checked')).toHaveText(
+		'Ressource complémentaire'
+	);
 	await page.getByLabel('Intitulé', { exact: true }).last().fill('Support fictif conservé');
 	await page.getByLabel('Lien HTTPS', { exact: true }).last().fill('https://example.test/support');
 	await page.getByRole('button', { name: 'Ajouter un exercice non noté', exact: true }).click();
 	await page.getByLabel('Titre de l’exercice', { exact: true }).last().fill('Exercice fictif conservé');
-	await page.getByLabel('Corrigé librement accessible', { exact: true }).last().fill('Correction publique fictive');
+	const correction = page.getByRole('textbox', { name: /^Corrigé librement accessible/ }).last();
+	await correction.fill('Correction publique fictive');
 	await page.getByRole('button', { name: 'Enregistrer le module', exact: true }).first().click();
 	await expect(page.getByText('Toutes les modifications sont enregistrées.', { exact: true })).toBeVisible();
 	await page.reload();
 	await chooseTheme(page, 'clair');
-	await expect(page.getByLabel('Corrigé librement accessible', { exact: true }).last()).toHaveValue(
-		'Correction publique fictive'
-	);
+	await expect(correction).toHaveValue('Correction publique fictive');
 	for (const theme of ['clair', 'sombre'] as const) {
 		for (const width of [375, 390, 1280, 1728]) {
 			await page.setViewportSize({ width, height: width === 375 ? 667 : 900 });

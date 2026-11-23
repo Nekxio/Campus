@@ -22,7 +22,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { cn } from '#lib/utils.js';
-	import type { PublicationSnapshot } from '#lib/domain/publication.js';
+	import { complementaryResources, type PublicationSnapshot } from '#lib/domain/publication.js';
 	import type { Resource } from '#lib/domain/contracts.js';
 	let {
 		snapshot,
@@ -90,15 +90,7 @@
 			(link) => !dossierResourceIds.has(link.id) && (link.kind === 'instructions' || link.kind === 'rubric')
 		)
 	);
-	const usefulLinks = $derived(
-		snapshot.resources.filter(
-			(link) =>
-				link.kind === 'resource' ||
-				link.kind === 'course' ||
-				dossierResourceIds.has(link.id) ||
-				snapshot.studentContent.exercises.some((exercise) => exercise.resourceIds?.includes(link.id))
-		)
-	);
+	const complementaryLinks = $derived(complementaryResources(snapshot));
 	const hasWrittenInstructions = $derived(
 		Boolean(snapshot.studentContent.instructions.trim() || snapshot.studentContent.projectInstructions.trim())
 	);
@@ -455,17 +447,20 @@
 			id={`${idPrefix}-ressources`}
 			aria-labelledby={`${idPrefix}-ressources-title`}
 			tabindex="-1"
-			class="course-section useful-resources"
+			class="course-section complementary-resources"
 		>
 			<svelte:element
 				this={compact ? 'h3' : 'h2'}
 				id={`${idPrefix}-ressources-title`}
-				class="course-section-heading section-title"><LinkIcon aria-hidden="true" />Ressources utiles</svelte:element
+				class="course-section-heading section-title"
+				><LinkIcon aria-hidden="true" />Ressources complémentaires</svelte:element
 			>
 			<div class="section-body">
-				{#if usefulLinks.length > 0}{@render resourceLinks(usefulLinks, false, false)}{:else}<p class="empty-copy">
-						Aucune ressource complémentaire n’est indiquée pour le moment.
-					</p>{/if}
+				{#if complementaryLinks.length > 0}
+					{@render resourceLinks(complementaryLinks, false, false)}
+				{:else}
+					<p class="empty-copy">Aucune ressource complémentaire n’est indiquée pour le moment.</p>
+				{/if}
 			</div>
 		</section>
 	{/if}
@@ -787,10 +782,10 @@
 	.section-panel .resource-row {
 		padding: 1rem 0;
 	}
-	.section-panel .useful-resources .resource-list {
+	.section-panel .complementary-resources .resource-list {
 		gap: 0.5rem;
 	}
-	.section-panel .useful-resources .resource-row {
+	.section-panel .complementary-resources .resource-row {
 		min-height: 2.75rem;
 		padding: 0;
 	}

@@ -29,13 +29,22 @@ test('publication preparation identifies long context and only counts student-vi
 			className,
 			academicYear: '2026-2027'
 		});
-		await db.insert(tables.resources).values({
-			id: crypto.randomUUID(),
-			moduleId,
-			label: 'Consignes externes',
-			kind: 'instructions',
-			url: 'https://example.test/instructions.pdf'
-		});
+		await db.insert(tables.resources).values([
+			{
+				id: crypto.randomUUID(),
+				moduleId,
+				label: 'Consignes externes',
+				kind: 'instructions',
+				url: 'https://example.test/instructions.pdf'
+			},
+			{
+				id: crypto.randomUUID(),
+				moduleId,
+				label: 'Diaporama du module',
+				kind: 'course',
+				url: 'https://example.test/course.pdf'
+			}
+		]);
 		await db.insert(tables.lessons).values({
 			id: crypto.randomUUID(),
 			contextId,
@@ -54,17 +63,24 @@ test('publication preparation identifies long context and only counts student-vi
 	const toggle = summary.locator(':scope > summary');
 	await expect(summary).toBeVisible();
 	await expect(summary).not.toHaveAttribute('open', '');
-	await expect(toggle).toContainText('1 / 6 contenus présents');
+	await expect(toggle).toContainText('2 / 6 contenus présents');
 	await toggle.click();
 	const presentContents = summary.locator('details').filter({ hasText: 'Contenus présents' });
 	await expect(presentContents).not.toHaveAttribute('open', '');
 	await expect(summary.locator('li')).toHaveCount(6);
-	await expect(summary.getByRole('listitem').filter({ hasText: 'Supports du cours' })).toContainText('À compléter');
+	await expect(summary.getByRole('heading', { name: 'Contenus absents de l’aperçu' })).toBeVisible();
+	const complementary = summary.getByRole('listitem').filter({ hasText: 'Ressources complémentaires' });
+	await expect(complementary.getByText('Aucune', { exact: true })).toBeVisible();
+	await expect(complementary.getByRole('link', { name: 'Ajouter des ressources complémentaires' })).toHaveAttribute(
+		'href',
+		/section=resources/
+	);
 	await presentContents.locator('summary').click();
+	await expect(summary.getByRole('listitem').filter({ hasText: 'Supports du cours' })).toContainText('Présent');
 	await expect(summary.getByRole('listitem').filter({ hasText: 'Consignes' })).toContainText('Présent');
 	await presentContents.locator('summary').click();
-	await expect(summary.getByRole('listitem').filter({ hasText: 'Barème' })).toContainText('À compléter');
-	await expect(summary.getByRole('listitem').filter({ hasText: 'Séances' })).toContainText('À compléter');
+	await expect(summary.getByRole('listitem').filter({ hasText: 'Barème' })).toContainText('Absent');
+	await expect(summary.getByRole('listitem').filter({ hasText: 'Séances' })).toContainText('Absent');
 	await expect(summary).not.toContainText('PRIVATE_PREPARATION');
 	await expect(page.getByRole('button', { name: 'Publier pour cette classe', exact: true }).first()).toBeEnabled();
 	await expect(identity).toHaveCSS('white-space', 'normal');
@@ -85,7 +101,7 @@ test('publication preparation identifies long context and only counts student-vi
 	const filledClient = createClient({ url: pathToFileURL(app.manifest.databasePath).href });
 	try {
 		const filled = createDatabase(filledClient);
-		for (const kind of ['course', 'rubric', 'resource'] as const) {
+		for (const kind of ['rubric', 'resource'] as const) {
 			await filled.insert(tables.resources).values({
 				id: crypto.randomUUID(),
 				moduleId,
@@ -121,7 +137,7 @@ test('publication preparation identifies long context and only counts student-vi
 	await expect(summary.getByRole('link')).toHaveCount(0);
 	await presentContents.locator('summary').click();
 	await expect(summary.getByText('Présent', { exact: true })).toHaveCount(6);
-	await expect(summary.getByText('À compléter', { exact: true })).toHaveCount(0);
+	await expect(summary.getByRole('heading', { name: 'Contenus absents de l’aperçu' })).toHaveCount(0);
 	await expect(summary.getByRole('link')).toHaveCount(6);
 	await presentContents.locator('summary').click();
 	await expect(page.getByRole('button', { name: 'Publier pour cette classe', exact: true }).first()).toBeEnabled();
