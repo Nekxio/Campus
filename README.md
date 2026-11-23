@@ -11,7 +11,8 @@ also remain unchanged. Delivery guards and GitHub API calls target `Nekxio/Campu
 `COURSELY_PRODUCTION_ORIGIN` to the configured Worker origin before enabling its deployment. The local MCP
 now starts through `scripts/campus-mcp.ts` with `CAMPUS_MODULE_ROOTS` and `CAMPUS_AGENT_CONFIG_FILE`.
 Review the full migration chain and selected database journal before the separate operator action
-`pnpm db:migrate` with its dedicated configuration. Never run migrations as diagnostic probes.
+`pnpm db:migrate` with its dedicated configuration. The enabled production CI applies pending migrations
+through the guarded backup procedure below. Never run migrations as diagnostic probes.
 
 Campus is a SvelteKit 3 / Svelte 5 / TypeScript application with shadcn-svelte, Tailwind CSS 4,
 Cloudflare Workers, Turso/Drizzle and invitation-only teacher passkeys. It provides annual classes,
@@ -46,6 +47,51 @@ state and private pages remain inaccessible. A usable teacher workspace requires
 database migrations and a teacher passkey. Existing private local files are ignored by Git and
 must not be committed. Local fixture previews are separate validation copies, not an authentication
 bypass in this project.
+
+### Production database migrations in CI
+
+An enabled production release push verifies the exact applied migration prefix (timestamps and SQL
+hashes) before deploying. If migrations are pending, CI reads a consistent database snapshot,
+rehearses its restoration in memory, encrypts it with AES-256-GCM, and persists the encrypted SQL
+backup as a GitHub Actions artifact for 30 days. Only after a successful upload does CI apply the
+pending migrations. It then requires the complete journal and valid foreign keys, and rechecks the
+current main commit before deploying. A current database is checked without reapplying migrations
+or creating another backup. Divergent journals, missing configuration, backup failures and migration
+failures block deployment. Preview migrations remain an explicit operator action.
+
+Configure these repository settings before the next production release:
+
+- Variable `CAMPUS_PRODUCTION_DATABASE_URL`: the independently verified production database URL,
+  exactly matching the existing `TURSO_DATABASE_URL` secret. Infrastructure values stay in configuration.
+- Secret `CAMPUS_PRODUCTION_BACKUP_KEY`: 32 random bytes encoded as 64 hexadecimal characters
+  (generate with `openssl rand -hex 32`). Keep an independent recovery copy outside GitHub; retain
+  previous keys until all backups encrypted with them have expired. Never print the key in CI.
+- Existing production database credentials remain scoped to the database preparation and deployment
+  steps, after the build, packaging checks and stale-commit guard. No additional package is required.
+
+Review every migration for compatibility with the Worker still serving traffic during migration.
+Use additive changes and staged transitions; destructive or incompatible changes require a separate
+operator maintenance plan. Serialize manual production migrations with the production job. Do not
+change published SQL files or their journal timestamps. This gate checks history and integrity;
+it does not prove application compatibility. A failed deployment can leave the database migrated;
+retry the same release after diagnosis, or use a compatible application rollback. No automatic
+schema rollback or backup restoration runs against production.
+
+For recovery, download the encrypted artifact from the specific deployment attempt before its
+retention expires. On a trusted operator machine, set `CAMPUS_PRODUCTION_BACKUP_KEY` using the
+matching recovery key, `CAMPUS_BACKUP_INPUT` to the downloaded `.enc` file, and
+`CAMPUS_BACKUP_OUTPUT` to a new private SQL path under ignored `data/backups/`. Run:
+
+```sh
+pnpm exec tsx scripts/production-migrations.ts decrypt-backup
+```
+
+The command authenticates the encrypted file and creates the SQL file exclusively with mode 0600,
+without printing its contents. Restore it only to a new isolated SQLite database, then check its
+integrity, foreign keys, journal and application behavior before an explicitly authorized restore
+or cutover. The backup covers the Turso application database; quiz Durable Object storage and
+external files keep their separate recovery procedures. Writes after the snapshot are outside its
+recovery point. Extend backup retention through an explicit operator policy if 30 days is insufficient.
 
 ### Dependency maintenance
 
@@ -92,8 +138,9 @@ remain in CI, behind their commit, environment and release checks.
 | Inspect a built Worker package without uploading           | `pnpm worker:dry-run` in a copy without local secrets |
 
 `pnpm check` also checks operator-script types; `check:watch` watches application types only.
-Keep database migration, account/key management, release preparation and deployment-target
+Keep manual database migration, account/key management, release preparation and deployment-target
 preparation as explicit operator commands. They are not part of installation, tests or build.
+The production deployment job is the only automated cloud-migration path.
 
 `pnpm lint` checks formatting and then ESLint; `pnpm format` writes formatting changes.
 Both CLI checks respect `.gitignore`. `.prettierignore` also lists local exclusions for editor
@@ -618,7 +665,9 @@ corresponding SQL file. Compare these pairs, in journal order, with `created_at`
 `__drizzle_migrations`; a row count alone is insufficient. Before migration, require an exact
 applied prefix and review the pending suffix. Before rollout, require the complete expected chain,
 with no missing, extra, duplicate or mismatched entries. Resolve discrepancies before proceeding.
-New migrations require a reviewed operator plan and backup.
+New migrations require a reviewed compatibility plan and backup. Production CI provides the
+automated journal, encrypted backup and migration sequence described above; other targets remain
+explicit operator actions.
 The `QuizRoom` SQLite Durable Object binding also requires a separate deployment;
 local tests do not establish cloud readiness.
 Modules, resources, assessment definitions, stable scoring lines, teaching-context calendars and publication
