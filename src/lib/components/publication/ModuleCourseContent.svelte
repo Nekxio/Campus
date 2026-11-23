@@ -5,7 +5,7 @@
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
 	import CourseAssignments from './CourseAssignments.svelte';
 	import CourseWorkshops from './CourseWorkshops.svelte';
-	import { publicRubricTotals, type SemesterFilter } from './course-presentation.js';
+	import { publicRubricTotals, type CourseSupportSelection } from './course-presentation.js';
 	import WorkSurface from '#lib/components/shared/WorkSurface.svelte';
 	import ContentCard from '#lib/components/shared/ContentCard.svelte';
 	import CodeBlock from '#lib/components/shared/CodeBlock.svelte';
@@ -41,6 +41,7 @@
 	} = $props();
 	let selectedLesson = $state<{ kind: 'lesson'; id: string } | { kind: 'general' } | null>(null);
 	let selectedExerciseId = $state<string | null>(null);
+	let supportSelection = $state<CourseSupportSelection>({ query: '', scope: 'all', page: 1 });
 	let exerciseTab = $state('instructions');
 	let correctionConfirmationOpen = $state(false);
 	const selectExerciseTab = (value: string) => {
@@ -62,7 +63,9 @@
 		const exerciseId = selectedExerciseId;
 		selectedExerciseId = null;
 		await tick();
-		document.getElementById(`${idPrefix}-exercise-${exerciseId}`)?.focus();
+		const returnTarget =
+			document.getElementById(`${idPrefix}-exercise-${exerciseId}`) ?? document.getElementById(`${idPrefix}-supports`);
+		returnTarget?.focus();
 	};
 	const objectiveEntries = $derived.by(() => {
 		const occurrences: Record<string, number> = Object.create(null);
@@ -72,7 +75,6 @@
 			return { label, key: `${label}:${occurrence}` };
 		});
 	});
-	let semesterFilter = $state<SemesterFilter>('all');
 	const dossiers = $derived(snapshot.studentContent.dossiers ?? []);
 	const dossierAssessmentIds = $derived(new Set(dossiers.map((dossier) => dossier.assessmentId)));
 	const dossierResourceIds = $derived(new Set(dossiers.flatMap((dossier) => dossier.resourceIds)));
@@ -365,7 +367,13 @@
 						{/if}
 					</WorkSurface>
 				{:else if courseLinks.length || snapshot.studentContent.exercises.length}
-					<CourseWorkshops {snapshot} {courseLinks} {idPrefix} bind:filter={semesterFilter} onOpen={openExercise} />
+					<CourseWorkshops
+						{snapshot}
+						{courseLinks}
+						{idPrefix}
+						bind:selection={supportSelection}
+						onOpen={openExercise}
+					/>
 				{:else}
 					<p class="empty-copy">Aucun support de cours n’est indiqué pour le moment.</p>
 				{/if}

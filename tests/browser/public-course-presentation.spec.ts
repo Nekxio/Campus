@@ -879,7 +879,7 @@ test('a teacher links a dossier and a workshop to their files and the published 
 			await assignments.getByRole('button', { name: 'Retour aux dossiers' }).click();
 			await expect(card).toBeFocused();
 			const workshops = await select(sections[0]);
-			await workshops.getByRole('radio', { name: 'S2', exact: true }).click();
+			await workshops.getByLabel('Afficher', { exact: true }).selectOption('S2');
 			const exercise = workshops.getByRole('button', { name: 'Exercice libre · 013' });
 			await expect(workshops.getByText('Lire un tableau', { exact: true })).toHaveCount(0);
 			await exercise.click();
@@ -889,6 +889,109 @@ test('a teacher links a dossier and a workshop to their files and the published 
 			await expect(exercise).toBeFocused();
 			const resources = await select(sections[3]);
 			await expect(resources.getByText('Consigne du projet · démo', { exact: true })).toHaveCount(1);
+		}
+	} finally {
+		await student.close();
+	}
+});
+
+test('the support catalogue combines filters and restores the selected page and workshop focus', async ({
+	app,
+	page,
+	context
+}, info) => {
+	await activate(page, app);
+	const { publicationModule: moduleId, publicationContext: contextId } = app.ids;
+	const endpoint = `${app.origin}/api/teaching/modules/${moduleId}`;
+	const saved = moduleDetailSchema.parse(await (await page.request.get(endpoint)).json());
+	const draft = editableModule(saved);
+	const exercises: StudentContent['exercises'] = Array.from({ length: 59 }, (_, index) => ({
+		id: randomUUID(),
+		title: `A${String(index + 1).padStart(2, '0')} · Atelier de conception${index === 0 ? ' et de vérification du parcours d’inscription au clavier' : ''}`,
+		semester: index < 29 ? 'S1' : 'S2',
+		instructions: 'Décrire le parcours et les vérifications à faire.',
+		solution: '',
+		code: ''
+	}));
+	draft.studentContent = { instructions: '', projectInstructions: '', exercises };
+	const lesson = draft.contexts.find((entry) => entry.id === contextId)?.lessons[0];
+	if (!lesson) throw new Error('Missing fictional lesson.');
+	lesson.title = 'Séance 1 · Équipe et besoins';
+	lesson.exerciseIds = exercises.slice(0, 12).map((exercise) => exercise.id);
+	const updated = await page.request.patch(endpoint, {
+		headers: { Origin: app.origin },
+		data: { ...draft, expectedRevision: saved.revision }
+	});
+	expect(updated.status()).toBe(200);
+	if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 812 });
+	await page.goto(`${app.origin}/enseignant/modules/${moduleId}/publication?contexte=${contextId}`);
+	const publicPath = await publish(page, app, moduleId, contextId);
+	const student = await context.newPage();
+	try {
+		if (info.project.name === 'mobile') await student.setViewportSize({ width: 375, height: 812 });
+		await student.goto(app.origin + publicPath);
+		const panels = [
+			await selectReview(page, contextId, sections[0], page.viewportSize()!.width, false),
+			await selectPublic(student, contextId, sections[0], false)
+		];
+		for (const panel of panels) {
+			const browserPage = panel.page();
+			const list = panel.getByRole('list', { name: 'Supports disponibles' });
+			const rows = list.getByRole('listitem');
+			const search = panel.getByRole('searchbox', { name: 'Rechercher un support' });
+			const scope = panel.getByLabel('Afficher', { exact: true });
+			const range = panel.getByRole('status', { name: 'Résultats des supports', exact: true });
+			const previous = panel.getByRole('button', { name: 'Précédent', exact: true });
+			const next = panel.getByRole('button', { name: 'Suivant', exact: true });
+			await expect(rows).toHaveCount(6);
+			const slides = rows.first().getByRole('link', { name: /^Diaporama du module/ });
+			await expect(slides).toHaveAttribute('href', 'https://example.test/course-version-2.pdf');
+			await expect(slides).toHaveAttribute('target', '_blank');
+			await expect(rows.nth(1).locator('time')).toHaveAttribute('datetime', /2026-10-12T07:00:00/);
+			await expect(rows.nth(1)).toContainText(lesson.title);
+			await expect(previous).toBeDisabled();
+			await expect(range).toHaveText('1–6 sur 60');
+			expect(await rows.first().evaluate((row) => row.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
+			expect(await browserPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+			await search.fill('equipe');
+			await expect(range).toHaveText('1–6 sur 12');
+			await next.focus();
+			await browserPage.keyboard.press('Enter');
+			await expect(range).toHaveText('7–12 sur 12');
+			await expect(rows.first().getByRole('button', { name: /^A07 ·/ })).toBeFocused();
+			await expect(next).toBeDisabled();
+			await scope.selectOption(`lesson:${lesson.id}`);
+			await expect(range).toHaveText('1–6 sur 12');
+			if (browserPage === page && info.project.name === 'desktop') {
+				await panel.screenshot({ path: info.outputPath('support-catalogue-preview.png') });
+			}
+			await next.click();
+			const workshop = rows.getByRole('button', { name: exercises[7].title, exact: true });
+			await workshop.focus();
+			await browserPage.keyboard.press('Enter');
+			await expect(panel.getByRole('heading', { name: exercises[7].title, exact: true })).toBeFocused();
+			await panel.getByRole('button', { name: 'Retour aux supports', exact: true }).click();
+			await expect(search).toHaveValue('equipe');
+			await expect(scope).toHaveValue(`lesson:${lesson.id}`);
+			await expect(range).toHaveText('7–12 sur 12');
+			await expect(workshop).toBeFocused();
+			await search.fill('a06');
+			await expect(rows).toHaveCount(1);
+			await expect(rows.first()).toContainText(exercises[5].title);
+			await scope.selectOption('S2');
+			await expect(panel.getByText('Aucun support trouvé.', { exact: true })).toBeVisible();
+			await panel.getByRole('button', { name: 'Effacer les filtres', exact: true }).click();
+			await expect(search).toHaveValue('');
+			await expect(search).toBeFocused();
+			await expect(scope).toHaveValue('all');
+			await expect(range).toHaveText('1–6 sur 60');
+			await scope.selectOption('S2');
+			await expect(range).toHaveText('1–6 sur 30');
+			await expect(rows.first().getByRole('button', { name: exercises[29].title, exact: true })).toBeVisible();
+			await scope.selectOption('documents');
+			await expect(rows).toHaveCount(1);
+			await expect(slides).toBeVisible();
 		}
 	} finally {
 		await student.close();
