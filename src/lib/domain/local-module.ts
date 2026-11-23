@@ -7,9 +7,9 @@ import {
 	resourceKindSchema,
 	revisionSchema
 } from './contracts.js';
-import { moduleDraftSchema } from './teaching.js';
+import { moduleDraftSchema, moduleFieldsSchema } from './teaching.js';
 import { importRubricSchema } from './module-import.js';
-import { studentContentSchema } from './pedagogy.js';
+import { dossierSchema, exerciseIdsSchema, exerciseSchema, studentContentSchema } from './pedagogy.js';
 
 // Local keys describe durable entities; titles are editable and never used to guess identity.
 export const localKeySchema = z
@@ -18,6 +18,29 @@ export const localKeySchema = z
 	.refine((key) => !['constructor', 'prototype', '__proto__'].includes(key));
 const title = z.string().trim().min(1).max(200);
 const assessmentKeys = z.array(localKeySchema).min(1).max(100);
+const resourceKeys = z.array(localKeySchema).max(200);
+const localStudentContentSchema = studentContentSchema.extend({
+	dossiers: z
+		.array(
+			z.union([
+				dossierSchema,
+				z.strictObject({ assessmentKey: localKeySchema, instructions: dossierSchema.shape.instructions, resourceKeys })
+			])
+		)
+		.max(100)
+		.optional(),
+	exercises: z
+		.array(
+			exerciseSchema
+				.extend({ resourceKeys: resourceKeys.optional() })
+				.refine(
+					(item) => !item.resourceKeys || !item.resourceIds,
+					'Use either resource keys or resource IDs for a workshop.'
+				)
+		)
+		.max(100)
+		.default([])
+});
 const localRule = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.literal('points_ratio'), assessmentKeys }),
 	z.strictObject({
@@ -30,7 +53,7 @@ const localRule = z.discriminatedUnion('kind', [
 ]);
 export const localModuleSchema = z.strictObject({
 	title,
-	studentContent: studentContentSchema.optional(),
+	studentContent: localStudentContentSchema.optional(),
 	description: z.string().max(20000).default(''),
 	objectives: z.array(title).max(100).default([]),
 	preparation: preparationSchema.default({ framing: '', nextSteps: '', sourceLinks: [] }),
@@ -62,7 +85,8 @@ export const localModuleSchema = z.strictObject({
 							startsAt: z.iso.datetime({ offset: true }),
 							endsAt: z.iso.datetime({ offset: true }),
 							recap: z.string().max(10000).default(''),
-							toDo: z.string().max(10000).default('')
+							toDo: z.string().max(10000).default(''),
+							exerciseIds: exerciseIdsSchema.optional()
 						})
 					)
 					.max(200)
@@ -192,18 +216,48 @@ export function newFolderBinding(origin: string): FolderBinding {
 		driveFiles: {}
 	};
 }
-export function resolveLocalModule(value: LocalModule, binding: FolderBinding, folder: string) {
+export function resolveLocalModule(
+	value: LocalModule,
+	binding: FolderBinding,
+	folder: string,
+	action: 'create' | 'update' = 'create'
+) {
 	const draft = localModuleSchema.parse(value);
 	const identity = (type: keyof FolderBinding['ids'], key: string) => {
 		if (!Object.hasOwn(binding.ids[type], key)) binding.ids[type][key] = crypto.randomUUID();
 		return binding.ids[type][key];
 	};
-	const converted = moduleDraftSchema.parse({
+	const declared = {
+		resources: new Set(draft.resources.map((item) => item.key)),
+		assessments: new Set(draft.rubric?.assessments.map((item) => item.key))
+	};
+	const reference = (type: keyof typeof declared, key: string) => {
+		if (!declared[type].has(key) && !Object.hasOwn(binding.ids[type], key)) {
+			throw new Error('Course material must use a declared or bound ' + type + ' key.');
+		}
+		return identity(type, key);
+	};
+	const content = draft.studentContent;
+	const converted = (action === 'update' ? moduleFieldsSchema : moduleDraftSchema).parse({
 		title: draft.title,
 		description: draft.description,
 		objectives: draft.objectives,
 		preparation: draft.preparation,
-		studentContent: draft.studentContent,
+		studentContent: content && {
+			...content,
+			dossiers: content.dossiers?.map((item) => {
+				if ('assessmentId' in item) return item;
+				return {
+					assessmentId: reference('assessments', item.assessmentKey),
+					instructions: item.instructions,
+					resourceIds: item.resourceKeys.map((key) => reference('resources', key))
+				};
+			}),
+			exercises: content.exercises.map(({ resourceKeys, ...exercise }) => ({
+				...exercise,
+				resourceIds: resourceKeys?.map((key) => reference('resources', key)) ?? exercise.resourceIds
+			}))
+		},
 		sourcePath: folder,
 		resources: draft.resources.map(({ key, driveFileId, ...resource }) => {
 			if (driveFileId) binding.driveFiles[key] = driveFileId;

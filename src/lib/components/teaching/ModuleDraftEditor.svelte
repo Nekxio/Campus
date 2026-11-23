@@ -216,11 +216,24 @@
 			recap: 'Récapitulatif',
 			toDo: 'À faire',
 			classId: 'Classe associée',
+			studentContent: 'Consignes et exercices',
+			instructions: 'Consignes',
+			projectInstructions: 'Consignes du projet',
+			semester: 'Semestre',
+			resourceIds: 'Fichiers et liens associés',
+			exerciseIds: 'Ateliers de la séance',
+			dossiers: 'Dossiers à remettre',
+			exercises: 'Exercices non notés',
+			assessmentId: 'Évaluation du dossier',
+			solution: 'Corrigé',
+			code: 'Code du corrigé',
 			lessons: 'Séances',
 			expectedRevision: 'Version du module',
 			addClassId: 'Classe à associer'
 		};
 		if (parts[0] === 'objectives') return labels.objectives;
+		if (parts[0] === 'studentContent' && (parts[1] === 'exercises' || parts[1] === 'dossiers') && parts[2])
+			return `${parts[1] === 'exercises' ? 'Exercice' : 'Dossier'} ${Number(parts[2]) + 1} · ${parts.at(-1) === 'title' ? 'Titre' : (labels[parts.at(-1) ?? ''] ?? 'Contenu')}`;
 		if (parts[0] === 'resources' && parts[1])
 			return `Support ${Number(parts[1]) + 1} · ${labels[parts.at(-1) ?? ''] ?? 'Lien'}`;
 		if (parts[1] === 'sourceLinks' && parts[2])
@@ -237,8 +250,16 @@
 		const snapshot = form.capture();
 		for (const [rawPath, message] of Object.entries(friendlyModuleFields(fields))) {
 			let path = rawPath.startsWith('objectives') ? 'objectives' : rawPath.replace(/\.(\d+)(?=\.|$)/g, '[$1]');
-			if (/^(resources|contexts|preparation\.sourceLinks)$/.test(path) || path.endsWith('.lessons')) path += '._errors';
-			if (!/^(title|description|objectives|sourcePath|preparation|resources|contexts|addClassId)(\.|\[|$)/.test(path))
+			if (
+				/^(resources|contexts|preparation\.sourceLinks|studentContent\.(dossiers|exercises))$/.test(path) ||
+				/\.(lessons|resourceIds|exerciseIds)$/.test(path)
+			)
+				path += '._errors';
+			if (
+				!/^(title|description|objectives|sourcePath|preparation|studentContent|resources|contexts|addClassId)(\.|\[|$)/.test(
+					path
+				)
+			)
 				path = '';
 			setError(snapshot, path as FormPathLeavesWithErrors<ModuleEditorInput> | '', message, {
 				overwrite: true
@@ -774,7 +795,7 @@
 							/>
 							<div class="mt-6">
 								<LinkEditor {form} student />
-								<div class="mt-8"><StudentContentEditor {form} /></div>
+								<div class="mt-8"><StudentContentEditor {form} assessments={data.dossierAssessments ?? []} /></div>
 							</div>
 						</Tabs.Content>
 						<Tabs.Content value="planning" class="min-w-0">

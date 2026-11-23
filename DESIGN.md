@@ -193,10 +193,15 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   Session titles lead, with the sequence number and date grouped underneath; no leading calendar
   icon or internal chevron. Filled cards expose hover, active and full-card keyboard focus.
   CodeBlock remains keyboard-scrollable; revealing a correction is an ordinary action.
-  Exercise detail uses horizontally aligned, underlined Énoncé and Corrigé tabs, matching the
-  teacher module navigation, including inside the vertical course navigation. Both views render
-  authored paragraphs, Markdown headings, simple numbered or bulleted lists, bold text and inline
-  code with a 75ch reading measure. Fenced code retains
+  Course materials group workshops by semester and scheduled lesson. Semester filters preserve
+  the selection when returning from a workshop. The assignment index opens each dossier at its
+  heading and restores focus to its card on return. A dossier links to its instructions, blank
+  rubric, deadline and files whenever they are available. Associated files also appear once in
+  the resource index. An exercise with a correction uses horizontally aligned Énoncé and Corrigé
+  tabs. An exercise with only a statement opens directly in reading mode.
+  Module, project and dossier instructions, exercise statements and corrections share a Markdown
+  reader with a 75ch reading measure, semantic headings and tables, HTTPS links, lists, bold text
+  and inline code. Wider tables scroll within their own keyboard-accessible region. Fenced code retains
   its whitespace, language label and syntax colors; HTML remains literal text. Supplemental
   correction code uses the same labelled block with a separate 16px gap.
   Exercise code blocks place the language on the left and an always-visible, icon-only copy

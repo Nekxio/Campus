@@ -1,3 +1,5 @@
+import { externalLinkSchema } from '#lib/domain/contracts.js';
+
 type CodeToken = {
 	kind: 'plain' | 'tag' | 'keyword' | 'string' | 'comment' | 'number';
 	text: string;
@@ -5,11 +7,18 @@ type CodeToken = {
 
 type InstructionPart =
 	{ kind: 'text'; text: string } | { kind: 'code'; language: string; code: string; tokens: CodeToken[] };
-type InlinePart = { kind: 'text' | 'code' | 'strong'; text: string };
+type InlinePart = { kind: 'text' | 'code' | 'strong'; text: string } | { kind: 'link'; text: string; href: string };
+export type CourseTable = {
+	kind: 'table';
+	columns: { text: string; align: 'start' | 'left' | 'center' | 'right' }[];
+	rows: string[][];
+};
 type ProseBlock =
 	| { kind: 'paragraph'; text: string }
 	| { kind: 'heading'; level: number; text: string }
-	| { kind: 'list'; ordered: boolean; start: number; items: string[] };
+	| { kind: 'list'; ordered: boolean; start: number; items: string[] }
+	| CourseTable;
+type CourseBlock = ProseBlock | Extract<InstructionPart, { kind: 'code' }> | { kind: 'spacing'; text: string };
 
 const tokenPattern =
 	/<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|<\/?[a-zA-Z][\w.-]*|\/?>|\$(?:props|state|derived|effect|bindable|inspect)\b|\b(?:let|const|var|function|return|export|import|from|if|else|each|as|true|false|null|undefined|new|class|await|async)\b|\b\d+(?:\.\d+)?\b/g;
@@ -23,9 +32,16 @@ const supportedLanguages = new Set(['svelte', 'html', 'javascript', 'js', 'types
 export const parseInlineExerciseText = (text: string): InlinePart[] => {
 	const parts: InlinePart[] = [];
 	let position = 0;
-	for (const match of text.matchAll(/`([^`\n]+)`|\*\*([^*\n]+)\*\*/g)) {
+	const markup = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|(?<!!)\[([^\n[\]]+)\]\(([^()\s]*(?:\([^()\s]*\)[^()\s]*)*)\)/g;
+	for (const match of text.matchAll(markup)) {
 		if (match.index > position) parts.push({ kind: 'text', text: text.slice(position, match.index) });
-		parts.push(match[1] === undefined ? { kind: 'strong', text: match[2] } : { kind: 'code', text: match[1] });
+		const [, code, emphasis, label, target] = match;
+		if (label !== undefined) {
+			const link = externalLinkSchema.safeParse(target);
+			parts.push(link.success ? { kind: 'link', text: label, href: link.data } : { kind: 'text', text: label });
+		} else {
+			parts.push(code === undefined ? { kind: 'strong', text: emphasis } : { kind: 'code', text: code });
+		}
 		position = match.index + match[0].length;
 	}
 	if (position < text.length || parts.length === 0) {
@@ -34,11 +50,64 @@ export const parseInlineExerciseText = (text: string): InlinePart[] => {
 	return parts;
 };
 
+const tableCells = (line: string) => {
+	const trimmed = line.trim();
+	if (!trimmed.includes('|')) return [];
+	const cells: string[] = [];
+	let cell = '';
+	let separator = false;
+	for (let index = 0; index < trimmed.length; index++) {
+		const character = trimmed[index];
+		const next = trimmed[index + 1];
+		separator = character === '|';
+		if (character === '\\' && (next === '|' || next === '\\')) {
+			cell += next;
+			index++;
+		} else if (separator) {
+			if (index !== 0) cells.push(cell.trim());
+			cell = '';
+		} else {
+			cell += character;
+		}
+	}
+	if (!separator) cells.push(cell.trim());
+	return cells;
+};
+
+const tableHeader = (header: string, next: string | undefined): CourseTable | undefined => {
+	if (!next?.includes('-') || !header.includes('|')) return;
+	const markers = tableCells(next);
+	const headings = tableCells(header);
+	if (!markers.length || headings.length !== markers.length || markers.some((marker) => !/^:?-+:?$/.test(marker)))
+		return;
+	const columns = headings.map((text, index): CourseTable['columns'][number] => {
+		const marker = markers[index];
+		if (marker.startsWith(':')) return { text, align: marker.endsWith(':') ? 'center' : 'left' };
+		return { text, align: marker.endsWith(':') ? 'right' : 'start' };
+	});
+	return { kind: 'table', columns, rows: [] };
+};
+
 export const parseExerciseProse = (text: string): ProseBlock[] => {
 	const blocks: ProseBlock[] = [];
 	let current: ProseBlock | undefined;
-	for (const line of text.split(/\r?\n/)) {
+	const lines = text.split(/\r?\n/);
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
 		if (!line.trim()) {
+			current = undefined;
+			continue;
+		}
+		const table = tableHeader(line, lines[index + 1]);
+		if (table) {
+			blocks.push(table);
+			index++;
+			while (index + 1 < lines.length) {
+				const row = tableCells(lines[index + 1]);
+				if (row.length !== table.columns.length) break;
+				table.rows.push(row);
+				index++;
+			}
 			current = undefined;
 			continue;
 		}
@@ -105,3 +174,13 @@ export const parseExerciseInstructions = (instructions: string): InstructionPart
 	}
 	return parts;
 };
+
+export const parseCourseMarkdown = (text: string): CourseBlock[] =>
+	parseExerciseInstructions(text).flatMap((part): CourseBlock[] => {
+		if (part.kind === 'code') return [part];
+		return part.text
+			.split(/(\r?\n[ \t]*\r?\n(?:[ \t]*\r?\n)*)/)
+			.flatMap((chunk, index): CourseBlock[] =>
+				index % 2 === 0 ? parseExerciseProse(chunk) : [{ kind: 'spacing', text: chunk }]
+			);
+	});

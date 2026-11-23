@@ -93,7 +93,7 @@ export async function importModule(
 		}
 		const saved =
 			action === 'create'
-				? await createModule(tx, input.draft, input.moduleId)
+				? await createModule(tx, input.draft, input.moduleId, input.rubric?.assessments)
 				: await updateModule(tx, input.moduleId, {
 						...input.draft,
 						expectedRevision: updateModuleImportSchema.parse(input).expectedRevision

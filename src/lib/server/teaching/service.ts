@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, gte, gt, lt, inArray, isNull, notInArray, sql, count } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, gt, lt, inArray, isNull, ne, notInArray, sql, count } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import {
 	classes,
@@ -31,11 +31,20 @@ import { getRubric } from './grading.js';
 import { batches } from '../db/batches.js';
 import { activeLessonFilter } from '../calendar/state.js';
 import { guardManagedLessons } from '../calendar/lesson-ownership.js';
-import { emptyStudentContent } from '../../domain/pedagogy.js';
+import { emptyStudentContent, type StudentContent } from '../../domain/pedagogy.js';
+import type { RubricAssessment } from '../../domain/grading.js';
 import { moduleDraftSchema, moduleUpdateSchema } from '../../domain/teaching.js';
 import { currentAcademicYear } from '../../domain/academic-year.js';
 
 type Store = Pick<Database, 'select' | 'update' | 'insert' | 'delete'>;
+export const listDossierAssessments = (db: Pick<Database, 'select'>, moduleId: string) =>
+	db
+		.select({ id: assessments.id, title: assessments.title })
+		.from(assessments)
+		.where(and(eq(assessments.moduleId, moduleId), ne(assessments.kind, 'quiz'), isNull(assessments.retiredAt)))
+		.orderBy(asc(assessments.position), asc(assessments.id))
+		.all();
+
 const missing = () => error(404, 'Cet élément n’est plus disponible.');
 const conflict = () =>
 	error(
@@ -364,13 +373,14 @@ export async function getModule(db: Store, id: string): Promise<ModuleDetail> {
 			expectedRevision: context.revision,
 			lessons: schedule
 				.filter((v) => v.contextId === context.id)
-				.map(({ id, title, startsAt, endsAt, recap, toDo }) => ({
+				.map(({ id, title, startsAt, endsAt, recap, toDo, exerciseIds }) => ({
 					id,
 					title,
 					startsAt: startsAt.toISOString(),
 					endsAt: endsAt.toISOString(),
 					recap,
-					toDo
+					toDo,
+					...(exerciseIds.length ? { exerciseIds } : {})
 				}))
 		}))
 	};
@@ -380,23 +390,35 @@ export async function copyModuleToClass(db: Pick<Database, 'transaction'>, modul
 	return db.transaction(async (tx) => {
 		const source = await getModule(tx, moduleId);
 		const rubric = await getRubric(tx, moduleId, true);
-		const copied = await createModule(tx, {
-			...editableModule(source),
-			contexts: [{ id: crypto.randomUUID(), classId, lessons: [] }],
-			resources: source.resources.map((resource) => ({ ...resource, id: crypto.randomUUID() })),
-			studentContent: {
-				...(source.studentContent ?? emptyStudentContent()),
-				exercises: (source.studentContent?.exercises ?? []).map((exercise) => ({
-					...exercise,
-					id: crypto.randomUUID()
-				}))
-			}
-		});
 		const ids = new Map<string, string>();
 		const identify = (old: string) => {
 			if (!ids.has(old)) ids.set(old, crypto.randomUUID());
 			return ids.get(old)!;
 		};
+		const content = source.studentContent ?? emptyStudentContent();
+		const copied = await createModule(
+			tx,
+			{
+				...editableModule(source),
+				contexts: [{ id: crypto.randomUUID(), classId, lessons: [] }],
+				resources: source.resources.map((resource) => ({ ...resource, id: identify(resource.id) })),
+				studentContent: {
+					...content,
+					dossiers: content.dossiers?.map((item) => ({
+						...item,
+						assessmentId: identify(item.assessmentId),
+						resourceIds: item.resourceIds.map(identify)
+					})),
+					exercises: content.exercises.map((exercise) => ({
+						...exercise,
+						id: identify(exercise.id),
+						resourceIds: exercise.resourceIds?.map(identify)
+					}))
+				}
+			},
+			crypto.randomUUID(),
+			rubric.assessments.map((item) => ({ id: identify(item.id), kind: item.kind }))
+		);
 		for (const rows of batches(
 			rubric.assessments.map((assessment, position) => ({
 				id: identify(assessment.id),
@@ -526,6 +548,10 @@ async function writeModuleParts(tx: Store, moduleId: string, draft: ModuleDraft)
 		if (lessonIds.length) {
 			const existingLessons = await tx.select().from(lessons).where(inArray(lessons.id, lessonIds));
 			if (existingLessons.some((v) => v.contextId !== context.id)) error(422, 'Identifiant de séance invalide.');
+			const byId = new Map(existingLessons.map((item) => [item.id, item]));
+			for (const lesson of context.lessons) {
+				if (lesson.exerciseIds === undefined) lesson.exerciseIds = byId.get(lesson.id)?.exerciseIds;
+			}
 		}
 		await tx
 			.delete(lessons)
@@ -550,10 +576,13 @@ async function writeModuleParts(tx: Store, moduleId: string, draft: ModuleDraft)
 						startsAt: new Date(lesson.startsAt),
 						endsAt: new Date(lesson.endsAt),
 						recap: lesson.recap,
-						toDo: lesson.toDo
+						toDo: lesson.toDo,
+						exerciseIds: lesson.exerciseIds ?? []
 					}
 				});
 	}
+	const validated = moduleDraftSchema.safeParse(draft);
+	if (!validated.success) error(422, validated.error.issues[0].message);
 	await tx
 		.delete(resources)
 		.where(
@@ -586,23 +615,64 @@ function creationFingerprint(draft: ModuleDraft) {
 				classId,
 				lessons: [...lessons]
 					.sort((a, b) => a.id.localeCompare(b.id))
-					.map((v) => ({
+					.map(({ exerciseIds, ...v }) => ({
 						...v,
+						...(exerciseIds?.length ? { exerciseIds } : {}),
 						startsAt: new Date(v.startsAt).toISOString(),
 						endsAt: new Date(v.endsAt).toISOString()
 					}))
 			}))
 	});
 }
+type PendingAssessment = { id: string; kind?: RubricAssessment['kind'] };
+
+const retainMaterialLinks = (content: StudentContent, previous?: StudentContent): StudentContent => {
+	const oldExercises = new Map(previous?.exercises.map((item) => [item.id, item]));
+	const dossiers = content.dossiers ?? previous?.dossiers;
+	return {
+		...content,
+		...(dossiers ? { dossiers } : {}),
+		exercises: content.exercises.map(({ semester, resourceIds, ...exercise }) => {
+			const saved = oldExercises.get(exercise.id);
+			const selectedSemester = semester === undefined ? saved?.semester : semester;
+			const links = resourceIds ?? saved?.resourceIds;
+			return {
+				...exercise,
+				...(selectedSemester ? { semester: selectedSemester } : {}),
+				...(links ? { resourceIds: links } : {})
+			};
+		})
+	};
+};
+
+const checkDossierAssessments = async (
+	db: Store,
+	moduleId: string,
+	content: StudentContent,
+	pending: PendingAssessment[]
+) => {
+	if (!content.dossiers?.length) return;
+	const available = new Set((await listDossierAssessments(db, moduleId)).map((item) => item.id));
+	// A combined import or copy writes its rubric in this same transaction.
+	for (const item of pending) {
+		if (item.kind === 'quiz') available.delete(item.id);
+		else if (item.kind) available.add(item.id);
+	}
+	if (content.dossiers.some(({ assessmentId }) => !available.has(assessmentId))) {
+		error(422, 'Rattachez chaque dossier à une évaluation active hors quiz de ce module.');
+	}
+};
 export async function createModule(
 	db: Pick<Database, 'transaction'>,
 	rawDraft: ModuleDraft,
-	id: string = crypto.randomUUID()
+	id: string = crypto.randomUUID(),
+	pendingAssessments: PendingAssessment[] = []
 ) {
 	return db.transaction(async (tx) => {
 		const parsed = moduleDraftSchema.safeParse(rawDraft);
 		if (!parsed.success) error(422, 'Vérifiez les informations et identités du module.');
 		const draft = parsed.data;
+		draft.studentContent = retainMaterialLinks(draft.studentContent);
 		const [existing] = await tx.select({ id: modules.id }).from(modules).where(eq(modules.id, id));
 		if (existing) {
 			const saved = await getModule(tx, id);
@@ -610,6 +680,7 @@ export async function createModule(
 				error(409, 'Ce brouillon a déjà été créé avec un contenu différent. Retrouvez-le dans Mes modules.');
 			return saved;
 		}
+		await checkDossierAssessments(tx, id, draft.studentContent, pendingAssessments);
 		const { title, description, objectives, sourcePath, preparation } = draft;
 		await tx.insert(modules).values({
 			id,
@@ -618,7 +689,7 @@ export async function createModule(
 			objectives,
 			sourcePath,
 			preparation,
-			studentContent: draft.studentContent ?? emptyStudentContent()
+			studentContent: draft.studentContent
 		});
 		await writeModuleParts(tx, id, draft);
 		return getModule(tx, id);
@@ -627,13 +698,16 @@ export async function createModule(
 export async function updateModule(
 	db: Pick<Database, 'transaction'>,
 	id: string,
-	rawDraft: ModuleDraft & { expectedRevision: number }
+	rawDraft: ModuleDraft & { expectedRevision: number },
+	pendingAssessments: PendingAssessment[] = []
 ) {
 	return db.transaction(async (tx) => {
 		const parsed = moduleUpdateSchema.safeParse(rawDraft);
 		if (!parsed.success) error(422, 'Vérifiez les informations et identités du module.');
-		const draft = parsed.data;
-		await claimModule(tx, id, draft.expectedRevision);
+		const { expectedRevision, ...draft } = parsed.data;
+		const saved = await claimModule(tx, id, expectedRevision);
+		draft.studentContent = retainMaterialLinks(draft.studentContent ?? saved.studentContent, saved.studentContent);
+		await checkDossierAssessments(tx, id, draft.studentContent, pendingAssessments);
 		const { title, description, objectives, sourcePath, preparation } = draft;
 		await tx
 			.update(modules)
@@ -643,7 +717,7 @@ export async function updateModule(
 				objectives,
 				sourcePath,
 				preparation,
-				studentContent: draft.studentContent ?? emptyStudentContent()
+				studentContent: draft.studentContent
 			})
 			.where(eq(modules.id, id));
 		await writeModuleParts(tx, id, draft);

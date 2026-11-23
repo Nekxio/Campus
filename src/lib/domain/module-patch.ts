@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { idSchema, preparationSchema, resourceSchema, revisionSchema } from './contracts.js';
 import { moduleDraftSchema } from './teaching.js';
 import { rubricDraftSchema, rubricAssessmentSchema } from './grading.js';
-import { exerciseSchema, studentContentSchema } from './pedagogy.js';
+import { dossierSchema, exerciseSchema, studentContentSchema } from './pedagogy.js';
 
 const lesson = moduleDraftSchema.shape.contexts.element.shape.lessons.element;
 export const modulePatchSchema = z.strictObject({
@@ -21,6 +21,14 @@ export const modulePatchSchema = z.strictObject({
 		.strictObject({
 			instructions: studentContentSchema.shape.instructions.removeDefault().optional(),
 			projectInstructions: studentContentSchema.shape.projectInstructions.removeDefault().optional(),
+			dossiers: z
+				.array(dossierSchema.partial().required({ assessmentId: true }))
+				.max(100)
+				.refine(
+					(items) => new Set(items.map((item) => item.assessmentId)).size === items.length,
+					'Une évaluation ne peut être modifiée qu’une fois.'
+				)
+				.optional(),
 			exercises: z
 				.array(
 					exerciseSchema.extend({ code: exerciseSchema.shape.code.removeDefault() }).partial().required({ id: true })
@@ -84,6 +92,7 @@ export const explicitRemovalSchema = z.strictObject({
 	resources: z.array(idSchema).optional(),
 	lessons: z.array(idSchema).optional(),
 	exercises: z.array(idSchema).optional(),
+	dossiers: z.array(idSchema).optional(),
 	assessments: z.array(idSchema).optional(),
 	groups: z.array(idSchema).optional(),
 	lines: z.array(idSchema).optional(),
@@ -132,18 +141,26 @@ export const patchModuleImportSchema = z
 export type ModulePatchImport = z.infer<typeof patchModuleImportSchema>;
 
 // Arrays are keyed collections: omission preserves an element and only an explicit ID removes it.
-export const mergeIdentified = <T extends { id: string }, Change extends { id: string }>(
+export const mergeByKey = <Key extends string, T extends Record<Key, string>, Change extends Record<Key, string>>(
+	key: Key,
 	base: T[],
 	changes: Change[] = [],
 	remove: string[] = []
 ): (T | Change)[] => {
+	const changesById = new Map<string, Change>(changes.map((item) => [item[key], item]));
+	const existingIds = new Set<string>(base.map((item) => item[key]));
 	return [
 		...base
-			.filter((item) => !remove.includes(item.id))
+			.filter((item) => !remove.includes(item[key]))
 			.map((item) => {
-				const change = changes.find((value) => value.id === item.id);
+				const change = changesById.get(item[key]);
 				return change ? { ...item, ...change } : item;
 			}),
-		...changes.filter((item) => !base.some((value) => value.id === item.id))
+		...changes.filter((item) => !existingIds.has(item[key]))
 	];
 };
+export const mergeIdentified = <T extends { id: string }, Change extends { id: string }>(
+	base: T[],
+	changes: Change[] = [],
+	remove: string[] = []
+) => mergeByKey('id', base, changes, remove);

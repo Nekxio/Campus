@@ -133,7 +133,8 @@ const lessonInputSchema = z.strictObject({
 	startsAt: z.string(),
 	endsAt: z.string(),
 	recap: z.string(),
-	toDo: z.string()
+	toDo: z.string(),
+	exerciseIds: z.array(z.string()).optional()
 });
 
 export const createModuleEditorSchema = (getSavedDates: () => SavedModuleDates) =>

@@ -124,7 +124,8 @@ export const lessons = sqliteTable(
 		startsAt: timestamp('starts_at').notNull(),
 		endsAt: timestamp('ends_at').notNull(),
 		recap: text('recap').notNull().default(''),
-		toDo: text('to_do').notNull().default('')
+		toDo: text('to_do').notNull().default(''),
+		exerciseIds: text('exercise_ids', { mode: 'json' }).$type<string[]>().notNull().default([])
 	},
 	(table) => [
 		index('lesson_context_idx').on(table.contextId),

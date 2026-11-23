@@ -3,12 +3,12 @@ import type { Database } from '../db/index.js';
 import { emptyModule } from '../../teaching/types.js';
 
 vi.mock('./database.js', () => ({ withTeacherDatabase: vi.fn() }));
-vi.mock('./service.js', () => ({ listClasses: vi.fn(), getModule: vi.fn() }));
+vi.mock('./service.js', () => ({ listClasses: vi.fn(), getModule: vi.fn(), listDossierAssessments: vi.fn() }));
 vi.mock('../calendar/lesson-ownership.js', () => ({ getManagedLessons: vi.fn() }));
 vi.mock('./student-views.js', () => ({ getPublishedModulePath: vi.fn() }));
 
 import { withTeacherDatabase } from './database.js';
-import { listClasses, getModule } from './service.js';
+import { listClasses, getModule, listDossierAssessments } from './service.js';
 import { getManagedLessons } from '../calendar/lesson-ownership.js';
 import { getPublishedModulePath } from './student-views.js';
 import { load } from '../../../routes/enseignant/modules/[moduleId]/+page.server.js';
@@ -46,6 +46,8 @@ describe('Module page data loading', () => {
 			return value;
 		};
 		vi.mocked(listClasses).mockImplementation(() => delayed([]));
+		const dossierAssessments = [{ id: crypto.randomUUID(), title: 'Dossier S1' }];
+		vi.mocked(listDossierAssessments).mockImplementation(() => delayed(dossierAssessments));
 		vi.mocked(getModule).mockImplementation(() => delayed(module));
 		vi.mocked(getManagedLessons).mockImplementation(() => delayed([]));
 		vi.mocked(getPublishedModulePath).mockImplementation(() => delayed('/modules/published'));
@@ -61,6 +63,7 @@ describe('Module page data loading', () => {
 			classes: [],
 			module,
 			managedLessons: [],
+			dossierAssessments,
 			publishedPath: '/modules/published'
 		});
 	});

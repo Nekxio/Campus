@@ -7,6 +7,7 @@ import type { BrowserFixture } from './support/process.js';
 import { moduleDetailSchema } from '../../src/lib/domain/teaching.js';
 import { rubricUpdateSchema } from '../../src/lib/domain/grading.js';
 import { publicationReceiptSchema } from '../../src/lib/domain/publication.js';
+import type { StudentContent } from '../../src/lib/domain/pedagogy.js';
 import { editableModule } from '../../src/lib/teaching/types.js';
 
 type InterNetwork = {
@@ -100,7 +101,12 @@ const deadlines = [
 ];
 const navigationName = 'Sections de l’aperçu';
 
-async function enrichSavedDraft(page: Page, app: BrowserFixture, instructions = 'Consigne publique du module · 013') {
+async function enrichSavedDraft(
+	page: Page,
+	app: BrowserFixture,
+	instructions = 'Consigne publique du module · 013',
+	additionalExercises: StudentContent['exercises'] = []
+) {
 	const endpoint = `${app.origin}/api/teaching/modules/${app.ids.publicationModule}`;
 	const read = await page.request.get(endpoint);
 	expect(read.status()).toBe(200);
@@ -121,7 +127,8 @@ async function enrichSavedDraft(page: Page, app: BrowserFixture, instructions = 
 				solution:
 					'Corrigé librement accessible · 013\n\n## Une solution\n\n- Préserver **le nom**.\n- Afficher la valeur.\n\n```bash\nname="Ada"\nprintf "%s\\n" "$name"\n```\n\nAfficher `name`.',
 				code: 'const message = "Bonjour, 世界 👋";'
-			}
+			},
+			...additionalExercises
 		]
 	};
 	const updated = await page.request.patch(endpoint, {
@@ -181,6 +188,7 @@ async function enrichSavedDraft(page: Page, app: BrowserFixture, instructions = 
 		data: rubric
 	});
 	expect(replaced.status()).toBe(200);
+	return assessments;
 }
 
 async function publish(page: Page, app: BrowserFixture, moduleId: string, contextId: string) {
@@ -550,8 +558,10 @@ const verifyCodeCopy = async (region: Locator, expected: string, exerciseFailure
 	await expect(copy).toBeVisible();
 	await expect(copy).toHaveText('');
 	const bounds = await copy.boundingBox();
-	expect(bounds?.width).toBeGreaterThanOrEqual(44);
-	expect(bounds?.height).toBeGreaterThanOrEqual(44);
+	expect(bounds).not.toBeNull();
+	// Device emulation can return 43.99998 for a 44 CSS pixel target.
+	expect(Number(bounds!.width.toFixed(3))).toBeGreaterThanOrEqual(44);
+	expect(Number(bounds!.height.toFixed(3))).toBeGreaterThanOrEqual(44);
 	if (exerciseFailure) {
 		await page.evaluate(() => {
 			Object.defineProperty(navigator, 'clipboard', {
@@ -615,7 +625,7 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 		];
 		for (const panel of panels) {
 			const card = panel.getByRole('button', { name: /Exercice libre · 013/ });
-			await expect(card).toHaveAccessibleName('01 Exercice libre · 013');
+			await expect(card).toHaveAccessibleName('Exercice libre · 013');
 			await card.focus();
 			await panel.page().keyboard.press('Enter');
 			await expect(panel.getByRole('heading', { name: 'Exercice libre · 013', exact: true })).toBeFocused();
@@ -711,6 +721,177 @@ test('shared content cards preserve preview boundaries, keyboard focus and delib
 		}
 	} finally {
 		await publicPage.close();
+	}
+});
+
+test('course Markdown and optional corrections work identically in the preview and the public course', async ({
+	app,
+	page,
+	context
+}, info) => {
+	const href = 'https://example.org/trame';
+	const text = [
+		'## Données du projet',
+		'',
+		'Consulter [la trame](' + href + ') avant le **23 janvier**. <support fictif>',
+		'',
+		'| Activité | Charge | Responsable | Début | Fin | Contrôle | État | Décision |',
+		'| --- | --- | --- | --- | --- | --- | --- | --- |',
+		'| Préparer | 2 h | Équipe | Mardi | Jeudi | Relecture | En cours | À valider |'
+	].join('\n');
+	await activate(page, app);
+	await enrichSavedDraft(page, app, text, [
+		{ id: randomUUID(), title: 'Données seules', instructions: text, solution: '  ', code: '\n' },
+		{
+			id: randomUUID(),
+			title: 'Solution expliquée',
+			instructions: 'Comparez les résultats.',
+			solution: text,
+			code: ''
+		},
+		{ id: randomUUID(), title: 'Code seul', instructions: 'Suivez le calcul.', solution: '', code: '2 + 2' }
+	]);
+	const contextId = app.ids.publicationContext;
+	await page.goto(`${app.origin}/enseignant/modules/${app.ids.publicationModule}/publication?contexte=${contextId}`);
+	const publicPath = await publish(page, app, app.ids.publicationModule, contextId);
+	const publicPage = await context.newPage();
+	try {
+		await publicPage.goto(app.origin + publicPath);
+		const assertMarkdown = async (panel: Locator) => {
+			await expect(panel.getByRole('heading', { name: 'Données du projet', exact: true })).toBeVisible();
+			await expect(panel.getByText('23 janvier', { exact: true })).toHaveJSProperty('tagName', 'STRONG');
+			await expect(panel.getByText('<support fictif>', { exact: false })).toBeVisible();
+			const link = panel.getByRole('link', { name: 'la trame · lien externe, nouvel onglet', exact: true });
+			await expect(link).toHaveAttribute('href', href);
+			await expect(link).toHaveAttribute('target', '_blank');
+			const table = panel.getByRole('table');
+			await expect(table.getByRole('columnheader', { name: 'Charge' })).toHaveAttribute('scope', 'col');
+			await expect(table.getByRole('cell', { name: '2 h', exact: true })).toBeVisible();
+			if (info.project.name === 'mobile') {
+				const scroll = panel.getByRole('region', { name: /Défilement horizontal du tableau/ });
+				await expect(scroll).toBeVisible();
+				await scroll.focus();
+				await panel.page().keyboard.press('ArrowRight');
+				await expect.poll(() => scroll.evaluate((node) => node.scrollLeft)).toBeGreaterThan(0);
+				expect(await panel.page().evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+			}
+		};
+		for (const current of [page, publicPage]) {
+			if (info.project.name === 'mobile') await current.setViewportSize({ width: 320, height: 844 });
+			const selectSection = (section: Section) =>
+				current === page
+					? selectReview(page, contextId, section, page.viewportSize()!.width)
+					: selectPublic(publicPage, contextId, section);
+			await assertMarkdown(await selectSection(sections[1]));
+			const supports = await selectSection(sections[0]);
+			await supports.getByRole('button', { name: /Données seules/ }).click();
+			await assertMarkdown(supports);
+			await expect(supports.getByRole('tab', { name: 'Corrigé', exact: true })).toHaveCount(0);
+			await supports.getByRole('button', { name: 'Retour aux supports' }).click();
+			for (const name of ['Solution expliquée', 'Code seul']) {
+				await supports.getByRole('button', { name: new RegExp(name) }).click();
+				const correction = supports.getByRole('tab', { name: 'Corrigé', exact: true });
+				await correction.focus();
+				await current.keyboard.press('Enter');
+				await current.getByRole('alertdialog').getByRole('button', { name: 'Voir le corrigé' }).click();
+				if (name === 'Code seul') {
+					await expect(supports.getByRole('region', { name: 'Code de l’exercice · Code seul' })).toHaveText('2 + 2');
+				} else {
+					await assertMarkdown(supports);
+				}
+				await supports.getByRole('button', { name: 'Retour aux supports' }).click();
+			}
+		}
+	} finally {
+		await publicPage.close();
+	}
+});
+
+test('a teacher links a dossier and a workshop to their files and the published views preserve the choices', async ({
+	app,
+	page,
+	context
+}, info) => {
+	if (info.project.name === 'mobile') await page.setViewportSize({ width: 375, height: 812 });
+	page.setDefaultTimeout(20000);
+	await activate(page, app);
+	const assessments = await enrichSavedDraft(page, app, undefined, [
+		{
+			id: randomUUID(),
+			title: 'Lire un tableau',
+			instructions: 'Lire le tableau.',
+			solution: '',
+			code: ''
+		}
+	]);
+	const contextId = app.ids.publicationContext;
+	const modulePath = `${app.origin}/enseignant/modules/${app.ids.publicationModule}`;
+	await page.goto(modulePath + '?section=resources');
+	const assessmentChoice = page.getByLabel('Évaluation du dossier', { exact: true });
+	await expect(assessmentChoice).toBeEnabled();
+	await assessmentChoice.selectOption(assessments[0].id);
+	await expect(page.getByRole('button', { name: 'Ajouter le dossier', exact: true })).toBeEnabled();
+	await page.getByRole('button', { name: 'Ajouter le dossier', exact: true }).click();
+	await page.getByLabel(/^Consignes du dossier/).fill('## Pièces à remettre\n\nDéposez le **document final**.');
+	const dossier = page.getByRole('group', { name: assessments[0].title, exact: true });
+	await dossier.getByRole('checkbox', { name: 'Consigne du projet · démo' }).check();
+	const first = page.getByRole('group', { name: 'Exercice non noté 1', exact: true });
+	await first.getByLabel('Semestre de l’atelier').selectOption('S2');
+	await first.getByLabel('Séance de l’atelier').selectOption({ index: 1 });
+	await first.getByRole('checkbox', { name: 'Consigne du projet · démo' }).check();
+	await page
+		.getByRole('group', { name: 'Exercice non noté 2', exact: true })
+		.getByLabel('Semestre de l’atelier')
+		.selectOption('S1');
+	const save = page.getByRole('button', { name: 'Enregistrer le module', exact: true }).first();
+	const saved = page.waitForResponse(
+		(response) => response.url() === modulePath + '?/saveModule' && response.request().method() === 'POST'
+	);
+	await save.click();
+	expect((await saved).status()).toBe(200);
+	await expect(page.getByText('Module enregistré.', { exact: true })).toBeVisible();
+	await page.goto(modulePath + '/publication?contexte=' + contextId);
+	const publicPath = await publish(page, app, app.ids.publicationModule, contextId);
+	const student = await context.newPage();
+	student.setDefaultTimeout(20000);
+	try {
+		if (info.project.name === 'mobile') await student.setViewportSize({ width: 375, height: 812 });
+		await student.goto(app.origin + publicPath);
+		for (const reader of [page, student]) {
+			const select = (section: Section) =>
+				reader === page
+					? selectReview(page, contextId, section, page.viewportSize()!.width)
+					: selectPublic(student, contextId, section);
+			const assignments = await select(sections[1]);
+			const card = assignments.getByRole('button', { name: assessments[0].title, exact: true });
+			await card.focus();
+			await reader.keyboard.press('Enter');
+			await expect(assignments.getByRole('heading', { name: assessments[0].title, exact: true })).toBeFocused();
+			await expect(assignments.getByRole('heading', { name: 'Pièces à remettre' })).toBeVisible();
+			await expect(assignments.getByText('document final', { exact: true })).toHaveJSProperty('tagName', 'STRONG');
+			const shortcuts = assignments.getByRole('navigation', { name: 'Dans ce dossier' });
+			await expect(shortcuts.getByRole('button')).toHaveCount(4);
+			await shortcuts.getByRole('button', { name: 'Barème' }).click();
+			await expect(assignments.getByText('Qualité du livrable', { exact: true })).toBeVisible();
+			await shortcuts.getByRole('button', { name: 'Fichiers' }).click();
+			await expect(assignments.getByText('Consigne du projet · démo').first()).toBeInViewport();
+			await expect(assignments.getByText('Échéance et remise', { exact: true })).toBeVisible();
+			await assignments.getByRole('button', { name: 'Retour aux dossiers' }).click();
+			await expect(card).toBeFocused();
+			const workshops = await select(sections[0]);
+			await workshops.getByRole('radio', { name: 'S2', exact: true }).click();
+			const exercise = workshops.getByRole('button', { name: 'Exercice libre · 013' });
+			await expect(workshops.getByText('Lire un tableau', { exact: true })).toHaveCount(0);
+			await exercise.click();
+			await expect(workshops.getByRole('heading', { name: 'Ressources de l’atelier' })).toBeVisible();
+			await expect(workshops.getByText('Consigne du projet · démo').first()).toBeVisible();
+			await workshops.getByRole('button', { name: 'Retour aux supports' }).click();
+			await expect(exercise).toBeFocused();
+			const resources = await select(sections[3]);
+			await expect(resources.getByText('Consigne du projet · démo', { exact: true })).toHaveCount(1);
+		}
+	} finally {
+		await student.close();
 	}
 });
 

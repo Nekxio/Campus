@@ -77,7 +77,12 @@ const readPublicationRubric = async (db: Store, moduleId: string): Promise<Publi
 	for (const row of rows) {
 		let assessment = evaluations.get(row.assessment.id);
 		if (!assessment) {
-			assessment = { title: row.assessment.title, kind: row.assessment.kind, groups: [] };
+			assessment = {
+				assessmentId: row.assessment.id,
+				title: row.assessment.title,
+				kind: row.assessment.kind,
+				groups: []
+			};
 			evaluations.set(row.assessment.id, assessment);
 			rubric.push(assessment);
 		}
@@ -114,6 +119,7 @@ async function projectDraft(
 		db
 			.select({
 				label: assessments.title,
+				assessmentId: assessments.id,
 				dueAt: assessmentDeadlines.dueAt,
 				submissionInstructions: assessmentDeadlines.submissionInstructions
 			})
@@ -134,13 +140,15 @@ async function projectDraft(
 				label: lessons.title,
 				startsAt: lessons.startsAt,
 				recap: lessons.recap,
-				toDo: lessons.toDo
+				toDo: lessons.toDo,
+				exerciseIds: lessons.exerciseIds
 			})
 			.from(lessons)
 			.where(and(eq(lessons.contextId, context.id), activeLessonFilter))
 			.orderBy(asc(lessons.startsAt), asc(lessons.id)),
 		readPublicationRubric(db, module.id)
 	]);
+	const visibleAssessments = new Set(rubric.map((assessment) => assessment.assessmentId));
 	const parsed = publicationSnapshotSchema.safeParse({
 		version: 2,
 		title: module.title,
@@ -151,21 +159,25 @@ async function projectDraft(
 		className: annualClass.name,
 		academicYear: annualClass.academicYear,
 		resources: links,
-		deadlines: dates.map(({ label, dueAt, submissionInstructions }) => ({
-			label,
-			dueAt: dueAt.toISOString(),
-			submissionInstructions
-		})),
+		deadlines: dates
+			.filter(({ assessmentId }) => visibleAssessments.has(assessmentId))
+			.map(({ assessmentId, label, dueAt, submissionInstructions }) => ({
+				assessmentId,
+				label,
+				dueAt: dueAt.toISOString(),
+				submissionInstructions
+			})),
 		recap: '',
 		toDo: '',
 		lessonNotes: notes
-			.filter((v) => v.recap.trim() || v.toDo.trim())
+			.filter((v) => v.recap.trim() || v.toDo.trim() || v.exerciseIds.length)
 			.map((v) => ({
 				id: v.id,
 				label: v.label,
 				startsAt: v.startsAt.toISOString(),
 				recap: v.recap,
-				toDo: v.toDo
+				toDo: v.toDo,
+				...(v.exerciseIds.length ? { exerciseIds: v.exerciseIds } : {})
 			}))
 	});
 	if (!parsed.success) error(422, 'Le contenu étudiant doit être corrigé dans le module avant publication.');

@@ -76,6 +76,12 @@ individual grades or private comments. Sources stay local and selected student e
 the existing professional Drive; Campus stores links only. Replacing an already shared Drive
 file is immediately visible independently of Campus page publication.
 
+Teachers can attach instructions and selected resource links to a dossier through its assessment
+identity. The public dossier brings these together with its own blank rubric and annual deadline.
+Workshops can belong to a semester, refer to the module's resources and be assigned to a lesson
+in the current teaching context. Only a workshop with a written correction or correction code
+offers the correction view. Existing publications remain readable without these associations.
+
 Modules and their preparation, materials, rubrics and calendar history are reusable and durable.
 Annual classes and student identities, corrections, submissions, proposals and comments can be
 purged. Points are whole numbers; calculations retain full precision and /20 results display one

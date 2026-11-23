@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { studentContentSchema, emptyStudentContent } from './pedagogy.js';
+import {
+	studentContentSchema,
+	emptyStudentContent,
+	exerciseIdsSchema,
+	checkResourceReferences,
+	checkLessonExercises
+} from './pedagogy.js';
 import { academicYearSchema, idSchema, revisionSchema, preparationSchema, resourceSchema } from './contracts.js';
 
 export const studentNameSchema = z
@@ -46,7 +52,8 @@ const lessonSchema = z
 		startsAt: z.iso.datetime({ offset: true }),
 		endsAt: z.iso.datetime({ offset: true }),
 		recap: z.string().max(10000).default(''),
-		toDo: z.string().max(10000).default('')
+		toDo: z.string().max(10000).default(''),
+		exerciseIds: exerciseIdsSchema.optional()
 	})
 	.refine((lesson) => Date.parse(lesson.endsAt) > Date.parse(lesson.startsAt), {
 		message: 'La fin doit suivre le début.',
@@ -58,31 +65,44 @@ const contextSchema = z.strictObject({
 	expectedRevision: revisionSchema.optional(),
 	lessons: z.array(lessonSchema).max(200)
 });
-export const moduleDraftSchema = z
-	.strictObject({
-		title: studentNameSchema,
-		description: z.string().max(20000),
-		objectives: z.array(studentNameSchema).max(100),
-		sourcePath: z.string().trim().max(2000),
-		preparation: preparationSchema,
-		studentContent: studentContentSchema.default(emptyStudentContent),
-		resources: z.array(resourceSchema).max(200),
-		contexts: z.array(contextSchema).max(100)
-	})
-	.superRefine((value, ctx) => {
-		for (const [key, ids] of [
-			['resources', value.resources.map((v) => v.id)],
-			['contexts', value.contexts.map((v) => v.id)],
-			['contexts', value.contexts.map((v) => v.classId)],
-			['contexts', value.contexts.flatMap((v) => v.lessons.map((l) => l.id))]
-		] as const) {
-			if (new Set(ids).size !== ids.length)
-				ctx.addIssue({ code: 'custom', path: [key], message: 'Retirez les doublons.' });
-		}
-	});
-export const moduleUpdateSchema = moduleDraftSchema.safeExtend({
-	expectedRevision: revisionSchema
+const moduleFields = z.strictObject({
+	title: studentNameSchema,
+	description: z.string().max(20000),
+	objectives: z.array(studentNameSchema).max(100),
+	sourcePath: z.string().trim().max(2000),
+	preparation: preparationSchema,
+	studentContent: studentContentSchema.default(emptyStudentContent),
+	resources: z.array(resourceSchema).max(200),
+	contexts: z.array(contextSchema).max(100)
 });
+const checkModuleIdentities = (
+	value: Pick<z.infer<typeof moduleFields>, 'contexts' | 'resources'>,
+	ctx: z.RefinementCtx
+) => {
+	for (const [key, ids] of [
+		['resources', value.resources.map((v) => v.id)],
+		['contexts', value.contexts.map((v) => v.id)],
+		['contexts', value.contexts.map((v) => v.classId)],
+		['contexts', value.contexts.flatMap((v) => v.lessons.map((l) => l.id))]
+	] as const) {
+		if (new Set(ids).size !== ids.length)
+			ctx.addIssue({ code: 'custom', path: [key], message: 'Retirez les doublons.' });
+	}
+};
+export const moduleFieldsSchema = moduleFields.superRefine(checkModuleIdentities);
+export const moduleDraftSchema = moduleFieldsSchema.superRefine((value, ctx) => {
+	checkResourceReferences(value.studentContent, value.resources, ctx);
+	for (const [index, context] of value.contexts.entries()) {
+		checkLessonExercises(value.studentContent, context.lessons, ['contexts', index, 'lessons'], ctx);
+	}
+});
+// Older full-form clients can omit associations; their merged references are validated in the write transaction.
+export const moduleUpdateSchema = moduleFields
+	.extend({
+		studentContent: studentContentSchema.optional(),
+		expectedRevision: revisionSchema
+	})
+	.superRefine(checkModuleIdentities);
 // Saved contexts carry their own optimistic revision; new draft contexts may omit it.
 export const moduleDetailSchema = moduleDraftSchema.safeExtend({
 	id: idSchema,

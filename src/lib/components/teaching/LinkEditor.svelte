@@ -46,7 +46,24 @@
 	function removeLink(id: string) {
 		formData.update((data) =>
 			student
-				? { ...data, resources: data.resources.filter((row) => row.id !== id) }
+				? {
+						...data,
+						resources: data.resources.filter((row) => row.id !== id),
+						studentContent: {
+							...data.studentContent,
+							exercises: data.studentContent.exercises.map((item) =>
+								item.resourceIds?.includes(id)
+									? { ...item, resourceIds: item.resourceIds.filter((resourceId) => resourceId !== id) }
+									: item
+							),
+							...(data.studentContent.dossiers && {
+								dossiers: data.studentContent.dossiers.map((item) => ({
+									...item,
+									resourceIds: item.resourceIds.filter((resourceId) => resourceId !== id)
+								}))
+							})
+						}
+					}
 				: {
 						...data,
 						preparation: {

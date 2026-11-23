@@ -55,7 +55,150 @@ async function close(decision: 'continue' | 'pause') {
 		}))
 	});
 }
+const attachCourseMaterial = async () => {
+	const draft = await getModule(db, ids.module);
+	const context = draft.contexts.find((item) => item.id === ids.currentContext)!;
+	const exercise = {
+		id: crypto.randomUUID(),
+		title: 'Workshop',
+		instructions: 'Read the worksheet.',
+		solution: 'A worked example.',
+		code: '',
+		semester: 'S2' as const,
+		resourceIds: [draft.resources[0].id]
+	};
+	const dossier = {
+		assessmentId: ids.project,
+		instructions: 'Submit the project.',
+		resourceIds: [draft.resources[0].id]
+	};
+	const lesson = {
+		id: crypto.randomUUID(),
+		title: 'Workshop session',
+		startsAt: '2026-10-01T08:00:00.000Z',
+		endsAt: '2026-10-01T12:00:00.000Z',
+		recap: '',
+		toDo: '',
+		exerciseIds: [exercise.id]
+	};
+	const saved = await updateModule(db, draft.id, {
+		...editableModule(draft),
+		expectedRevision: draft.revision,
+		studentContent: { instructions: '', projectInstructions: '', exercises: [exercise], dossiers: [dossier] },
+		contexts: [{ ...context, lessons: [lesson] }]
+	});
+	return { saved, exercise, dossier, lesson };
+};
 describe('Confirmed teacher workflows', () => {
+	it('publishes the reviewed dossier, resource and workshop session even when the session has no notes', async () => {
+		const { exercise, dossier, lesson } = await attachCourseMaterial();
+		const preview = (await getPublicationReview(db, ids.module, ids.currentContext)).selected!.draft!;
+		expect(preview.studentContent.dossiers).toEqual([dossier]);
+		expect(preview.studentContent.exercises).toContainEqual(exercise);
+		expect(preview.rubric).toContainEqual(expect.objectContaining({ assessmentId: ids.project }));
+		expect(preview.deadlines).toContainEqual(expect.objectContaining({ assessmentId: ids.project }));
+		expect(preview.lessonNotes).toContainEqual(expect.objectContaining({ id: lesson.id, exerciseIds: [exercise.id] }));
+		await publish();
+		expect((await getPublicModule(db, ids.currentContext)).snapshot).toEqual(preview);
+		await close('continue');
+		const next = (await getModule(db, ids.module)).contexts[0];
+		const nextPreview = (await getPublicationReview(db, ids.module, next.id)).selected!.draft!;
+		expect(nextPreview.studentContent.dossiers).toEqual([dossier]);
+		expect(nextPreview.lessonNotes).toEqual([]);
+		expect(nextPreview.deadlines).toEqual([]);
+	});
+	it('merges dossier edits by assessment and preserves unmentioned associations across clients', async () => {
+		const { saved, exercise, dossier } = await attachCourseMaterial();
+		const oldInput = editableModule(saved);
+		delete oldInput.studentContent!.dossiers;
+		delete oldInput.studentContent!.exercises[0].semester;
+		delete oldInput.studentContent!.exercises[0].resourceIds;
+		delete oldInput.contexts[0].lessons[0].exerciseIds;
+		const legacySave = await updateModule(db, saved.id, { ...oldInput, expectedRevision: saved.revision });
+		expect(legacySave.studentContent).toEqual(saved.studentContent);
+		expect(legacySave.contexts[0].lessons).toEqual(saved.contexts[0].lessons);
+		const command = {
+			version: 2 as const,
+			requestId: crypto.randomUUID(),
+			moduleId: saved.id,
+			expectedRevision: legacySave.revision,
+			patch: {
+				studentContent: {
+					dossiers: [{ assessmentId: ids.project, instructions: 'Revised instructions' }],
+					exercises: [{ id: exercise.id, semester: null }]
+				}
+			}
+		};
+		const receipt = await patchModule(db, ids.teacher, command);
+		expect(await patchModule(db, ids.teacher, command)).toEqual(receipt);
+		const updated = await getModule(db, saved.id);
+		expect(updated.studentContent!.dossiers).toEqual([{ ...dossier, instructions: 'Revised instructions' }]);
+		expect(updated.studentContent!.exercises[0].semester).toBeUndefined();
+		expect(updated.studentContent!.exercises[0].resourceIds).toEqual(exercise.resourceIds);
+		await patchModule(db, ids.teacher, {
+			version: 2,
+			requestId: crypto.randomUUID(),
+			moduleId: saved.id,
+			expectedRevision: updated.revision,
+			patch: {},
+			remove: { dossiers: [ids.project] }
+		});
+		expect((await getModule(db, saved.id)).studentContent!.dossiers).toEqual([]);
+	});
+	it('rejects dangling resource and assessment references, quiz dossiers and duplicate lesson placement atomically', async () => {
+		const { saved, exercise, dossier, lesson } = await attachCourseMaterial();
+		const context = saved.contexts[0];
+		for (const patch of [
+			{ studentContent: { dossiers: [{ ...dossier, assessmentId: crypto.randomUUID() }] } },
+			{ studentContent: { dossiers: [{ ...dossier, assessmentId: ids.quiz }] } },
+			{ studentContent: { exercises: [{ id: exercise.id, resourceIds: [crypto.randomUUID()] }] } },
+			{ contexts: [{ id: context.id, lessons: [{ ...lesson, id: crypto.randomUUID() }] }] },
+			{ contexts: [{ id: context.id, lessons: [{ id: lesson.id, exerciseIds: [crypto.randomUUID()] }] }] }
+		]) {
+			await expect(
+				patchModule(db, ids.teacher, {
+					version: 2,
+					requestId: crypto.randomUUID(),
+					moduleId: saved.id,
+					expectedRevision: saved.revision,
+					patch
+				})
+			).rejects.toMatchObject({ status: 422 });
+		}
+		const rubric = await getRubric(db, saved.id);
+		await expect(
+			replaceRubric(db, saved.id, {
+				expectedRevision: rubric.module.revision,
+				results: rubric.results,
+				contexts: rubric.contexts.map(({ id, expectedRevision, deadlines }) => ({ id, expectedRevision, deadlines })),
+				assessments: rubric.assessments.map((item) =>
+					item.id === dossier.assessmentId ? { ...item, kind: 'quiz' } : item
+				)
+			})
+		).rejects.toMatchObject({ status: 422 });
+		expect(await getModule(db, saved.id)).toEqual(saved);
+	});
+	it('remaps independent dossier and workshop materials when teaching a copy to another class', async () => {
+		const { saved, exercise, dossier } = await attachCourseMaterial();
+		const otherClass = await createClass(db, { name: 'Independent cohort', academicYear: '2026-2027' });
+		const association = await attachModule(db, otherClass.id, {
+			moduleId: saved.id,
+			moduleRevision: saved.revision,
+			expectedRevision: 1
+		});
+		const copied = await getModule(db, association.moduleId!);
+		const copiedProject = (await getRubric(db, copied.id)).assessments.find((item) => item.kind === 'project')!;
+		const copiedResource = copied.resources.find((item) => item.url === saved.resources[0].url)!;
+		expect(copiedResource.id).not.toBe(saved.resources[0].id);
+		expect(copiedProject.id).not.toBe(dossier.assessmentId);
+		expect(copied.studentContent!.dossiers).toEqual([
+			{ ...dossier, assessmentId: copiedProject.id, resourceIds: [copiedResource.id] }
+		]);
+		const copiedExercise = copied.studentContent!.exercises[0];
+		expect(copiedExercise.id).not.toBe(exercise.id);
+		expect(copiedExercise).toEqual({ ...exercise, id: copiedExercise.id, resourceIds: [copiedResource.id] });
+		expect(copied.contexts[0].lessons).toEqual([]);
+	});
 	it('applies rubric-only patches without rewriting unrelated module content or its planning', async () => {
 		const before = await getModule(db, ids.module);
 		const rubric = await getRubric(db, ids.module);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicationSnapshot } from '#lib/domain/publication.js';
-import { selectRailDeadline } from './course-presentation.js';
+import { groupCourseExercises, selectRailDeadline } from './course-presentation.js';
 
 type Deadline = PublicationSnapshot['deadlines'][number];
 const renderedAt = Date.parse('2026-10-27T12:00:00Z');
@@ -29,6 +29,53 @@ const later: Deadline = {
 	dueAt: '2026-10-29T12:00:00Z',
 	submissionInstructions: 'Déposer le second livrable.'
 };
+
+describe('published exercise groups', () => {
+	const exercise = (id: string, semester?: 'S1' | 'S2') => ({
+		id,
+		title: id,
+		semester,
+		instructions: '',
+		solution: '',
+		code: ''
+	});
+	const lesson = (id: string, startsAt: string, exerciseIds: string[]) => ({
+		id,
+		label: id,
+		startsAt,
+		exerciseIds,
+		recap: '',
+		toDo: ''
+	});
+	const exercises = [
+		exercise('practice', 'S2'),
+		exercise('afternoon', 'S1'),
+		exercise('plan', 'S1'),
+		exercise('trial', 'S1'),
+		exercise('legacy')
+	];
+	const lessons = [
+		lesson('later', '2027-03-04T14:00:00Z', ['practice']),
+		lesson('pm', '2026-12-03T13:00:00Z', ['afternoon']),
+		lesson('am', '2026-12-03T09:00:00Z', ['trial', 'plan'])
+	];
+
+	it('orders by semester and lesson time, preserving author order within a lesson and keeping unclassified work', () => {
+		const groups = groupCourseExercises(exercises, lessons, 'all');
+		expect(groups.map((group) => [group.semester, group.lesson?.id, group.exercises.map((item) => item.id)])).toEqual([
+			['S1', 'am', ['plan', 'trial']],
+			['S1', 'pm', ['afternoon']],
+			['S2', 'later', ['practice']],
+			[null, undefined, ['legacy']]
+		]);
+	});
+
+	it('filters only by explicit semester and keeps legacy exercises in their original order', () => {
+		expect(groupCourseExercises(exercises, lessons, 'S2').flatMap((group) => group.exercises)).toEqual([exercises[0]]);
+		const legacy = [exercise('A06'), exercise('S1 in title')];
+		expect(groupCourseExercises(legacy, [], 'all').flatMap((group) => group.exercises)).toEqual(legacy);
+	});
+});
 
 describe('selectRailDeadline', () => {
 	it('returns null for an empty list', () => {

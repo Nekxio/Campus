@@ -55,6 +55,61 @@ describe('exercise instructions', () => {
 		]);
 	});
 
+	it('identifies a table between paragraphs and keeps escaped pipes in their cells', () => {
+		expect(
+			parseExerciseProse(
+				'Avant.\r\n| **Activité** | Charge |\r\n| :--- | ---: |\r\n| Accueil \\| suivi | 2 h |\r\n| Tests | |\r\nAprès.'
+			)
+		).toEqual([
+			{ kind: 'paragraph', text: 'Avant.' },
+			{
+				kind: 'table',
+				columns: [
+					{ text: '**Activité**', align: 'left' },
+					{ text: 'Charge', align: 'right' }
+				],
+				rows: [
+					['Accueil | suivi', '2 h'],
+					['Tests', '']
+				]
+			},
+			{ kind: 'paragraph', text: 'Après.' }
+		]);
+	});
+
+	it('recognizes tables without outer pipes and retains prose with incomplete separators', () => {
+		expect(parseExerciseProse('Étape | État\n--- | :---:\nTest | Prêt')).toEqual([
+			{
+				kind: 'table',
+				columns: [
+					{ text: 'Étape', align: 'start' },
+					{ text: 'État', align: 'center' }
+				],
+				rows: [['Test', 'Prêt']]
+			}
+		]);
+		const incomplete = '| Ne pas | perdre |\n| --- |\n| le texte | ici |';
+		expect(parseExerciseProse(incomplete)).toEqual([{ kind: 'paragraph', text: incomplete }]);
+	});
+
+	it('links public HTTPS destinations with their authored label and keeps inline code literal', () => {
+		const href = 'https://example.org/trame_(S1)?version=2#debut';
+		expect(parseInlineExerciseText(`Ouvrir [la trame](${href}), puis \`[exemple](https://example.org)\`.`)).toEqual([
+			{ kind: 'text', text: 'Ouvrir ' },
+			{ kind: 'link', text: 'la trame', href },
+			{ kind: 'text', text: ', puis ' },
+			{ kind: 'code', text: '[exemple](https://example.org)' },
+			{ kind: 'text', text: '.' }
+		]);
+	});
+
+	it.each(['../documents/trame.md', '/consignes', '#debut', 'http://example.org/doc', 'https://lecteur@example.org'])(
+		'keeps only the label for a destination outside the external link contract (%s)',
+		(href) => {
+			expect(parseInlineExerciseText(`[le document](${href})`)).toEqual([{ kind: 'text', text: 'le document' }]);
+		}
+	);
+
 	it('separates inline code and preserves unmatched backticks as text', () => {
 		expect(parseInlineExerciseText('Use `count` and `double`, then keep `unfinished.')).toEqual([
 			{ kind: 'text', text: 'Use ' },

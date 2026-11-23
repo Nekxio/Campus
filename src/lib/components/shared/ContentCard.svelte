@@ -27,7 +27,7 @@
 		tone?: 'neutral' | 'learning' | 'practice';
 		metadata?: Snippet;
 		status?: Snippet;
-		heading?: 'h2' | 'h3' | 'h4';
+		heading?: 'h2' | 'h3' | 'h4' | 'h5';
 		muted?: boolean;
 	} & Action = $props();
 </script>

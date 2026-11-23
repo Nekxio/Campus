@@ -1,47 +1,95 @@
 import { z } from 'zod';
 import { academicYearSchema, idSchema, modulePublicationSchema } from './contracts.js';
-import { emptyStudentContent, studentContentSchema } from './pedagogy.js';
+import {
+	checkLessonExercises,
+	checkResourceReferences,
+	emptyStudentContent,
+	exerciseIdsSchema,
+	studentContentSchema
+} from './pedagogy.js';
 
 const label = z.string().trim().min(1).max(200);
-export const publicationSnapshotSchema = z.strictObject({
-	...modulePublicationSchema.shape,
-	version: z.literal(2),
-	className: label,
-	academicYear: academicYearSchema,
-	objectives: z.array(label).max(100),
-	studentContent: studentContentSchema.default(emptyStudentContent),
-	rubric: z
-		.array(
-			z.strictObject({
-				title: label,
-				kind: z.enum(['quiz', 'project', 'oral', 'other']),
-				groups: z.array(
-					z.strictObject({
-						title: label,
-						lines: z.array(
-							z.strictObject({
-								label,
-								description: z.string().max(2000),
-								maxPoints: z.int().positive()
-							})
-						)
-					})
-				)
-			})
-		)
-		.default([]),
-	lessonNotes: z
-		.array(
-			z.strictObject({
-				id: idSchema,
-				label,
-				startsAt: z.iso.datetime({ offset: true }),
-				recap: z.string().max(10000),
-				toDo: z.string().max(10000)
-			})
-		)
-		.max(200)
-});
+export const publicationSnapshotSchema = z
+	.strictObject({
+		...modulePublicationSchema.shape,
+		version: z.literal(2),
+		className: label,
+		academicYear: academicYearSchema,
+		objectives: z.array(label).max(100),
+		studentContent: studentContentSchema.default(emptyStudentContent),
+		deadlines: z
+			.array(modulePublicationSchema.shape.deadlines.element.extend({ assessmentId: idSchema.optional() }))
+			.max(100),
+		rubric: z
+			.array(
+				z.strictObject({
+					assessmentId: idSchema.optional(),
+					title: label,
+					kind: z.enum(['quiz', 'project', 'oral', 'other']),
+					groups: z.array(
+						z.strictObject({
+							title: label,
+							lines: z.array(
+								z.strictObject({
+									label,
+									description: z.string().max(2000),
+									maxPoints: z.int().positive()
+								})
+							)
+						})
+					)
+				})
+			)
+			.default([]),
+		lessonNotes: z
+			.array(
+				z.strictObject({
+					id: idSchema,
+					label,
+					startsAt: z.iso.datetime({ offset: true }),
+					recap: z.string().max(10000),
+					toDo: z.string().max(10000),
+					exerciseIds: exerciseIdsSchema.optional()
+				})
+			)
+			.max(200)
+	})
+	.superRefine((snapshot, ctx) => {
+		checkResourceReferences(snapshot.studentContent, snapshot.resources, ctx);
+		checkLessonExercises(snapshot.studentContent, snapshot.lessonNotes, ['lessonNotes'], ctx);
+		const rubricIds = new Set<string>();
+		const dossierIds = new Set<string>();
+		for (const [index, assessment] of snapshot.rubric.entries()) {
+			if (!assessment.assessmentId) continue;
+			if (rubricIds.has(assessment.assessmentId)) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['rubric', index, 'assessmentId'],
+					message: 'Référence de barème en double.'
+				});
+			}
+			rubricIds.add(assessment.assessmentId);
+			if (assessment.kind !== 'quiz') dossierIds.add(assessment.assessmentId);
+		}
+		for (const [index, dossier] of (snapshot.studentContent.dossiers ?? []).entries()) {
+			if (!dossierIds.has(dossier.assessmentId)) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['studentContent', 'dossiers', index, 'assessmentId'],
+					message: 'Barème de dossier indisponible.'
+				});
+			}
+		}
+		for (const [index, deadline] of snapshot.deadlines.entries()) {
+			if (deadline.assessmentId && !rubricIds.has(deadline.assessmentId)) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['deadlines', index, 'assessmentId'],
+					message: 'Évaluation de remise indisponible.'
+				});
+			}
+		}
+	});
 export type PublicationSnapshot = z.infer<typeof publicationSnapshotSchema>;
 
 export const publicationDecisionSchema = z.strictObject({
