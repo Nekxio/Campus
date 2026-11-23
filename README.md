@@ -304,12 +304,6 @@ The OAuth endpoint `/mcp` exposes 38 teaching tools. Open **Applications connect
 selected Campus instance to copy its Codex or Claude connection command. The commands use the
 configured OAuth origin and the server name for that environment.
 
-| Environment    | MCP server name  |
-| -------------- | ---------------- |
-| Localhost      | `campus-local`   |
-| Shared preview | `campus-preview` |
-| Production     | `campus-mds`     |
-
 With the default local origin, connect Codex with:
 
 ```shell
