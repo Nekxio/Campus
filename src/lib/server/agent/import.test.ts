@@ -49,6 +49,56 @@ async function updateInput(moduleId: string) {
 }
 
 describe('Atomic agent module imports', () => {
+	it('resolves a dossier and workshop from the same local resource, rubric and session on the first import', async () => {
+		const binding = newFolderBinding('https://campus.example.test');
+		const source = sampleLocalModule(ids.currentClass);
+		const exerciseId = crypto.randomUUID();
+		const resolved = resolveLocalModule(
+			{
+				...source,
+				studentContent: {
+					instructions: '',
+					projectInstructions: '',
+					dossiers: [{ assessmentKey: 'project', instructions: 'Use this reference.', resourceKeys: ['slides'] }],
+					exercises: [
+						{
+							id: exerciseId,
+							title: 'Practice',
+							instructions: '',
+							solution: '',
+							code: '',
+							semester: 'S1',
+							resourceKeys: ['slides']
+						}
+					]
+				},
+				contexts: source.contexts.map((context) => ({
+					...context,
+					lessons: context.lessons.map((lesson) => ({ ...lesson, exerciseIds: [exerciseId] }))
+				}))
+			},
+			binding,
+			'/fictional/module'
+		);
+		const input = createModuleImportSchema.parse({
+			version: 1,
+			requestId: crypto.randomUUID(),
+			moduleId: binding.moduleId,
+			...resolved
+		});
+		const receipt = await importModule(db, ids.teacher, 'create', input);
+		const saved = await getModule(db, receipt.moduleId);
+		expect(saved.studentContent!.dossiers).toEqual([
+			{
+				assessmentId: binding.ids.assessments.project,
+				instructions: 'Use this reference.',
+				resourceIds: [binding.ids.resources.slides]
+			}
+		]);
+		expect(saved.studentContent!.exercises[0].resourceIds).toEqual([binding.ids.resources.slides]);
+		expect(saved.contexts[0].lessons[0].exerciseIds).toEqual([exerciseId]);
+		expect(await importModule(db, ids.teacher, 'create', input)).toEqual(receipt);
+	});
 	it('preserves new public content when an older update omits it', async () => {
 		const first = await importModule(db, ids.teacher, 'create', createInput());
 		const current = await getModule(db, first.moduleId);

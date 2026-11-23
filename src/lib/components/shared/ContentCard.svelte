@@ -15,6 +15,7 @@
 		icon: Icon,
 		tone = 'neutral',
 		metadata,
+		metadataAtBottom = false,
 		status,
 		heading = 'h3',
 		muted = false,
@@ -26,8 +27,9 @@
 		icon?: LucideIcon;
 		tone?: 'neutral' | 'learning' | 'practice';
 		metadata?: Snippet;
+		metadataAtBottom?: boolean;
 		status?: Snippet;
-		heading?: 'h2' | 'h3' | 'h4';
+		heading?: 'h2' | 'h3' | 'h4' | 'h5';
 		muted?: boolean;
 	} & Action = $props();
 </script>
@@ -44,7 +46,7 @@
 	data-muted={muted}
 	data-interactive={action.kind !== 'static'}
 >
-	<Card.Header class="min-w-0">
+	<Card.Header class={['min-w-0', metadataAtBottom && 'flex-1 content-between']}>
 		<Card.Title>
 			<svelte:element this={heading} class="content-title">
 				{#if action.kind === 'link'}

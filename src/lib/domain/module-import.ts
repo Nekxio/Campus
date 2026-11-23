@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { idSchema, revisionSchema, preparationSchema } from './contracts.js';
-import { moduleDraftSchema, moduleDetailSchema } from './teaching.js';
+import { moduleDraftSchema, moduleDetailSchema, moduleFieldsSchema } from './teaching.js';
 import { rubricDraftSchema } from './grading.js';
 import { studentContentSchema } from './pedagogy.js';
 
@@ -89,7 +89,8 @@ export const updateModuleImportSchema = z
 				})
 			})
 			.superRefine((draft, ctx) => {
-				const checked = moduleDraftSchema.safeParse(draft);
+				// Legacy lists contain only the elements being updated; check their links after merging.
+				const checked = moduleFieldsSchema.safeParse(draft);
 				if (!checked.success)
 					for (const issue of checked.error.issues)
 						ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });

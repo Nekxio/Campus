@@ -23,10 +23,10 @@
 	const prefix = $derived(student ? 'resources' : 'preparation.sourceLinks');
 	const limit = $derived(student ? 200 : 100);
 	const kinds = [
-		{ value: 'course', label: 'Cours' },
+		{ value: 'course', label: 'Support du cours' },
 		{ value: 'instructions', label: 'Consignes' },
 		{ value: 'rubric', label: 'Grille d’évaluation' },
-		{ value: 'resource', label: 'Ressource' }
+		{ value: 'resource', label: 'Ressource complémentaire' }
 	];
 	function addLink() {
 		if (rows.length >= limit) return;
@@ -46,7 +46,24 @@
 	function removeLink(id: string) {
 		formData.update((data) =>
 			student
-				? { ...data, resources: data.resources.filter((row) => row.id !== id) }
+				? {
+						...data,
+						resources: data.resources.filter((row) => row.id !== id),
+						studentContent: {
+							...data.studentContent,
+							exercises: data.studentContent.exercises.map((item) =>
+								item.resourceIds?.includes(id)
+									? { ...item, resourceIds: item.resourceIds.filter((resourceId) => resourceId !== id) }
+									: item
+							),
+							...(data.studentContent.dossiers && {
+								dossiers: data.studentContent.dossiers.map((item) => ({
+									...item,
+									resourceIds: item.resourceIds.filter((resourceId) => resourceId !== id)
+								}))
+							})
+						}
+					}
 				: {
 						...data,
 						preparation: {
@@ -120,7 +137,7 @@
 						{form}
 						name={`resources[${index}].kind`}
 						id={`${row.id}-kind`}
-						label="Type de support"
+						label="Type de lien"
 						required
 						options={kinds}
 						element

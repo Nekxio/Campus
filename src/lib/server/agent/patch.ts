@@ -8,7 +8,12 @@ import { editableModule } from '../../teaching/types.js';
 import { moduleUpdateSchema } from '../../domain/teaching.js';
 import { rubricAssessmentSchema, rubricUpdateSchema } from '../../domain/grading.js';
 import { importFingerprint, type ImportReceipt } from '../../domain/module-import.js';
-import { mergeIdentified, patchModuleImportSchema, type ModulePatchImport } from '../../domain/module-patch.js';
+import {
+	mergeByKey,
+	mergeIdentified,
+	patchModuleImportSchema,
+	type ModulePatchImport
+} from '../../domain/module-patch.js';
 import { emptyStudentContent } from '../../domain/pedagogy.js';
 import type { z } from 'zod';
 import { sectionPointsRule } from '../../domain/rubric-points.js';
@@ -52,6 +57,7 @@ export async function patchModule(
 			resources: original.resources.map((item) => item.id),
 			lessons: original.contexts.flatMap((item) => item.lessons.map((lesson) => lesson.id)),
 			exercises: original.studentContent?.exercises.map((item) => item.id) ?? [],
+			dossiers: original.studentContent?.dossiers?.map((item) => item.assessmentId) ?? [],
 			assessments: previousRubric?.assessments.map((item) => item.id) ?? [],
 			groups: previousRubric?.assessments.flatMap((item) => item.groups.map((group) => group.id)) ?? [],
 			lines: previousRubric?.assessments.flatMap((item) => item.lines.map((line) => line.id)) ?? [],
@@ -72,6 +78,10 @@ export async function patchModule(
 			studentContent: {
 				...content,
 				...patch.studentContent,
+				dossiers:
+					patch.studentContent?.dossiers || remove.dossiers
+						? mergeByKey('assessmentId', content.dossiers ?? [], patch.studentContent?.dossiers, remove.dossiers)
+						: content.dossiers,
 				exercises: mergeIdentified(content.exercises, patch.studentContent?.exercises, remove.exercises)
 			},
 			resources: mergeIdentified(original.resources, patch.resources, remove.resources),
@@ -93,8 +103,13 @@ export async function patchModule(
 			remove.deadlineAssessments
 		);
 		const rubricOnly =
-			changesRubric && Object.keys(patch).length === 0 && !remove.resources && !remove.lessons && !remove.exercises;
-		const saved = rubricOnly ? original : await updateModule(tx, input.moduleId, draft);
+			changesRubric &&
+			Object.keys(patch).length === 0 &&
+			!remove.resources &&
+			!remove.lessons &&
+			!remove.exercises &&
+			!remove.dossiers;
+		const saved = rubricOnly ? original : await updateModule(tx, input.moduleId, draft, input.rubric?.assessments);
 		if (changesRubric) {
 			const current = await getRubric(tx, saved.id);
 			const update = input.rubric;
@@ -163,7 +178,9 @@ export async function patchModule(
 				: []),
 			...(patch.preparation ? ['Préparation privée modifiée'] : []),
 			...(patch.resources || remove.resources ? ['Liens étudiants modifiés'] : []),
-			...(patch.studentContent || remove.exercises ? ['Consignes ou exercices publics modifiés'] : []),
+			...(patch.studentContent || remove.exercises || remove.dossiers
+				? ['Consignes ou exercices publics modifiés']
+				: []),
 			...(patch.contexts || remove.lessons ? ['Planning modifié'] : []),
 			...(input.rubric || remove.assessments || remove.lines || remove.groups || remove.results
 				? ['Grille ou calculs modifiés']

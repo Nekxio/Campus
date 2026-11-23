@@ -58,7 +58,7 @@
 	<WorkSurface aria-labelledby="authorized-applications-heading" class="flex min-w-0 flex-col gap-6">
 		<div class="flex min-w-0 flex-col gap-3">
 			<h2 id="authorized-applications-heading" class="panel-title">Applications autorisées</h2>
-			<AgentConnectionCommands mcpUrl={`${page.url.origin}/mcp`} />
+			<AgentConnectionCommands connection={data.connection} />
 		</div>
 		{#each applications as application (application.id + ':' + application.reviewedVersion + ':' + (reviewedForm(application.id)?.data.reviewedVersion ?? ''))}<ApplicationGrant
 				{application}

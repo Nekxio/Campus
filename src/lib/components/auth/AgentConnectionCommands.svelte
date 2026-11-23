@@ -5,17 +5,17 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 
-	let { mcpUrl }: { mcpUrl: string } = $props();
+	let { connection }: { connection: { name: string; url: string } } = $props();
 	const id = $props.id();
-	const endpoint = $derived("'" + mcpUrl.replaceAll("'", "'\\''") + "'");
+	const endpoint = $derived("'" + connection.url.replaceAll("'", "'\\''") + "'");
 	const agents = $derived([
 		{
 			name: 'Codex',
-			command: `codex mcp add campus-app --url ${endpoint}`
+			command: `codex mcp add ${connection.name} --url ${endpoint}`
 		},
 		{
 			name: 'Claude',
-			command: `claude mcp add --transport http --scope user campus-app ${endpoint} && claude mcp login campus-app`
+			command: `claude mcp add --transport http --scope user ${connection.name} ${endpoint} && claude mcp login ${connection.name}`
 		}
 	]);
 	let copying = $state(false);

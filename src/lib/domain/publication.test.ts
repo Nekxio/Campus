@@ -84,6 +84,34 @@ const without = (value: object, key: string) => {
 };
 
 describe('Strict private publication review contracts', () => {
+	it('accepts older V2 documents and checks every new relationship against the saved public document', () => {
+		expect(publicationSnapshotSchema.safeParse(teachingSnapshot).success).toBe(true);
+		const linked = {
+			...teachingSnapshot,
+			rubric: [{ ...teachingSnapshot.rubric[0], assessmentId: moduleId }],
+			resources: [{ id: classId, label: 'Worksheet', url: 'https://example.test/work', kind: 'resource' }],
+			deadlines: [
+				{ assessmentId: moduleId, label: 'Project', dueAt: '2026-10-30T08:00:00Z', submissionInstructions: '' }
+			],
+			studentContent: {
+				instructions: '',
+				projectInstructions: '',
+				dossiers: [{ assessmentId: moduleId, instructions: 'Read the worksheet.', resourceIds: [classId] }],
+				exercises: [{ id: contextId, title: 'Practice', instructions: '', solution: '', resourceIds: [classId] }]
+			},
+			lessonNotes: [{ ...teachingSnapshot.lessonNotes[0], exerciseIds: [contextId] }]
+		};
+		expect(publicationSnapshotSchema.safeParse(linked).success).toBe(true);
+		for (const alteration of [
+			{ resources: [] },
+			{ rubric: [{ ...linked.rubric[0], kind: 'quiz' }] },
+			{ rubric: [{ ...linked.rubric[0], assessmentId: durableId }] },
+			{ deadlines: [{ ...linked.deadlines[0], assessmentId: durableId }] },
+			{ lessonNotes: [{ ...linked.lessonNotes[0], exerciseIds: [durableId] }] }
+		]) {
+			expect(publicationSnapshotSchema.safeParse({ ...linked, ...alteration }).success).toBe(false);
+		}
+	});
 	it.each(['quiz', 'project', 'oral', 'other'] as const)(
 		'preserves a public %s rubric and lesson notes with offset-aware dates',
 		(kind) => {

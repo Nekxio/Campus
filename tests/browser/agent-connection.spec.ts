@@ -15,8 +15,8 @@ test('agent buttons copy connection commands and recover from unavailable clipbo
 	await page.goto(app.origin + '/enseignant/applications');
 	await expect(page.getByRole('heading', { name: 'Applications autorisées', exact: true })).toBeVisible();
 	const commands = {
-		Codex: `codex mcp add campus-app --url '${app.origin}/mcp'`,
-		Claude: `claude mcp add --transport http --scope user campus-app '${app.origin}/mcp' && claude mcp login campus-app`
+		Codex: `codex mcp add campus-local --url '${app.origin}/mcp'`,
+		Claude: `claude mcp add --transport http --scope user campus-local '${app.origin}/mcp' && claude mcp login campus-local`
 	};
 	const success = page.locator('[data-sonner-toast][data-type="success"]').filter({ hasText: 'Commande copiée' });
 	for (const agent of ['Codex', 'Claude'] as const) {

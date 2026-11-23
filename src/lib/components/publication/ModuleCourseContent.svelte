@@ -1,8 +1,11 @@
 <script lang="ts">
-	import { parseExerciseInstructions, parseExerciseProse, parseInlineExerciseText } from './exercise-instructions.js';
+	import CourseMarkdown from './CourseMarkdown.svelte';
 	import { formatLessonDate, formatTeachingDate } from '#lib/teaching/calendar.js';
 	import { tick } from 'svelte';
 	import * as Tabs from '#lib/components/ui/tabs/index.js';
+	import CourseAssignments from './CourseAssignments.svelte';
+	import CourseWorkshops from './CourseWorkshops.svelte';
+	import { publicRubricTotals, type CourseSupportSelection } from './course-presentation.js';
 	import WorkSurface from '#lib/components/shared/WorkSurface.svelte';
 	import ContentCard from '#lib/components/shared/ContentCard.svelte';
 	import CodeBlock from '#lib/components/shared/CodeBlock.svelte';
@@ -14,13 +17,12 @@
 	import CalendarDaysIcon from '@lucide/svelte/icons/calendar-days';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import NotebookPenIcon from '@lucide/svelte/icons/notebook-pen';
-	import PencilLineIcon from '@lucide/svelte/icons/pencil-line';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Separator } from '#lib/components/ui/separator/index.js';
 	import { cn } from '#lib/utils.js';
-	import type { PublicationSnapshot } from '#lib/domain/publication.js';
+	import { complementaryResources, type PublicationSnapshot } from '#lib/domain/publication.js';
 	import type { Resource } from '#lib/domain/contracts.js';
 	let {
 		snapshot,
@@ -39,6 +41,7 @@
 	} = $props();
 	let selectedLesson = $state<{ kind: 'lesson'; id: string } | { kind: 'general' } | null>(null);
 	let selectedExerciseId = $state<string | null>(null);
+	let supportSelection = $state<CourseSupportSelection>({ query: '', scope: 'all', page: 1 });
 	let exerciseTab = $state('instructions');
 	let correctionConfirmationOpen = $state(false);
 	const selectExerciseTab = (value: string) => {
@@ -48,9 +51,10 @@
 	const selectedExercise = $derived(
 		snapshot.studentContent.exercises.find((exercise) => exercise.id === selectedExerciseId)
 	);
-	const exerciseInstructions = $derived(parseExerciseInstructions(selectedExercise?.instructions ?? ''));
+	const hasCorrection = $derived(Boolean(selectedExercise?.solution.trim() || selectedExercise?.code.trim()));
 	const openExercise = async (exerciseId: string) => {
 		exerciseTab = 'instructions';
+		correctionConfirmationOpen = false;
 		selectedExerciseId = exerciseId;
 		await tick();
 		document.getElementById(`${idPrefix}-exercise-title`)?.focus();
@@ -59,7 +63,9 @@
 		const exerciseId = selectedExerciseId;
 		selectedExerciseId = null;
 		await tick();
-		document.getElementById(`${idPrefix}-exercise-${exerciseId}`)?.focus();
+		const returnTarget =
+			document.getElementById(`${idPrefix}-exercise-${exerciseId}`) ?? document.getElementById(`${idPrefix}-supports`);
+		returnTarget?.focus();
 	};
 	const objectiveEntries = $derived.by(() => {
 		const occurrences: Record<string, number> = Object.create(null);
@@ -69,11 +75,22 @@
 			return { label, key: `${label}:${occurrence}` };
 		});
 	});
+	const dossiers = $derived(snapshot.studentContent.dossiers ?? []);
+	const dossierAssessmentIds = $derived(new Set(dossiers.map((dossier) => dossier.assessmentId)));
+	const dossierResourceIds = $derived(new Set(dossiers.flatMap((dossier) => dossier.resourceIds)));
+	const standaloneRubrics = $derived(
+		snapshot.rubric.filter((rubric) => !rubric.assessmentId || !dossierAssessmentIds.has(rubric.assessmentId))
+	);
+	const exerciseLinks = $derived(
+		snapshot.resources.filter((resource) => selectedExercise?.resourceIds?.includes(resource.id))
+	);
 	const courseLinks = $derived(snapshot.resources.filter((link) => link.kind === 'course'));
 	const assignmentLinks = $derived(
-		snapshot.resources.filter((link) => link.kind === 'instructions' || link.kind === 'rubric')
+		snapshot.resources.filter(
+			(link) => !dossierResourceIds.has(link.id) && (link.kind === 'instructions' || link.kind === 'rubric')
+		)
 	);
-	const usefulLinks = $derived(snapshot.resources.filter((link) => link.kind === 'resource'));
+	const complementaryLinks = $derived(complementaryResources(snapshot));
 	const hasWrittenInstructions = $derived(
 		Boolean(snapshot.studentContent.instructions.trim() || snapshot.studentContent.projectInstructions.trim())
 	);
@@ -146,47 +163,6 @@
 	}
 </script>
 
-{#snippet exerciseInline(text: string)}
-	{#each parseInlineExerciseText(text) as inline, inlineIndex (inlineIndex)}{#if inline.kind === 'code'}<code
-				class="inline-code">{inline.text}</code
-			>{:else if inline.kind === 'strong'}<strong>{@render exerciseInline(inline.text)}</strong
-			>{:else}{inline.text}{/if}{/each}
-{/snippet}
-
-{#snippet exerciseContent(parts: ReturnType<typeof parseExerciseInstructions>, codeLabel = 'Exemple de code')}
-	<div class="exercise-copy flex flex-col gap-4">
-		{#each parts as part, partIndex (partIndex)}
-			{#if part.kind === 'text'}
-				{#each parseExerciseProse(part.text) as block, blockIndex (blockIndex)}
-					{#if block.kind === 'heading'}
-						<svelte:element this={`h${Math.min(6, Math.max(4, block.level + 2))}`} class="exercise-heading">
-							{@render exerciseInline(block.text)}
-						</svelte:element>
-					{:else if block.kind === 'list'}
-						<svelte:element
-							this={block.ordered ? 'ol' : 'ul'}
-							start={block.ordered ? block.start : undefined}
-							class="exercise-list"
-						>
-							{#each block.items as item, itemIndex (itemIndex)}
-								<li>{@render exerciseInline(item)}</li>
-							{/each}
-						</svelte:element>
-					{:else}
-						<p class="whitespace-pre-wrap">{@render exerciseInline(block.text)}</p>
-					{/if}
-				{/each}
-			{:else}
-				<CodeBlock label={codeLabel} language={part.language ? `Code · ${part.language}` : 'Code'} value={part.code}>
-					{#each part.tokens as token, tokenIndex (tokenIndex)}<span
-							style:color={token.kind === 'plain' ? undefined : `var(--syntax-${token.kind})`}>{token.text}</span
-						>{/each}
-				</CodeBlock>
-			{/if}
-		{/each}
-	</div>
-{/snippet}
-
 {#snippet resourceLinks(links: Resource[], trailingSeparator = true, showSeparators = true)}
 	{#if onlySection && showSeparators}<Separator />{/if}
 	<ul class="resource-list">
@@ -250,12 +226,44 @@
 {#snippet instructionText(text: string, title: string, showTitle = true)}
 	<div class="instruction-block">
 		{#if showTitle}<svelte:element this={compact ? 'h4' : 'h3'} class="item-title">{title}</svelte:element>{/if}
-		<div class="instruction-copy prose reading-text">
-			{#each text.split(/(\r?\n[ \t]*\r?\n(?:[ \t]*\r?\n)*)/) as part, index (index)}
-				{#if index % 2 === 0}<p class="whitespace-pre-wrap">{part}</p>{:else}{part}{/if}
-			{/each}
+		<div class="instruction-copy">
+			<CourseMarkdown {text} headingLevel={(compact ? 4 : 3) + (showTitle ? 1 : 0)} />
 		</div>
 	</div>
+{/snippet}
+
+{#snippet rubricSection(assessment: PublicationSnapshot['rubric'][number], inDossier = false)}
+	{@const { points } = publicRubricTotals(assessment)}
+	<section class="rubric-section" aria-label={`Grille vierge · ${assessment.title}`}>
+		<details class="rubric-disclosure">
+			<summary>
+				<svelte:element this={inDossier ? 'h4' : 'h3'} class="rubric-summary-title"
+					>{inDossier ? 'Barème du dossier' : `${assessment.title} · grille vierge`}</svelte:element
+				>
+				<span class="rubric-maximum">Max. {points} point{points > 1 ? 's' : ''}</span>
+				<ChevronDownIcon class="rubric-chevron size-4 shrink-0" aria-hidden="true" />
+			</summary>
+			<div class="rubric-groups">
+				{#each assessment.groups as group, groupIndex (groupIndex)}
+					<div class="rubric-group">
+						<svelte:element this={inDossier ? 'h5' : 'h4'} class="font-medium">{group.title}</svelte:element>
+						<ul class="flex flex-col gap-3">
+							{#each group.lines as line, lineIndex (lineIndex)}<li class="flex flex-col gap-1">
+									<p class="rubric-line-heading">
+										<span>{line.label}</span><span class="rubric-maximum"
+											>Max. {line.maxPoints} point{line.maxPoints > 1 ? 's' : ''}</span
+										>
+									</p>
+									{#if line.description}<p class="text-sm whitespace-pre-wrap text-muted-foreground">
+											{line.description}
+										</p>{/if}
+								</li>{/each}
+						</ul>
+					</div>
+				{/each}
+			</div>
+		</details>
+	</section>
 {/snippet}
 
 {#snippet moduleObjectives()}
@@ -314,66 +322,50 @@
 							{selectedExercise.title}
 						</h3>
 						<p class="mt-2 text-sm text-muted-foreground">Exercice non noté</p>
-						<Tabs.Root bind:value={() => exerciseTab, selectExerciseTab} activationMode="manual" class="mt-6">
-							<Tabs.List aria-label="Contenu de l’exercice" variant="line" class="w-full gap-6">
-								<Tabs.Trigger value="instructions" class="flex-none px-0 data-active:font-semibold">Énoncé</Tabs.Trigger
-								>
-								<Tabs.Trigger value="solution" class="flex-none px-0 data-active:font-semibold">Corrigé</Tabs.Trigger>
-							</Tabs.List>
-							<Tabs.Content value="instructions" class="pt-3 text-base leading-relaxed">
-								{@render exerciseContent(exerciseInstructions)}
-							</Tabs.Content>
-							<Tabs.Content value="solution" class="pt-3 text-base leading-relaxed">
-								{@render exerciseContent(parseExerciseInstructions(selectedExercise.solution))}
-								{#if selectedExercise.code}
-									<div class="mt-4">
-										<CodeBlock
-											label={`Code de l’exercice · ${selectedExercise.title}`}
-											language="Code complémentaire"
-											value={selectedExercise.code}
-										>
-											{selectedExercise.code}
-										</CodeBlock>
-									</div>
-								{/if}
-							</Tabs.Content>
-						</Tabs.Root>
+						{#if hasCorrection}
+							<Tabs.Root bind:value={() => exerciseTab, selectExerciseTab} activationMode="manual" class="mt-6">
+								<Tabs.List aria-label="Contenu de l’exercice" variant="line" class="w-full gap-6">
+									<Tabs.Trigger value="instructions" class="flex-none px-0 data-active:font-semibold"
+										>Énoncé</Tabs.Trigger
+									>
+									<Tabs.Trigger value="solution" class="flex-none px-0 data-active:font-semibold">Corrigé</Tabs.Trigger>
+								</Tabs.List>
+								<Tabs.Content value="instructions" class="pt-3 text-base leading-relaxed">
+									<CourseMarkdown text={selectedExercise.instructions} />
+								</Tabs.Content>
+								<Tabs.Content value="solution" class="pt-3 text-base leading-relaxed">
+									{#if selectedExercise.solution.trim()}<CourseMarkdown text={selectedExercise.solution} />{/if}
+									{#if selectedExercise.code.trim()}
+										<div class={{ 'mt-4': Boolean(selectedExercise.solution.trim()) }}>
+											<CodeBlock
+												label={`Code de l’exercice · ${selectedExercise.title}`}
+												language="Code complémentaire"
+												value={selectedExercise.code}
+											>
+												{selectedExercise.code}
+											</CodeBlock>
+										</div>
+									{/if}
+								</Tabs.Content>
+							</Tabs.Root>
+						{:else}
+							<div class="mt-6"><CourseMarkdown text={selectedExercise.instructions} /></div>
+						{/if}
+						{#if exerciseLinks.length}
+							<section class="mt-6 flex flex-col gap-2" aria-label="Ressources de l’atelier">
+								<h4 class="item-title">Ressources de l’atelier</h4>
+								{@render resourceLinks(exerciseLinks, false, false)}
+							</section>
+						{/if}
 					</WorkSurface>
 				{:else if courseLinks.length || snapshot.studentContent.exercises.length}
-					<p class="max-w-prose text-sm text-muted-foreground">
-						Retrouvez ici les documents et les exercices du module.
-					</p>
-					<ul class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-						{#each courseLinks as link (link.id)}
-							<li class="min-w-0">
-								<ContentCard
-									kind="link"
-									title={link.label}
-									href={link.url}
-									icon={BookOpenIcon}
-									tone="learning"
-									external
-								>
-									{#snippet metadata()}Support de cours · nouvel onglet{/snippet}
-								</ContentCard>
-							</li>
-						{/each}
-						{#each snapshot.studentContent.exercises as exercise, index (exercise.id)}
-							<li class="min-w-0">
-								<ContentCard
-									kind="button"
-									id={`${idPrefix}-exercise-${exercise.id}`}
-									title={exercise.title}
-									icon={PencilLineIcon}
-									tone="practice"
-									marker={String(index + 1).padStart(2, '0')}
-									onclick={() => openExercise(exercise.id)}
-								>
-									{#snippet metadata()}Exercice non noté{/snippet}
-								</ContentCard>
-							</li>
-						{/each}
-					</ul>
+					<CourseWorkshops
+						{snapshot}
+						{courseLinks}
+						{idPrefix}
+						bind:selection={supportSelection}
+						onOpen={openExercise}
+					/>
 				{:else}
 					<p class="empty-copy">Aucun support de cours n’est indiqué pour le moment.</p>
 				{/if}
@@ -397,55 +389,26 @@
 				><ListChecksIcon aria-hidden="true" />Consignes et barèmes</svelte:element
 			>
 			<div class="section-body">
-				{#if assignmentLinks.length > 0}{@render resourceLinks(
-						assignmentLinks,
-						hasWrittenInstructions || snapshot.rubric.length === 0
-					)}{:else if !hasInlineInstructions}<p class="empty-copy">
-						Aucune consigne ni aucun barème n’est indiqué pour le moment.
-					</p>{/if}
-				{#if snapshot.studentContent.instructions.trim()}{@render instructionText(
-						snapshot.studentContent.instructions,
-						'Consignes du module',
-						Boolean(snapshot.studentContent.projectInstructions.trim())
-					)}{/if}
-				{#if snapshot.studentContent.projectInstructions.trim()}{@render instructionText(
-						snapshot.studentContent.projectInstructions,
-						'Consignes du projet'
-					)}{/if}
-				{#each snapshot.rubric as assessment, assessmentIndex (assessmentIndex)}
-					{@const maximum = assessment.groups.reduce(
-						(total, group) => total + group.lines.reduce((sum, line) => sum + line.maxPoints, 0),
-						0
-					)}
-					<section class="rubric-section" aria-label={`Grille vierge · ${assessment.title}`}>
-						<details class="rubric-disclosure">
-							<summary>
-								<h3 class="rubric-summary-title">{assessment.title} · grille vierge</h3>
-								<span class="rubric-maximum">Max. {maximum} point{maximum > 1 ? 's' : ''}</span>
-								<ChevronDownIcon class="rubric-chevron size-4 shrink-0" aria-hidden="true" />
-							</summary>
-							<div class="rubric-groups">
-								{#each assessment.groups as group, groupIndex (groupIndex)}
-									<div class="rubric-group">
-										<h4 class="font-medium">{group.title}</h4>
-										<ul class="flex flex-col gap-3">
-											{#each group.lines as line, lineIndex (lineIndex)}<li class="flex flex-col gap-1">
-													<p class="rubric-line-heading">
-														<span>{line.label}</span><span class="rubric-maximum"
-															>Max. {line.maxPoints} point{line.maxPoints > 1 ? 's' : ''}</span
-														>
-													</p>
-													{#if line.description}<p class="text-sm whitespace-pre-wrap text-muted-foreground">
-															{line.description}
-														</p>{/if}
-												</li>{/each}
-										</ul>
-									</div>
-								{/each}
-							</div>
-						</details>
-					</section>
-				{/each}
+				<CourseAssignments {snapshot} {idPrefix} {rubricSection} {resourceLinks}>
+					{#if assignmentLinks.length > 0}{@render resourceLinks(
+							assignmentLinks,
+							hasWrittenInstructions || snapshot.rubric.length === 0
+						)}{:else if !hasInlineInstructions}<p class="empty-copy">
+							Aucune consigne ni aucun barème n’est indiqué pour le moment.
+						</p>{/if}
+					{#if snapshot.studentContent.instructions.trim()}{@render instructionText(
+							snapshot.studentContent.instructions,
+							'Consignes du module',
+							Boolean(snapshot.studentContent.projectInstructions.trim())
+						)}{/if}
+					{#if snapshot.studentContent.projectInstructions.trim()}{@render instructionText(
+							snapshot.studentContent.projectInstructions,
+							'Consignes du projet'
+						)}{/if}
+					{#each standaloneRubrics as assessment, index (assessment.assessmentId ?? index)}
+						{@render rubricSection(assessment)}
+					{/each}
+				</CourseAssignments>
 			</div>
 		</section>
 	{/if}
@@ -484,17 +447,20 @@
 			id={`${idPrefix}-ressources`}
 			aria-labelledby={`${idPrefix}-ressources-title`}
 			tabindex="-1"
-			class="course-section useful-resources"
+			class="course-section complementary-resources"
 		>
 			<svelte:element
 				this={compact ? 'h3' : 'h2'}
 				id={`${idPrefix}-ressources-title`}
-				class="course-section-heading section-title"><LinkIcon aria-hidden="true" />Ressources utiles</svelte:element
+				class="course-section-heading section-title"
+				><LinkIcon aria-hidden="true" />Ressources complémentaires</svelte:element
 			>
 			<div class="section-body">
-				{#if usefulLinks.length > 0}{@render resourceLinks(usefulLinks, false, false)}{:else}<p class="empty-copy">
-						Aucune ressource complémentaire n’est indiquée pour le moment.
-					</p>{/if}
+				{#if complementaryLinks.length > 0}
+					{@render resourceLinks(complementaryLinks, false, false)}
+				{:else}
+					<p class="empty-copy">Aucune ressource complémentaire n’est indiquée pour le moment.</p>
+				{/if}
 			</div>
 		</section>
 	{/if}
@@ -542,6 +508,7 @@
 								title={note.label}
 								tone="practice"
 								heading={compact ? 'h4' : 'h3'}
+								metadataAtBottom
 								onclick={() => openLesson({ kind: 'lesson', id: note.id })}
 							>
 								{#snippet metadata()}
@@ -571,26 +538,28 @@
 	{/if}
 </div>
 
-<AlertDialog.Root bind:open={correctionConfirmationOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Voir le corrigé ?</AlertDialog.Title>
-			<AlertDialog.Description>
-				Prenez le temps de chercher par vous-même avant de consulter le corrigé. Vous pourrez revenir à l’énoncé
-				ensuite.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Retour</AlertDialog.Cancel>
-			<AlertDialog.Action
-				onclick={() => {
-					exerciseTab = 'solution';
-					correctionConfirmationOpen = false;
-				}}>Voir le corrigé</AlertDialog.Action
-			>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+{#if hasCorrection}
+	<AlertDialog.Root bind:open={correctionConfirmationOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Voir le corrigé ?</AlertDialog.Title>
+				<AlertDialog.Description>
+					Prenez le temps de chercher par vous-même avant de consulter le corrigé. Vous pourrez revenir à l’énoncé
+					ensuite.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Retour</AlertDialog.Cancel>
+				<AlertDialog.Action
+					onclick={() => {
+						exerciseTab = 'solution';
+						correctionConfirmationOpen = false;
+					}}>Voir le corrigé</AlertDialog.Action
+				>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+{/if}
 
 <style>
 	.course-document {
@@ -679,12 +648,19 @@
 	.lesson-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+		grid-auto-rows: 1fr;
 		gap: 1rem;
 	}
 	.lesson-metadata {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem 0.75rem;
+		flex-direction: column;
+		gap: 0 0.75rem;
+	}
+	@container card-header (min-width: 14rem) {
+		.lesson-metadata {
+			flex-direction: row;
+			flex-wrap: wrap;
+		}
 	}
 	.lesson-detail-title:focus-visible {
 		outline: 2px solid var(--ring);
@@ -806,10 +782,10 @@
 	.section-panel .resource-row {
 		padding: 1rem 0;
 	}
-	.section-panel .useful-resources .resource-list {
+	.section-panel .complementary-resources .resource-list {
 		gap: 0.5rem;
 	}
-	.section-panel .useful-resources .resource-row {
+	.section-panel .complementary-resources .resource-row {
 		min-height: 2.75rem;
 		padding: 0;
 	}
@@ -845,7 +821,7 @@
 		margin-top: 0.75rem;
 	}
 	.instruction-copy {
-		--tw-prose-body: color-mix(in oklch, var(--foreground) 75%, var(--muted-foreground));
+		color: color-mix(in oklch, var(--foreground) 75%, var(--muted-foreground));
 		min-width: 0;
 		font-weight: 400;
 		text-wrap: pretty;
@@ -858,45 +834,6 @@
 	.note-copy,
 	.deadline > p {
 		max-width: 70ch;
-	}
-	.exercise-copy {
-		min-width: 0;
-		line-height: 1.65;
-		overflow-wrap: anywhere;
-	}
-	.exercise-copy > p,
-	.exercise-list,
-	.exercise-heading {
-		max-width: var(--reading-measure);
-	}
-	.exercise-copy strong {
-		font-weight: 600;
-	}
-	.exercise-heading {
-		font-size: 1rem;
-		font-weight: 600;
-		line-height: 1.5;
-		margin-block-end: -0.5rem;
-	}
-	.exercise-heading:not(:first-child) {
-		margin-block-start: 0.5rem;
-	}
-	.exercise-list {
-		padding-inline-start: 1.5rem;
-		list-style-type: disc;
-	}
-	ol.exercise-list {
-		list-style-type: decimal;
-	}
-	.exercise-list li + li {
-		margin-block-start: 0.5rem;
-	}
-	.inline-code {
-		border-radius: var(--radius-control);
-		background: var(--muted);
-		padding: 0.125rem 0.25rem;
-		font-family: var(--font-mono);
-		font-size: 0.9em;
 	}
 	.rubric-section {
 		min-width: 0;

@@ -20,7 +20,7 @@ SvelteKit teaching application, deployed to Cloudflare Workers. Teacher access, 
 | Cloudflare preview | `pnpm preview`                                                  |
 
 - `pnpm check` includes operator-script types. Test commands invoke the native Vitest, Playwright and Stryker CLIs with `scripts/prepare-tests.ts` preloaded to isolate their environment. Use the package commands to preserve this isolation; Vitest also preloads `scripts/test-isolation.mjs` in its coordinator and test workers.
-- `pnpm db:generate` generates migrations offline; `pnpm db:fixtures` creates a fictional local database. `pnpm db:migrate`, `pnpm auth:invite`, `pnpm auth:revoke` and `pnpm agent:key` are explicit operator actions. Routine checks never migrate cloud databases, deploy or use real student data. `pnpm mcp` starts the local stdio server.
+- `pnpm db:generate` generates migrations offline; `pnpm db:fixtures` creates a fictional local database. `pnpm db:migrate`, `pnpm auth:invite`, `pnpm auth:revoke` and `pnpm agent:key` are explicit operator actions. The enabled production deployment job alone may migrate its verified database after journal checks and a verified encrypted backup persisted as an Actions artifact; preview/manual migrations remain explicit operator actions. Routine checks never migrate cloud databases, deploy or use real student data. `pnpm mcp` starts the local stdio server.
 
 ## Sources of truth and delivery
 

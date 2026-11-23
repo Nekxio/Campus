@@ -11,6 +11,7 @@ import { issueInvitation, invitationCookieName } from '../auth/invitations.js';
 import { virtualPasskey } from '../auth/testing/webauthn.js';
 import { readOAuthRequest, browserOAuth, decideOAuth, listApplications, revokeApplication } from './consent.js';
 import { handleRemoteMcp } from './http.js';
+import { mcpConnection } from './oauth.js';
 import { authenticateMcp } from './principal.js';
 import { seedFoundationFixtures } from '../db/testing/fixtures.js';
 import { newFolderBinding, resolveLocalModule } from '../../domain/local-module.js';
@@ -41,6 +42,7 @@ let client: Client;
 let auth: Auth;
 let cookie: string;
 let teacherId: string;
+const defaultServer = () => ({ auth, origin });
 const quizRpc = async (
 	token: string,
 	method: 'tools/list' | 'tools/call',
@@ -78,7 +80,7 @@ const quizRpc = async (
 		origin,
 		dependencies
 	);
-async function call(path: string, body?: unknown, session = '', native = false) {
+async function call(path: string, body?: unknown, session = '', native = false, { auth, origin } = defaultServer()) {
 	return auth.handler(
 		new Request(origin + '/api/auth' + path, {
 			method: body === undefined ? 'GET' : 'POST',
@@ -92,7 +94,7 @@ async function call(path: string, body?: unknown, session = '', native = false) 
 		})
 	);
 }
-async function registerClient(redirect = callback) {
+async function registerClient(redirect = callback, server = defaultServer()) {
 	const response = await call(
 		'/oauth2/register',
 		{
@@ -104,7 +106,8 @@ async function registerClient(redirect = callback) {
 			application_type: 'native'
 		},
 		'',
-		true
+		true,
+		server
 	);
 	expect(response.status, await response.clone().text()).toBe(201);
 	return ((await response.json()) as { client_id: string }).client_id as string;
@@ -112,7 +115,8 @@ async function registerClient(redirect = callback) {
 async function requestConsent(
 	clientId: string,
 	scope = 'modules:read modules:create modules:update offline_access',
-	session = cookie
+	session = cookie,
+	server = defaultServer()
 ) {
 	const params = new URLSearchParams({
 		client_id: clientId,
@@ -120,18 +124,19 @@ async function requestConsent(
 		response_type: 'code',
 		state: 'state-fictif',
 		scope,
-		resource: origin + '/mcp',
+		resource: server.origin + '/mcp',
 		code_challenge: challenge,
 		code_challenge_method: 'S256',
 		prompt: 'consent'
 	});
-	const response = await call('/oauth2/authorize?' + params, undefined, session);
+	const response = await call('/oauth2/authorize?' + params, undefined, session, false, server);
 	expect(response.status, await response.clone().text()).toBe(302);
-	return new URL(response.headers.get('location')!, origin);
+	return new URL(response.headers.get('location')!, server.origin);
 }
-const grant = async (scope?: string, tokenHeaders: Record<string, string> = {}) => {
-	const clientId = await registerClient();
-	const location = await requestConsent(clientId, scope);
+const grant = async (scope?: string, tokenHeaders: Record<string, string> = {}, server = { auth, origin, cookie }) => {
+	const { auth, origin, cookie } = server;
+	const clientId = await registerClient(callback, server);
+	const location = await requestConsent(clientId, scope, cookie, server);
 	const query = location.search.slice(1);
 	const reviewed = await readOAuthRequest(auth, client, query, origin);
 	const decision = await decideOAuth(auth, client, origin, new Headers({ cookie, origin }), {
@@ -170,29 +175,35 @@ const grant = async (scope?: string, tokenHeaders: Record<string, string> = {}) 
 		query
 	};
 };
-beforeEach(async () => {
-	client = createClient({ url: ':memory:' });
-	await migrate(createDatabase(client), { migrationsFolder: './drizzle' });
-	auth = await createAuth({ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') }, client);
+const activateTeacher = async (server = defaultServer()) => {
 	const invite = await issueInvitation(client, {
 		email: 'teacher-fictif@example.test',
 		name: 'Camille Martin',
 		role: 'teacher'
 	});
-	teacherId = invite.id;
-	const device = virtualPasskey(origin);
+	const device = virtualPasskey(server.origin);
 	const options = await call(
 		'/passkey/generate-register-options',
 		undefined,
-		invitationCookieName + '=' + invite.token
+		invitationCookieName + '=' + invite.token,
+		false,
+		server
 	);
 	const registered = await call(
 		'/passkey/verify-registration',
 		{ response: device.register(await options.json()), createSession: true },
-		invitationCookieName + '=' + invite.token + ';' + cookieOf(options)
+		invitationCookieName + '=' + invite.token + ';' + cookieOf(options),
+		false,
+		server
 	);
 	expect(registered.status, await registered.clone().text()).toBe(200);
-	cookie = cookieOf(registered);
+	return { cookie: cookieOf(registered), teacherId: invite.id };
+};
+beforeEach(async () => {
+	client = createClient({ url: ':memory:' });
+	await migrate(createDatabase(client), { migrationsFolder: './drizzle' });
+	auth = await createAuth({ ORIGIN: origin, BETTER_AUTH_SECRET: randomBytes(32).toString('hex') }, client);
+	({ cookie, teacherId } = await activateTeacher());
 });
 afterEach(() => {
 	client.close();
@@ -201,6 +212,56 @@ afterEach(() => {
 });
 
 describe('MCP distant et OAuth réels sur base fictive', () => {
+	it.each([
+		['http://localhost:5173', 'campus-local'],
+		['http://127.0.0.1:4173', 'campus-local'],
+		['http://[::1]:5173', 'campus-local'],
+		['https://campus-preview.example.test', 'campus-preview'],
+		['https://campus-mds.example.test', 'campus-mds']
+	])('copies the endpoint and alias for %s', (origin, name) => {
+		expect(mcpConnection(origin)).toEqual({ name, url: origin + '/mcp' });
+	});
+
+	it('exchanges, verifies and refreshes loopback tokens while an HTTPS origin uses the same database', async () => {
+		const preview = await grant('modules:read offline_access');
+		const localSettings = { ORIGIN: 'http://localhost:5173', BETTER_AUTH_SECRET: randomBytes(32).toString('hex') };
+		const local = { auth: await createAuth(localSettings, client), origin: localSettings.ORIGIN };
+		const localTeacher = await activateTeacher(local);
+		const { token, clientId } = await grant('modules:read offline_access', {}, { ...local, ...localTeacher });
+		const bearer = (origin: string, token: string) =>
+			new Request(origin + '/mcp', { headers: { authorization: 'Bearer ' + token } });
+		const restartedLocal = { ...local, auth: await createAuth(localSettings, client) };
+		expect(
+			await authenticateMcp(restartedLocal.auth, client, local.origin, bearer(local.origin, token.access_token))
+		).toMatchObject({ teacherId, scopes: ['modules:read', 'offline_access'] });
+		await expect(authenticateMcp(auth, client, origin, bearer(origin, token.access_token))).rejects.toMatchObject({
+			status: 401
+		});
+		await expect(
+			authenticateMcp(local.auth, client, local.origin, bearer(local.origin, preview.token.access_token))
+		).rejects.toMatchObject({ status: 401 });
+		expect(await authenticateMcp(auth, client, origin, bearer(origin, preview.token.access_token))).toMatchObject({
+			teacherId
+		});
+		const refreshed = await call(
+			'/oauth2/token',
+			new URLSearchParams({
+				grant_type: 'refresh_token',
+				refresh_token: token.refresh_token,
+				client_id: clientId,
+				resource: local.origin + '/mcp'
+			}),
+			'',
+			true,
+			restartedLocal
+		);
+		expect(refreshed.status).toBe(200);
+		const nextPreview = await grant('modules:read');
+		expect(await authenticateMcp(auth, client, origin, bearer(origin, nextPreview.token.access_token))).toMatchObject({
+			teacherId
+		});
+	});
+
 	it('exchanges Node Fetch OAuth requests and preserves immediate consent revocation', async () => {
 		const { token } = await grant('modules:read', { 'sec-fetch-mode': 'cors' });
 		const incoming = new Request(origin + '/mcp', {
@@ -338,8 +399,9 @@ describe('MCP distant et OAuth réels sur base fictive', () => {
 		});
 		await client.execute({ sql: 'UPDATE quiz_draft SET needs_review = 1 WHERE id = ?', args: [fixture.quizId] });
 		const draft = await getQuizDraft(db, fixture.quizId);
-		const { revision, needsReview, ...content } = draft;
+		const { revision, needsReview, archived, ...content } = draft;
 		expect(needsReview).toBe(true);
+		expect(archived).toBe(false);
 		const command = {
 			quiz: { ...content, expectedRevision: revision, requestId: crypto.randomUUID() },
 			confirmReview: true
@@ -350,6 +412,9 @@ describe('MCP distant et OAuth réels sur base fictive', () => {
 		const invoke = async (args: unknown) =>
 			(await quizRpc(reviewed.token.access_token, 'tools/call', 'save_quiz_draft', args)).json();
 		expect(await invoke({ ...command, confirmReview: false })).toMatchObject({ result: { isError: true } });
+		expect(await invoke({ ...command, quiz: { ...command.quiz, archived: true } })).toMatchObject({
+			result: { isError: true }
+		});
 		expect((await getQuizDraft(db, fixture.quizId)).needsReview).toBe(true);
 		const saved = await invoke(command);
 		expect(saved).toMatchObject({ result: { structuredContent: { quizId: fixture.quizId, revision: 2 } } });

@@ -1,7 +1,8 @@
 # Application operations and remote MCP coverage
 
-The remote OAuth MCP is served at `/mcp` and can be connected as `campus-app`. It exposes up to
-**38 tools**, filtered by the connection's granted permissions. One tool can cover several HTTP
+The remote OAuth MCP is served at `/mcp`. The [connection commands](README.md#remote-teaching-mcp)
+identify the selected environment. The endpoint exposes up to **38 tools**, filtered by the
+connection's granted permissions. One tool can cover several HTTP
 endpoints and form actions through the same domain service.
 
 The local stdio MCP remains a folder-bound import/proposal adapter using API-key permissions.
@@ -23,7 +24,7 @@ Remote OAuth permissions do not widen local agent keys.
 
 Account operations are excluded: profile, activation/invitations, login/logout, passkeys, sessions, OAuth consent and application revocation. Static legal/error pages do not manipulate teaching records. Browser selection preferences and PDF rendering/download remain local UI behavior.
 
-Quiz rooms are intentionally excluded from MCP: listing, reading, opening, retakes and lifecycle commands remain under manual teacher control in the interface. Student quiz joining, credentials, answers and submissions remain the participant protocol. Quiz draft preparation and public quiz summaries remain available through MCP. MCP transport and OAuth discovery are protocol infrastructure rather than teaching CRUD tools.
+The teacher manages quiz archiving, restoration and rooms in Campus. Room listing, reading, opening, retakes and lifecycle commands remain under manual teacher control. Student quiz joining, credentials, answers and submissions use the participant protocol. Quiz draft preparation and public quiz summaries remain available through MCP. MCP transport and OAuth discovery provide the protocol infrastructure.
 
 There is no independent class, module or quiz DELETE operation in the application. Existing explicit module-part removals, student deletion and annual purge are covered; no new product deletion operation is invented.
 
@@ -148,6 +149,7 @@ Totals: **20 GET, 23 POST, 9 PATCH, 2 DELETE and 1 OPTIONS**; no PUT or HEAD han
 | `/enseignant/modules/[moduleId]/bareme`        | `saveRubric`        | patch_module_draft                        |
 | `/enseignant/modules/[moduleId]/publication`   | `decidePublication` | decide_publication                        |
 | `/enseignant/modules/[moduleId]/quiz`          | `saveQuiz`          | save_quiz_draft                           |
+| `/enseignant/modules/[moduleId]/quiz`          | `setArchive`        | Manual teacher archive or restoration     |
 | `/enseignant/modules/[moduleId]/quiz`          | `openRoom`          | Manual teacher control; excluded from MCP |
 | `/enseignant/modules/nouveau`                  | `createModule`      | create_module_draft                       |
 | `/enseignant/notation/[contextId]/[studentId]` | `saveAssessment`    | save_correction                           |

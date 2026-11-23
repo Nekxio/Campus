@@ -33,6 +33,7 @@
 	import * as NativeSelect from '#lib/components/ui/native-select/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import {
+		complementaryResources,
 		publicationDecisionSchema,
 		publicationReceiptSchema,
 		publicationSections,
@@ -251,6 +252,8 @@
 		)
 			return true;
 		if (id === 'remise') return JSON.stringify(before.deadlines) !== JSON.stringify(after.deadlines);
+		if (id === 'ressources')
+			return JSON.stringify(complementaryResources(before)) !== JSON.stringify(complementaryResources(after));
 		if (id === 'suivi')
 			return (
 				JSON.stringify([before.recap, before.toDo, before.lessonNotes]) !==

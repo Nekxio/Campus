@@ -7,6 +7,8 @@ import { seedFoundationFixtures } from '../db/testing/fixtures.js';
 import * as t from '../db/schema.js';
 import { publicationSnapshotSchema } from '../../domain/publication.js';
 import { listPublicQuizzes, requirePublicQuizRun } from './quiz-public.js';
+import { getQuizDraft, setQuizArchive } from './quizzes.js';
+import { decidePublication, getPublicationReview, getPublicModule } from './publications.js';
 let client: Client;
 let db: Database;
 let ids: Awaited<ReturnType<typeof seedFoundationFixtures>>;
@@ -100,7 +102,7 @@ const createQuiz = async (contextId: string) => {
 			}
 		]
 	});
-	return { quizId, lessonId, runId };
+	return { quizId, lessonId, runId, lineId, groupId };
 };
 
 describe('public quiz availability', () => {
@@ -143,5 +145,135 @@ describe('public quiz availability', () => {
 		await expect(requirePublicQuizRun(db, ids.currentContext, runId)).rejects.toMatchObject({
 			status: 404
 		});
+	});
+
+	it('lists quizzes in lesson order, including two sittings on the same day, with stable ties', async () => {
+		await publish();
+		const afternoon = await createQuiz(ids.currentContext);
+		const morning = await createQuiz(ids.currentContext);
+		const sameTime = await createQuiz(ids.currentContext);
+		for (const [quiz, hour] of [
+			[afternoon, 13],
+			[morning, 8],
+			[sameTime, 8]
+		] as const) {
+			const time = new Date(Date.UTC(2026, 11, 3, hour));
+			await db.update(t.lessons).set({ startsAt: time, endsAt: time }).where(eq(t.lessons.id, quiz.lessonId));
+		}
+		const first = [morning, sameTime].sort((a, b) => a.lessonId.localeCompare(b.lessonId));
+		expect((await listPublicQuizzes(db, ids.currentContext)).map((item) => item.id)).toEqual([
+			...first.map((quiz) => quiz.quizId),
+			afternoon.quizId
+		]);
+	});
+
+	it('archives a closed quiz for students and the next reviewed rubric, preserving teacher history and identical retries', async () => {
+		await publish();
+		const quiz = await createQuiz(ids.currentContext);
+		await db.update(t.quizRuns).set({ status: 'closed' }).where(eq(t.quizRuns.id, quiz.runId));
+		const review = (await getPublicationReview(db, ids.module, ids.currentContext)).selected!;
+		const publishCommand = {
+			requestId: crypto.randomUUID(),
+			contextId: ids.currentContext,
+			action: 'publish' as const,
+			expectedRevision: review.publicationRevision,
+			moduleRevision: review.moduleRevision,
+			contextRevision: review.contextRevision,
+			classRevision: review.classRevision,
+			confirm: true as const
+		};
+		await decidePublication(db, ids.teacher, ids.module, publishCommand);
+		const change = {
+			id: quiz.quizId,
+			moduleId: ids.module,
+			contextId: ids.currentContext,
+			requestId: crypto.randomUUID(),
+			expectedRevision: 1,
+			expectedContextRevision: review.contextRevision,
+			archived: true
+		};
+		const receipt = await setQuizArchive(db, ids.teacher, change);
+		expect(receipt.contextRevision).toBe(review.contextRevision + 1);
+		expect(await listPublicQuizzes(db, ids.currentContext)).toEqual([]);
+		await expect(requirePublicQuizRun(db, ids.currentContext, quiz.runId)).rejects.toMatchObject({ status: 404 });
+		expect(await getQuizDraft(db, quiz.quizId)).toMatchObject({
+			archived: true,
+			content: { title: 'Visible quiz title' }
+		});
+		expect((await db.select().from(t.quizRuns).where(eq(t.quizRuns.id, quiz.runId)))[0].status).toBe('closed');
+		const next = (await getPublicationReview(db, ids.module, ids.currentContext)).selected!;
+		expect(next.draft!.rubric.some((section) => section.title === 'Quiz Demo')).toBe(false);
+		expect(
+			(await getPublicModule(db, ids.currentContext)).snapshot.rubric.some((section) => section.title === 'Quiz Demo')
+		).toBe(true);
+		await expect(
+			decidePublication(db, ids.teacher, ids.module, {
+				...publishCommand,
+				expectedRevision: next.publicationRevision,
+				requestId: crypto.randomUUID()
+			})
+		).rejects.toMatchObject({ status: 409 });
+		await decidePublication(db, ids.teacher, ids.module, {
+			...publishCommand,
+			expectedRevision: next.publicationRevision,
+			contextRevision: next.contextRevision,
+			requestId: crypto.randomUUID()
+		});
+		expect(
+			(await getPublicModule(db, ids.currentContext)).snapshot.rubric.some((section) => section.title === 'Quiz Demo')
+		).toBe(false);
+		const restore = {
+			...change,
+			requestId: crypto.randomUUID(),
+			expectedContextRevision: receipt.contextRevision,
+			archived: false
+		};
+		await setQuizArchive(db, ids.teacher, restore);
+		expect((await listPublicQuizzes(db, ids.currentContext)).map((item) => item.id)).toEqual([quiz.quizId]);
+		expect((await requirePublicQuizRun(db, ids.currentContext, quiz.runId)).id).toBe(quiz.runId);
+		expect(await setQuizArchive(db, ids.teacher, change)).toEqual(receipt);
+		expect((await getQuizDraft(db, quiz.quizId)).archived).toBe(false);
+		await expect(setQuizArchive(db, ids.teacher, { ...change, archived: false })).rejects.toMatchObject({
+			status: 409
+		});
+	});
+
+	it('keeps external and unrelated-context lines when ordering active native quizzes in the public rubric', async () => {
+		const late = await createQuiz(ids.currentContext);
+		const early = await createQuiz(ids.currentContext);
+		const archive = await createQuiz(ids.currentContext);
+		const foreign = await createQuiz(ids.oldContext);
+		for (const [quiz, label, position] of [
+			[late, 'Later', 0],
+			[early, 'Earlier', 2],
+			[archive, 'Archived', 3],
+			[foreign, 'Other class', 4]
+		] as const)
+			await db
+				.update(t.rubricLines)
+				.set({ groupId: late.groupId, label, position })
+				.where(eq(t.rubricLines.id, quiz.lineId));
+		await db.insert(t.rubricLines).values({
+			id: crypto.randomUUID(),
+			groupId: late.groupId,
+			assessmentId: ids.quiz,
+			label: 'Wayground',
+			maxPoints: 5,
+			position: 1
+		});
+		await db
+			.update(t.lessons)
+			.set({ startsAt: new Date('2026-11-01'), endsAt: new Date('2026-11-01') })
+			.where(eq(t.lessons.id, early.lessonId));
+		await db.update(t.quizDrafts).set({ archived: true }).where(eq(t.quizDrafts.id, archive.quizId));
+		await db.update(t.quizDrafts).set({ archived: true }).where(eq(t.quizDrafts.id, foreign.quizId));
+		const review = (await getPublicationReview(db, ids.module, ids.currentContext)).selected!;
+		const groups = review.draft!.rubric.find((section) => section.title === 'Quiz Demo')!.groups;
+		expect(groups.flatMap((group) => group.lines.map((line) => line.label))).toEqual([
+			'Earlier',
+			'Wayground',
+			'Later',
+			'Other class'
+		]);
 	});
 });

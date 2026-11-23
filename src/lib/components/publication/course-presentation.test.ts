@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicationSnapshot } from '#lib/domain/publication.js';
-import { selectRailDeadline } from './course-presentation.js';
+import {
+	buildCourseSupports,
+	courseSupportFilters,
+	pageCourseSupports,
+	selectRailDeadline
+} from './course-presentation.js';
 
 type Deadline = PublicationSnapshot['deadlines'][number];
 const renderedAt = Date.parse('2026-10-27T12:00:00Z');
@@ -29,6 +34,105 @@ const later: Deadline = {
 	dueAt: '2026-10-29T12:00:00Z',
 	submissionInstructions: 'Déposer le second livrable.'
 };
+
+describe('published course supports', () => {
+	const exercise = (id: string, semester?: 'S1' | 'S2', title = id) => ({
+		id,
+		title,
+		semester,
+		instructions: '',
+		solution: '',
+		code: ''
+	});
+	const lesson = (id: string, startsAt: string, exerciseIds: string[], label = id) => ({
+		id,
+		label,
+		startsAt,
+		exerciseIds,
+		recap: '',
+		toDo: ''
+	});
+	const documents = [
+		{ id: 'slides', label: 'Diaporama du module', kind: 'course' as const, url: 'https://example.org/slides' }
+	];
+	const exercises = [
+		exercise('practice', 'S2'),
+		exercise('afternoon', 'S1'),
+		exercise('plan', 'S1'),
+		exercise('trial', 'S1'),
+		exercise('legacy')
+	];
+	const lessons = [
+		lesson('later', '2027-03-04T14:00:00Z', ['practice']),
+		lesson('pm', '2026-12-03T13:00:00Z', ['afternoon']),
+		lesson('am', '2026-12-03T09:00:00Z', ['trial', 'plan'])
+	];
+
+	it('leads with the document, then orders workshops by semester and lesson with author order within a lesson', () => {
+		const supports = buildCourseSupports(documents, exercises, lessons);
+		expect(supports.map((item) => item.id)).toEqual(['slides', 'plan', 'trial', 'afternoon', 'practice', 'legacy']);
+		expect(supports[1]).toMatchObject({ kind: 'workshop', semester: 'S1', lesson: lessons[2] });
+		expect(courseSupportFilters(supports)).toEqual({
+			hasTypes: true,
+			semesters: ['S1', 'S2'],
+			lessons: [...lessons].reverse()
+		});
+	});
+
+	it('paginates 14 legacy workshops in author order without inferring semesters or lessons from their titles', () => {
+		const legacy = Array.from({ length: 14 }, (_, index) =>
+			exercise(
+				`A${String(index + 1).padStart(2, '0')}`,
+				undefined,
+				`S1 · Séance 1 · A${String(index + 1).padStart(2, '0')}`
+			)
+		);
+		const supports = buildCourseSupports(documents, legacy, []);
+		expect(courseSupportFilters(supports)).toEqual({ hasTypes: true, semesters: [], lessons: [] });
+		expect(pageCourseSupports(supports, { query: '', scope: 'all', page: 2 })).toMatchObject({
+			page: 2,
+			pageCount: 3,
+			first: 7,
+			last: 12,
+			total: 15,
+			items: supports.slice(6, 12)
+		});
+		expect(
+			pageCourseSupports(supports, { query: 'a06', scope: 'workshops', page: 1 }).items.map((item) => item.id)
+		).toEqual(['A06']);
+		expect(pageCourseSupports(supports, { query: '', scope: 'S1', page: 1 }).total).toBe(0);
+	});
+
+	it('keeps six items per page across 60 supports and combines accent-insensitive search with scope', () => {
+		const workshops = Array.from({ length: 59 }, (_, index) =>
+			exercise(`A${index + 1}`, index < 29 ? 'S1' : 'S2', index === 29 ? 'Équipe projet' : `Atelier ${index + 1}`)
+		);
+		const firstLesson = lesson('team', '2026-12-03T09:00:00Z', ['A1', 'A2'], 'Travail en équipe');
+		const supports = buildCourseSupports(documents, workshops, [firstLesson]);
+		const lastPage = pageCourseSupports(supports, { query: '', scope: 'all', page: 11 });
+		expect(lastPage).toMatchObject({ page: 10, pageCount: 10, first: 55, last: 60, total: 60 });
+		expect(lastPage.items.map((item) => item.id)).toEqual(['A54', 'A55', 'A56', 'A57', 'A58', 'A59']);
+		expect(
+			pageCourseSupports(supports, { query: '  EQUIPE  ', scope: 'all', page: 1 }).items.map((item) => item.id)
+		).toEqual(['A1', 'A2', 'A30']);
+		expect(
+			pageCourseSupports(supports, { query: 'equipe', scope: 'S2', page: 1 }).items.map((item) => item.id)
+		).toEqual(['A30']);
+		expect(
+			pageCourseSupports(supports, { query: 'atelier 2', scope: 'lesson:team', page: 1 }).items.map((item) => item.id)
+		).toEqual(['A2']);
+		expect(
+			pageCourseSupports(supports, { query: '', scope: 'documents', page: 1 }).items.map((item) => item.id)
+		).toEqual(['slides']);
+		expect(pageCourseSupports(supports, { query: 'equipe', scope: 'documents', page: 1 })).toMatchObject({
+			items: [],
+			page: 1,
+			first: 0,
+			last: 0,
+			total: 0
+		});
+	});
+});
 
 describe('selectRailDeadline', () => {
 	it('returns null for an empty list', () => {

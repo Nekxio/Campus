@@ -34,6 +34,7 @@ export type LessonDraft = {
 	endsAt: string;
 	recap: string;
 	toDo: string;
+	exerciseIds?: string[];
 };
 export type ContextDraft = {
 	id: string;
@@ -62,6 +63,7 @@ export type EditorData = {
 	classes: ClassSummary[];
 	module: ModuleDetail | null;
 	publishedPath?: string | null;
+	dossierAssessments?: { id: string; title: string }[];
 	managedLessons?: {
 		id: string;
 		status: 'active' | 'cancelled' | 'missing' | 'disconnected';

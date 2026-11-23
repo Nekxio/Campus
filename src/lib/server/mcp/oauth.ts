@@ -8,14 +8,26 @@ import { and, eq } from 'drizzle-orm';
 import { createDatabase } from '../db/index.js';
 import { oauthConsent, session } from '../db/schema.js';
 import { mcpScopes } from '../../domain/remote-mcp.js';
+import { isLoopbackHostname } from '../auth/config.js';
 
 export const nativeOAuthPaths = new Set(['/oauth2/token', '/oauth2/register', '/oauth2/revoke', '/oauth2/introspect']);
+
+export const mcpConnection = (origin: string) => {
+	const { hostname } = new URL(origin);
+	const name = isLoopbackHostname(hostname)
+		? 'campus-local'
+		: hostname.startsWith('campus-preview.')
+			? 'campus-preview'
+			: 'campus-mds';
+	return { name, url: origin + '/mcp' };
+};
+
 export function loopbackRedirect(value: string) {
 	try {
 		const url = new URL(value);
 		return (
 			url.protocol === 'http:' &&
-			['127.0.0.1', '[::1]', 'localhost'].includes(url.hostname) &&
+			isLoopbackHostname(url.hostname) &&
 			!url.username &&
 			!url.password &&
 			!url.hash &&

@@ -49,6 +49,7 @@ export const quizContextSchema = z.strictObject({
 			lineId: idSchema,
 			revision: revisionSchema,
 			needsReview: z.boolean(),
+			archived: z.boolean().default(false),
 			title: z.string(),
 			durationSeconds: z.int().positive(),
 			questionCount: z.int().positive(),

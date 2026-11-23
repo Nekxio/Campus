@@ -1,5 +1,6 @@
 import { jwt } from 'better-auth/plugins/jwt';
 import { remoteOAuth, teachingOAuthClaims, nativeOAuthPaths, loopbackRedirect } from './mcp/oauth.js';
+import { loopbackSigning } from './mcp/loopback-signing.js';
 import { apiKey } from '@better-auth/api-key';
 import { agentConfigId } from '../domain/module-import.js';
 import type { Client } from '@libsql/client/web';
@@ -9,7 +10,7 @@ import { passkey } from '@better-auth/passkey';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { createDatabase } from './db/index.js';
 import * as schema from './db/schema.js';
-import { authOrigin, type AuthSettings } from './auth/config.js';
+import { authOrigin, isLoopbackHostname, type AuthSettings } from './auth/config.js';
 import { invitationFromHeaders, invitationIdentifier, parseInvitation, readInvitation } from './auth/invitations.js';
 import { consumeRateLimit } from './auth/rate-limit.js';
 import { cleanupUnusedOAuthClients, withOAuthRegistrationLimit } from './mcp/registration.js';
@@ -18,7 +19,10 @@ import { z } from 'zod';
 
 export async function createAuth(settings: AuthSettings, client: Client) {
 	const origin = authOrigin(settings);
-	const database = drizzleAdapter(createDatabase(client), {
+	const hostname = new URL(origin).hostname;
+	const db = createDatabase(client);
+	const localJwt = isLoopbackHostname(hostname) ? await loopbackSigning(db, origin, settings.BETTER_AUTH_SECRET) : {};
+	const database = drizzleAdapter(db, {
 		provider: 'sqlite',
 		schema,
 		transaction: true
@@ -128,7 +132,7 @@ export async function createAuth(settings: AuthSettings, client: Client) {
 					typeof options.challenge !== 'string' ||
 					!options.challenge ||
 					!('rpId' in options) ||
-					options.rpId !== new URL(origin).hostname ||
+					options.rpId !== hostname ||
 					!('userVerification' in options) ||
 					!['preferred', 'required', 'discouraged'].includes(String(options.userVerification))
 				)
@@ -178,6 +182,7 @@ export async function createAuth(settings: AuthSettings, client: Client) {
 		telemetry: { enabled: false },
 		plugins: [
 			jwt({
+				...localJwt,
 				disableSettingJwtHeader: true,
 				jwt: { issuer: origin + '/api/auth', audience: origin + '/mcp' }
 			}),
@@ -196,7 +201,7 @@ export async function createAuth(settings: AuthSettings, client: Client) {
 				permissions: { defaultPermissions: {} }
 			}),
 			passkey({
-				rpID: new URL(origin).hostname,
+				rpID: hostname,
 				rpName: 'Campus',
 				origin,
 				authenticatorSelection: { residentKey: 'required', userVerification: 'required' },

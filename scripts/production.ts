@@ -137,11 +137,15 @@ export const productionConfig = (source: unknown, settings: ProductionEnvironmen
 	};
 };
 
-export function productionSecrets(settings: ProductionEnvironment) {
+export const productionSecrets = (settings: ProductionEnvironment) => {
 	// Never include rejected values or Zod issues in errors/logs.
 	if (!settings.BETTER_AUTH_SECRET || settings.BETTER_AUTH_SECRET.length < 32) {
 		throw new Error('BETTER_AUTH_SECRET manque ou fait moins de 32 caractères.');
 	}
+	return { BETTER_AUTH_SECRET: settings.BETTER_AUTH_SECRET, ...productionDatabaseSecrets(settings) };
+};
+
+export const productionDatabaseSecrets = (settings: ProductionEnvironment) => {
 	if (!settings.TURSO_AUTH_TOKEN?.trim()) throw new Error('TURSO_AUTH_TOKEN manque.');
 	const url = z.url().safeParse(settings.TURSO_DATABASE_URL);
 	if (!url.success) throw new Error('TURSO_DATABASE_URL manque ou est invalide.');
@@ -159,11 +163,10 @@ export function productionSecrets(settings: ProductionEnvironment) {
 	)
 		throw new Error('TURSO_DATABASE_URL doit désigner la base Turso de production vérifiée.');
 	return {
-		BETTER_AUTH_SECRET: settings.BETTER_AUTH_SECRET,
 		TURSO_DATABASE_URL: url.data,
 		TURSO_AUTH_TOKEN: settings.TURSO_AUTH_TOKEN
 	};
-}
+};
 
 async function main() {
 	const command = process.argv[2];

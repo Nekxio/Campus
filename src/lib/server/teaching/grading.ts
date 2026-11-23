@@ -224,6 +224,12 @@ export async function replaceRubric(
 			.where(and(eq(modules.id, moduleId), eq(modules.revision, draft.expectedRevision)))
 			.returning();
 		if (!claimed) conflict();
+		const dossierAssessments = new Set(
+			draft.assessments.filter((assessment) => assessment.kind !== 'quiz').map((assessment) => assessment.id)
+		);
+		if (claimed.studentContent.dossiers?.some(({ assessmentId }) => !dossierAssessments.has(assessmentId))) {
+			error(422, 'Détachez le dossier de son évaluation avant de la retirer ou de la transformer en quiz.');
+		}
 		await checkIdentities(tx, moduleId, draft);
 		const now = new Date();
 		const activeIds = draft.assessments.map((v) => v.id);

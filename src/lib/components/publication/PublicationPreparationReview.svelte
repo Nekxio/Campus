@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { Badge } from '#lib/components/ui/badge/index.js';
-	import type { PublicationSelection } from '#lib/domain/publication.js';
+	import { complementaryResources, type PublicationSelection } from '#lib/domain/publication.js';
 
 	let {
 		moduleId,
@@ -64,10 +64,10 @@
 			},
 			{
 				id: 'ressources',
-				label: 'Ressources utiles',
-				present: resource('resource'),
+				label: 'Ressources complémentaires',
+				present: complementaryResources(preview).length > 0,
 				section: 'resources',
-				subject: 'les ressources utiles'
+				subject: 'les ressources complémentaires'
 			}
 		] as const;
 	});
@@ -87,9 +87,12 @@
 {#snippet preparationList(items: (typeof preparation)[number][])}
 	<ul class="grid min-w-0 divide-y border-y sm:grid-cols-2 sm:divide-y-0">
 		{#each items as item (item.id)}
+			{@const missingResources = !item.present && item.id === 'ressources'}
+			{@const action = item.present ? 'Modifier' : missingResources ? 'Ajouter' : 'Compléter'}
+			{@const subject = missingResources ? 'des ressources complémentaires' : item.subject}
 			<li class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-2 sm:pr-4">
 				<span class="min-w-0 text-sm font-medium">{item.label}</span>
-				<Badge variant="secondary">{item.present ? 'Présent' : 'À compléter'}</Badge>
+				<Badge variant="secondary">{item.present ? 'Présent' : missingResources ? 'Aucune' : 'Absent'}</Badge>
 				{#if !selected.context.archived}
 					<a
 						href={busy
@@ -102,8 +105,7 @@
 						role={busy ? 'link' : undefined}
 						tabindex={busy ? -1 : undefined}
 						class="inline-flex min-h-11 items-center rounded-control text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-disabled:pointer-events-none aria-disabled:opacity-50"
-						aria-label={`${item.present ? 'Modifier' : 'Compléter'} ${item.subject}`}
-						>{item.present ? 'Modifier' : 'Compléter'}</a
+						aria-label={`${action} ${subject}`}>{action}</a
 					>
 				{/if}
 			</li>
@@ -125,7 +127,7 @@
 				Contenus visibles par les étudiants dans cet aperçu. Les éléments absents n’empêchent pas la publication.
 			</p>
 			{#if preparation.some((item) => !item.present)}
-				<h2 class="mt-2 text-sm font-medium">À compléter</h2>
+				<h2 class="mt-2 text-sm font-medium">Contenus absents de l’aperçu</h2>
 				{@render preparationList(preparation.filter((item) => !item.present))}
 			{:else}
 				<p class="text-sm">Tous les contenus de cet aperçu sont présents.</p>

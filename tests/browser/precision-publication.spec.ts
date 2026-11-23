@@ -48,7 +48,7 @@ test('publication section links preserve the reviewed context through history an
 			await page.waitForLoadState('networkidle');
 			await expect(page.locator(`#review-${contextId}-ressources`)).toBeFocused();
 			if (width < 768) {
-				const heading = page.getByRole('heading', { name: 'Ressources utiles', exact: true });
+				const heading = page.getByRole('heading', { name: 'Ressources complémentaires', exact: true });
 				const headerBottom = await page
 					.locator('.teacher-header')
 					.evaluate((header) => header.getBoundingClientRect().bottom);
@@ -134,7 +134,7 @@ test('desktop review section changes keep the page position for short and long p
 	await page.waitForLoadState('networkidle');
 	for (const [id, label] of [
 		['consignes', 'Consignes et barèmes'],
-		['ressources', 'Ressources utiles'],
+		['ressources', 'Ressources complémentaires'],
 		['remise', 'Échéances et remise'],
 		['supports', 'Supports du cours']
 	]) {

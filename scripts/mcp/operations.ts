@@ -181,13 +181,16 @@ export function moduleOperations(roots: string[], connection: () => Promise<Agen
 				const resolved = resolveLocalModule(
 					(action === 'create' ? localModuleSchema : localModuleUpdateSchema).parse(value),
 					binding,
-					path
+					path,
+					action
 				);
 				const base = {
 					version: 1 as const,
 					moduleId: binding.moduleId,
 					...resolved,
-					...(action === 'update' ? { draft: { ...resolved.draft, studentContent: value.studentContent } } : {}),
+					...(action === 'update'
+						? { draft: { ...resolved.draft, studentContent: value.studentContent && resolved.draft.studentContent } }
+						: {}),
 					...(action === 'update' ? { expectedRevision, confirmRubricReplacement } : {})
 				};
 				const fingerprint = await importFingerprint({ action, base });

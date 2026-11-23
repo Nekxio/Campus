@@ -19,7 +19,7 @@ import {
 	corrections,
 	students
 } from './teaching.schema.js';
-import type { QuizContent, QuizDraftReceipt, QuizGradeReceipt } from '../../domain/quiz-content.js';
+import type { QuizArchiveReceipt, QuizContent, QuizDraftReceipt, QuizGradeReceipt } from '../../domain/quiz-content.js';
 
 const createdAt = () =>
 	integer('created_at', { mode: 'timestamp_ms' })
@@ -40,6 +40,7 @@ export const quizDrafts = sqliteTable(
 		content: text('content', { mode: 'json' }).$type<QuizContent>().notNull(),
 		revision: integer('revision').notNull().default(1),
 		needsReview: integer('needs_review', { mode: 'boolean' }).notNull().default(false),
+		archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
 		createdAt: createdAt()
 	},
 	(table) => [
@@ -75,7 +76,7 @@ export const quizDraftReceipts = sqliteTable(
 			.notNull()
 			.references(() => quizDrafts.id, { onDelete: 'restrict' }),
 		fingerprint: text('fingerprint').notNull(),
-		receipt: text('receipt', { mode: 'json' }).$type<QuizDraftReceipt>().notNull(),
+		receipt: text('receipt', { mode: 'json' }).$type<QuizDraftReceipt | QuizArchiveReceipt>().notNull(),
 		createdAt: createdAt()
 	},
 	(table) => [uniqueIndex('quiz_draft_receipt_request').on(table.teacherId, table.requestId)]

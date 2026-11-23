@@ -8,7 +8,12 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { ResolvedPathname } from '$app/types';
-	import type { QuizDraft } from '#lib/domain/quiz-content.js';
+	import {
+		quizArchiveSchema,
+		quizArchiveReceiptSchema,
+		type QuizArchive,
+		type QuizDraft
+	} from '#lib/domain/quiz-content.js';
 	import { quizRoomOpenSchema, quizTeacherProjectionSchema } from '#lib/domain/quiz-session.js';
 	import type { QuizWorkspaceData } from '#lib/quizzes/teacher-data.js';
 	import { TeachingRequestError } from '#lib/teaching/api.js';
@@ -54,6 +59,30 @@
 		}
 	);
 	const roomTransport = createFormActionTransport(roomForm);
+	const archiveForm = superForm(
+		defaults(
+			{
+				id: '',
+				moduleId: '',
+				contextId: '',
+				requestId: '',
+				expectedRevision: 1,
+				expectedContextRevision: 1,
+				archived: true
+			},
+			zod4Client(quizArchiveSchema)
+		),
+		{
+			id: 'quiz-archive',
+			dataType: 'json',
+			validators: zod4Client(quizArchiveSchema),
+			applyAction: 'never',
+			invalidateAll: false,
+			resetForm: false,
+			taintedMessage: false
+		}
+	);
+	const archiveTransport = createFormActionTransport(archiveForm);
 	let quizzes = $state.raw(untrack(() => data.quizzes));
 	let contextId = $state(untrack(() => data.selectedContextId));
 	let editing = $state(false);
@@ -61,6 +90,10 @@
 	let editorKey = $state('');
 	let pending = $state(false);
 	let opening = $state.raw<{ id: string; quizId: string; expectedQuizRevision: number } | null>(null);
+	let archiveCommand = $state.raw<QuizArchive | null>(null);
+	let archiveConflict = $state(false);
+	let contextRevisions = $state<Record<string, number>>({});
+	const decisionPending = $derived(pending || !!opening || !!archiveCommand);
 	let errorMessage = $state('');
 	let allowNavigation = false;
 	const currentContexts = $derived(
@@ -102,9 +135,63 @@
 		quizzes = quizzes.some((entry) => entry.id === draft.id)
 			? quizzes.map((entry) => (entry.id === draft.id ? draft : entry))
 			: [...quizzes, draft];
+		if (editing) initialDraft = draft;
+	};
+	const changeArchive = async (quiz: QuizDraft) => {
+		if (pending || opening || !contextLabel || archiveConflict || (archiveCommand && archiveCommand.id !== quiz.id))
+			return;
+		archiveCommand ??= {
+			id: quiz.id,
+			moduleId: quiz.moduleId,
+			contextId: quiz.contextId,
+			requestId: crypto.randomUUID(),
+			expectedRevision: quiz.revision,
+			expectedContextRevision: contextRevisions[quiz.contextId] ?? contextLabel.expectedRevision,
+			archived: !quiz.archived
+		};
+		const command = archiveCommand;
+		errorMessage = '';
+		pending = true;
+		try {
+			const receipt = await archiveTransport.submit(
+				resolve('/enseignant/modules/[moduleId]/quiz', { moduleId: data.module.id }) + '?/setArchive',
+				command,
+				(value) => {
+					const result = quizArchiveReceiptSchema.parse(value);
+					if (
+						result.requestId !== command.requestId ||
+						result.quizId !== quiz.id ||
+						result.archived !== command.archived ||
+						result.contextRevision !== command.expectedContextRevision + 1
+					)
+						throw new Error('Unexpected archive decision.');
+					return result;
+				}
+			);
+			saved({ ...quiz, archived: receipt.archived });
+			contextRevisions[quiz.contextId] = receipt.contextRevision;
+			archiveCommand = null;
+			notify(
+				`${receipt.archived ? 'Quiz archivé.' : 'Quiz restauré.'} Republiez le module pour actualiser le barème étudiant.`
+			);
+		} catch (cause) {
+			errorMessage = cause instanceof Error ? cause.message : 'Décision à confirmer. Réessayez depuis la liste.';
+			if (
+				cause instanceof TeachingRequestError &&
+				cause.decodedServerError &&
+				cause.status >= 400 &&
+				cause.status < 500
+			) {
+				archiveConflict = cause.status === 409;
+				archiveCommand = null;
+			}
+			notify(errorMessage, 'error');
+		} finally {
+			pending = false;
+		}
 	};
 	const openRoom = async (quiz: QuizDraft) => {
-		if (pending || (opening && opening.quizId !== quiz.id)) return;
+		if (pending || archiveCommand || quiz.archived || (opening && opening.quizId !== quiz.id)) return;
 		opening ??= { id: crypto.randomUUID(), quizId: quiz.id, expectedQuizRevision: quiz.revision };
 		const command = opening;
 		pending = true;
@@ -140,7 +227,7 @@
 		}
 	};
 	beforeNavigate((navigation) => {
-		if (!allowNavigation && (pending || opening)) navigation.cancel();
+		if (!allowNavigation && decisionPending) navigation.cancel();
 	});
 </script>
 
@@ -150,13 +237,19 @@
 	use:roomTransport.enhance
 	onsubmit={roomTransport.handleSubmit((event) => event.preventDefault())}
 ></form>
+<form
+	hidden
+	method="POST"
+	use:archiveTransport.enhance
+	onsubmit={archiveTransport.handleSubmit((event) => event.preventDefault())}
+></form>
 
 {#if editing}
 	{#key editorKey}<QuizDraftEditor
 			data={{ ...data, quizzes }}
 			initial={initialDraft}
 			{contextId}
-			frozen={!!initialDraft && data.runs.some((run) => run.quizId === initialDraft?.id)}
+			frozen={!!initialDraft && (initialDraft.archived || data.runs.some((run) => run.quizId === initialDraft?.id))}
 			onSaved={saved}
 			onClose={() => {
 				editing = false;
@@ -172,7 +265,7 @@
 			contextId={context?.id}
 			academicYear={contextLabel?.academicYear}
 			{returnSection}
-			disabled={pending || !!opening}
+			disabled={decisionPending}
 		>
 			<div class="flex flex-wrap items-start justify-between gap-4">
 				<div class="flex flex-col gap-2">
@@ -181,7 +274,7 @@
 						{data.module.title}
 					</p>
 				</div>
-				{#if visibleQuizzes.length}<Button disabled={!canCreate || pending || !!opening} onclick={() => edit(null)}
+				{#if visibleQuizzes.length}<Button disabled={!canCreate || decisionPending} onclick={() => edit(null)}
 						><Plus data-icon="inline-start" />Créer un quiz</Button
 					>{/if}
 			</div>
@@ -189,7 +282,7 @@
 		{#if currentContexts.length > 1}
 			<Field.Field class="max-w-sm">
 				<Field.FieldLabel for="quiz-context">Classe</Field.FieldLabel>
-				<NativeSelect.Root id="quiz-context" class="w-full" bind:value={contextId} disabled={pending || !!opening}>
+				<NativeSelect.Root id="quiz-context" class="w-full" bind:value={contextId} disabled={decisionPending}>
 					{#each currentContexts as entry (entry.id)}
 						{@const label = data.rubric.contexts.find((item) => item.id === entry.id)}
 						<NativeSelect.Option value={entry.id}>{label?.className ?? 'Classe'}</NativeSelect.Option>
@@ -203,10 +296,12 @@
 			</div>
 		{/if}
 		{#if errorMessage}<Alert.Root variant="destructive" role="alert"
-				><CircleAlert /><Alert.Title>Salle à vérifier</Alert.Title><Alert.Description
+				><CircleAlert /><Alert.Title>Quiz à vérifier</Alert.Title><Alert.Description
 					>{errorMessage}{#if opening}<p class="mt-2">
 							La tentative de création est conservée. Réessayez son ouverture dans la liste ci-dessous.
-						</p>{/if}</Alert.Description
+						</p>{/if}{#if archiveConflict}<Button variant="outline" size="sm" onclick={() => window.location.reload()}
+							>Actualiser la bibliothèque</Button
+						>{/if}</Alert.Description
 				></Alert.Root
 			>{/if}
 		{#if !context || !context.lessons.length}<Empty.Root variant="surface"
@@ -233,7 +328,7 @@
 							: 'Créez d’abord une ligne de quiz notée dans le barème. Son maximum correspond au nombre de questions : un point par question.'}</Empty.Description
 					></Empty.Header
 				><Empty.Content
-					>{#if hasFreeLine}<Button disabled={!canCreate || pending || !!opening} onclick={() => edit(null)}
+					>{#if hasFreeLine}<Button disabled={!canCreate || decisionPending} onclick={() => edit(null)}
 							><Plus data-icon="inline-start" />Créer le premier quiz</Button
 						>{:else}<Button href={rubricPath}>Créer une ligne dans le barème</Button>{/if}</Empty.Content
 				></Empty.Root
@@ -244,29 +339,33 @@
 						>créez une nouvelle ligne dans le barème</a
 					>.
 				</p>{/if}
-			<div class="overflow-hidden rounded-xl bg-card">
+			<div class="quiz-library overflow-hidden rounded-xl bg-card">
 				<Table.Root
 					><Table.Caption class="sr-only">Quiz de {contextLabel?.className}</Table.Caption><Table.Header
 						><Table.Row
 							><Table.Head>Quiz et séance</Table.Head><Table.Head class="hidden md:table-cell">Questions</Table.Head
 							><Table.Head class="hidden md:table-cell">Durée</Table.Head><Table.Head class="hidden md:table-cell"
 								>État</Table.Head
-							><Table.Head class="text-right">Actions</Table.Head></Table.Row
+							><Table.Head>Actions</Table.Head></Table.Row
 						></Table.Header
 					><Table.Body
 						>{#each visibleQuizzes as quiz (quiz.id)}{@const runs = data.runs.filter(
 								(run) => run.quizId === quiz.id
-							)}{@const current = runs.find((run) => run.status !== 'closed') ?? runs[0]}{@const lesson =
+							)}{@const current = runs.find((run) => run.status !== 'closed') ?? runs[0]}{@const hasFollowUp =
+								current?.status === 'closed' && current.canOpenFollowUp && !quiz.archived}{@const lesson =
 								context.lessons.find((entry) => entry.id === quiz.lessonId)}{@const durationLabel =
-								formatDurationSeconds(quiz.content.durationSeconds)}{@const statusLabel = quiz.needsReview
-								? 'À vérifier'
-								: current?.status === 'running'
-									? 'En cours'
-									: current?.status === 'lobby'
-										? 'Salle ouverte'
-										: current
-											? 'Clôturé'
-											: 'Prêt à lancer'}<Table.Row
+								formatDurationSeconds(quiz.content.durationSeconds)}{@const readOnly =
+								quiz.archived || runs.length > 0}{@const statusLabel = quiz.archived
+								? 'Archivé'
+								: quiz.needsReview
+									? 'À vérifier'
+									: current?.status === 'running'
+										? 'En cours'
+										: current?.status === 'lobby'
+											? 'Salle ouverte'
+											: current
+												? 'Clôturé'
+												: 'Prêt à lancer'}<Table.Row
 								><Table.Cell class="max-w-40 whitespace-normal md:max-w-80"
 									><p class="font-medium break-words">{quiz.content.title}</p>
 									<p class="mt-1 text-xs text-muted-foreground">
@@ -282,8 +381,8 @@
 								><Table.Cell class="hidden tabular-nums md:table-cell">{durationLabel}</Table.Cell><Table.Cell
 									class="hidden md:table-cell"
 									><Badge variant={quiz.needsReview ? 'outline' : 'secondary'}>{statusLabel}</Badge></Table.Cell
-								><Table.Cell
-									><div class="flex flex-row flex-wrap justify-end gap-2">
+								><Table.Cell class="w-[55%] lg:w-px"
+									><div class="quiz-actions grid grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2">
 										<Tooltip.Root>
 											<Tooltip.Trigger>
 												{#snippet child({ props })}
@@ -291,57 +390,87 @@
 														{...props}
 														variant="outline"
 														size="icon-sm"
-														disabled={pending || !!opening}
-														aria-label={`${runs.length ? 'Consulter' : 'Modifier'} ${quiz.content.title}`}
+														disabled={decisionPending}
+														aria-label={`${readOnly ? 'Consulter' : 'Modifier'} ${quiz.content.title}`}
 														onclick={() => edit(quiz)}
 													>
-														{#if runs.length}<EyeIcon aria-hidden="true" />{:else}<PencilIcon aria-hidden="true" />{/if}
+														{#if readOnly}<EyeIcon aria-hidden="true" />{:else}<PencilIcon aria-hidden="true" />{/if}
 													</Button>
 												{/snippet}
 											</Tooltip.Trigger>
 											<Tooltip.Content role="tooltip" sideOffset={8}
-												>{runs.length ? 'Consulter' : 'Modifier'}</Tooltip.Content
+												>{readOnly ? 'Consulter' : 'Modifier'}</Tooltip.Content
 											>
 										</Tooltip.Root>
-										{#if current?.status === 'closed' && current.canOpenFollowUp}
-											<Tooltip.Root
-												><Tooltip.Trigger
-													>{#snippet child({ props })}<Button
-															{...props}
-															variant="outline"
-															size="icon-sm"
-															aria-label={`Voir les résultats de ${quiz.content.title}`}
-															href={resolve('/enseignant/quiz/[runId]', { runId: current.id })}
-															><ChartColumnIcon aria-hidden="true" /></Button
-														>{/snippet}</Tooltip.Trigger
-												><Tooltip.Content>Voir les résultats</Tooltip.Content></Tooltip.Root
-											>
-											<Button
-												size="sm"
-												href={`${resolve('/enseignant/quiz/[runId]', { runId: current.id })}?nouvelle-salle=1` as ResolvedPathname}
-												disabled={pending || !!opening || quiz.needsReview || !quiz.lessonId || !!data.module.paused}
-												><Play data-icon="inline-start" />Ouvrir une salle</Button
-											>
-										{:else if current}<Button
-												size="sm"
-												variant={current.status === 'closed' ? 'outline' : 'default'}
-												href={resolve('/enseignant/quiz/[runId]', { runId: current.id })}
-												>{current.status === 'closed' ? 'Voir les résultats' : 'Piloter la salle'}</Button
-											>{:else}<Button
-												size="sm"
-												disabled={pending ||
-													(opening?.quizId !== quiz.id && !!opening) ||
-													quiz.needsReview ||
-													!quiz.lessonId ||
-													!!data.module.paused}
-												onclick={() => openRoom(quiz)}
-											>
-												{#if pending && opening?.quizId === quiz.id}<Spinner data-icon="inline-start" />{:else}<Play
-														data-icon="inline-start"
-														aria-hidden="true"
-													/>{/if}
-												{opening?.quizId === quiz.id ? 'Réessayer l’ouverture' : 'Ouvrir une salle'}
-											</Button>{/if}
+										<Button
+											variant="ghost"
+											size="sm"
+											class="w-full px-2 wrap-anywhere"
+											onclick={() => changeArchive(quiz)}
+											disabled={pending ||
+												!!opening ||
+												archiveConflict ||
+												(!!archiveCommand && archiveCommand.id !== quiz.id) ||
+												(!!current && current.status !== 'closed') ||
+												!!data.module.paused}
+											>{archiveCommand?.id === quiz.id
+												? quiz.archived
+													? 'Réessayer la restauration'
+													: 'Réessayer l’archivage'
+												: quiz.archived
+													? 'Restaurer'
+													: 'Archiver'}<span class="sr-only"> {quiz.content.title}</span></Button
+										>
+										{#if hasFollowUp}
+											<div class="quiz-results-shortcut">
+												<Tooltip.Root
+													><Tooltip.Trigger
+														>{#snippet child({ props })}<Button
+																{...props}
+																variant="outline"
+																size="icon-sm"
+																aria-label={`Voir les résultats de ${quiz.content.title}`}
+																href={resolve('/enseignant/quiz/[runId]', { runId: current.id })}
+																><ChartColumnIcon aria-hidden="true" /></Button
+															>{/snippet}</Tooltip.Trigger
+													><Tooltip.Content>Voir les résultats</Tooltip.Content></Tooltip.Root
+												>
+											</div>
+										{/if}
+										{#if current || !quiz.archived}
+											<div class="quiz-room-action">
+												{#if hasFollowUp}<Button
+														size="sm"
+														class="w-full wrap-anywhere"
+														href={`${resolve('/enseignant/quiz/[runId]', { runId: current.id })}?nouvelle-salle=1` as ResolvedPathname}
+														disabled={decisionPending || quiz.needsReview || !quiz.lessonId || !!data.module.paused}
+														><Play data-icon="inline-start" />Ouvrir une salle</Button
+													>
+												{:else if current}<Button
+														size="sm"
+														class="w-full wrap-anywhere"
+														variant={current.status === 'closed' ? 'outline' : 'default'}
+														href={resolve('/enseignant/quiz/[runId]', { runId: current.id })}
+														>{current.status === 'closed' ? 'Voir les résultats' : 'Piloter la salle'}</Button
+													>{:else}<Button
+														size="sm"
+														class="w-full wrap-anywhere"
+														disabled={pending ||
+															!!archiveCommand ||
+															(opening?.quizId !== quiz.id && !!opening) ||
+															quiz.needsReview ||
+															!quiz.lessonId ||
+															!!data.module.paused}
+														onclick={() => openRoom(quiz)}
+													>
+														{#if pending && opening?.quizId === quiz.id}<Spinner data-icon="inline-start" />{:else}<Play
+																data-icon="inline-start"
+																aria-hidden="true"
+															/>{/if}
+														{opening?.quizId === quiz.id ? 'Réessayer l’ouverture' : 'Ouvrir une salle'}
+													</Button>{/if}
+											</div>
+										{/if}
 									</div></Table.Cell
 								></Table.Row
 							>{/each}</Table.Body
@@ -355,3 +484,35 @@
 		{/if}
 	</section>
 {/if}
+
+<style>
+	.quiz-room-action {
+		grid-column: 1 / -1;
+	}
+
+	.quiz-actions:has(.quiz-results-shortcut) .quiz-room-action {
+		grid-column: 2;
+	}
+
+	@media (width >= 64rem) {
+		.quiz-actions {
+			grid-template-columns: 2.75rem 6rem minmax(10rem, 1fr);
+		}
+
+		.quiz-room-action {
+			grid-area: 1 / 3;
+		}
+
+		.quiz-library:has(.quiz-results-shortcut) .quiz-actions {
+			grid-template-columns: 2.75rem 6rem 2.75rem minmax(10rem, 1fr);
+		}
+
+		.quiz-results-shortcut {
+			grid-area: 1 / 3;
+		}
+
+		.quiz-library:has(.quiz-results-shortcut) .quiz-room-action {
+			grid-area: 1 / 4;
+		}
+	}
+</style>

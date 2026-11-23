@@ -53,6 +53,7 @@ const fixtureMessageSchema = z.strictObject({
 		'age-session',
 		'expire-session',
 		'revoke-session',
+		'legacy-jwt-signing-key',
 		'unavailable-jwt-signing',
 		'stop'
 	])
@@ -233,6 +234,10 @@ async function main() {
 						: null
 				} satisfies FixtureSessionState;
 			} else if (message.operation === 'unavailable-jwt-signing') {
+				await client!.execute(`CREATE TRIGGER fictional_loopback_signing_failure
+					BEFORE INSERT ON verification WHEN NEW.identifier LIKE 'campus-loopback-jwks:%'
+					BEGIN SELECT RAISE(ABORT, 'fictional signing storage unavailable'); END`);
+			} else if (message.operation === 'legacy-jwt-signing-key') {
 				await client!.execute({
 					sql: 'INSERT INTO jwks (id, public_key, private_key, created_at) VALUES (?, ?, ?, ?)',
 					args: [

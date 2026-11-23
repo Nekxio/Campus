@@ -91,7 +91,7 @@ practice fill for exercises. Hover and keyboard focus mix 8% semantic ink into t
 - Flat persistent surfaces. Only floating content uses 0 12px 40px var(--shadow-color).
   Modal scrims dim without backdrop blur. Selection, caret, scrollbars and focus use palette tokens.
 - Use spacing before separators. A group boundary has at most one divider; filled work surfaces
-  do not need enclosing rules. Student useful resources use space without dividers. Interactive
+  do not need enclosing rules. Student complementary resources use space without dividers. Interactive
   state belongs to the actual target, not static headings.
 - Main actions sit at the trailing edge of the content heading or selected context. Long forms
   repeat the same command in their existing bottom save bar, with one form and one pending state.
@@ -190,13 +190,25 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   sheet below, focus restoration and shared teacher preview. Preview omits public returns/footer.
   Keep expanded instructions, objectives, blank-rubric disclosures, deadlines and exercise/session
   detail. ContentCard retains neutral/learning/practice roles; external links announce a new tab.
-  Session titles lead, with the sequence number and date grouped underneath; no leading calendar
-  icon or internal chevron. Filled cards expose hover, active and full-card keyboard focus.
+  Session and dossier cards share a height across their respective grids, with titles wrapping at
+  the top. Session numbers and dates sit at the bottom and stack on narrow cards. Dossier criteria
+  counts, totals and deadlines sit at the bottom as well. Keep the session icon in the section
+  heading. Filled cards expose hover, active and full-card keyboard focus.
   CodeBlock remains keyboard-scrollable; revealing a correction is an ordinary action.
-  Exercise detail uses horizontally aligned, underlined Énoncé and Corrigé tabs, matching the
-  teacher module navigation, including inside the vertical course navigation. Both views render
-  authored paragraphs, Markdown headings, simple numbered or bulleted lists, bold text and inline
-  code with a 75ch reading measure. Fenced code retains
+  Course materials use a paginated catalogue of up to six rows with 48px minimum targets and shared
+  dividers. Documents lead and open directly. Workshops follow semester and scheduled lesson
+  order, with the lesson title and date under each title when linked. Search matches titles and
+  lesson names regardless of case or accents, and combines with a native scope for available
+  types, semesters and lessons. Search and scope reset pagination. Returning from a workshop
+  restores the query, scope, page and focus. The assignment index opens each dossier at its
+  heading and restores focus to its card on return. A dossier links to its instructions, blank
+  rubric, deadline and files whenever they are available. The complementary resource index also
+  lists each associated instruction, rubric and resource link once. An exercise with a correction
+  uses horizontally aligned Énoncé and Corrigé tabs. An exercise with only a statement opens
+  directly in reading mode.
+  Module, project and dossier instructions, exercise statements and corrections share a Markdown
+  reader with a 75ch reading measure, semantic headings and tables, HTTPS links, lists, bold text
+  and inline code. Wider tables scroll within their own keyboard-accessible region. Fenced code retains
   its whitespace, language label and syntax colors; HTML remains literal text. Supplemental
   correction code uses the same labelled block with a separate 16px gap.
   Exercise code blocks place the language on the left and an always-visible, icon-only copy
@@ -217,6 +229,8 @@ Keep existing layouts and the product/access/grading contracts in PRODUCT.md and
   disclosures of connected AI tools and data processing.
 - **Quizzes:** keep visible library actions, contextual drawers, explicit saves/frozen state,
   eligible-student selection with loading/error/empty states, and factual incident wording.
+  Library actions keep their column positions across quiz states. On narrow screens, the
+  room or results action sits on a second line within the same cell.
   Wide monitoring retains its nonmodal 24rem inspector below the measured header; mobile uses a
   modal sheet. Preserve student timer/save status, fullscreen fallback, question navigation,
   pre-submission summary and confirmed submission after acknowledged saves.
