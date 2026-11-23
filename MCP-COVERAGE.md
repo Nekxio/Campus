@@ -1,7 +1,8 @@
 # Application operations and remote MCP coverage
 
-The remote OAuth MCP is served at `/mcp` and can be connected as `campus-app`. It exposes up to
-**38 tools**, filtered by the connection's granted permissions. One tool can cover several HTTP
+The remote OAuth MCP is served at `/mcp`. The [connection commands](README.md#remote-teaching-mcp)
+identify the selected environment. The endpoint exposes up to **38 tools**, filtered by the
+connection's granted permissions. One tool can cover several HTTP
 endpoints and form actions through the same domain service.
 
 The local stdio MCP remains a folder-bound import/proposal adapter using API-key permissions.

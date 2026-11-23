@@ -1,6 +1,9 @@
 import { test, expect } from './fixtures.js';
 import { activate } from './support/auth.js';
 
+const workspacePath = (origin: string, pathname: string) => (url: URL) =>
+	url.origin === origin && url.pathname === pathname;
+
 test('private direct access, reloads and navigation do not require external JWT signing', async ({
 	app,
 	page,
@@ -16,11 +19,11 @@ test('private direct access, reloads and navigation do not require external JWT 
 	]) {
 		const response = await page.goto(app.origin + path);
 		expect(response?.status()).toBe(200);
-		await expect(page).toHaveURL(app.origin + path);
+		await expect(page).toHaveURL(workspacePath(app.origin, path));
 		await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 		expect(response?.headers()['cache-control']).toBe('private, no-store');
 		await page.reload();
-		await expect(page).toHaveURL(app.origin + path);
+		await expect(page).toHaveURL(workspacePath(app.origin, path));
 		await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 		await expect(page.getByText('La vérification de votre session a échoué.', { exact: false })).toHaveCount(0);
 	}
@@ -29,7 +32,7 @@ test('private direct access, reloads and navigation do not require external JWT 
 		await page.getByRole('button', { name: 'Ouvrir la navigation', exact: true }).click();
 	}
 	await link.click();
-	await expect(page).toHaveURL(app.origin + '/enseignant/notation');
+	await expect(page).toHaveURL(workspacePath(app.origin, '/enseignant/notation'));
 	await expect(page.getByRole('heading', { name: 'Notation', exact: true })).toBeVisible();
 	const data = await context.request.get(app.origin + '/enseignant/compte/__data.json');
 	expect(data.status()).toBe(200);
@@ -68,21 +71,21 @@ test('cross-site direct navigation preserves session checks, reloads and interna
 	]) {
 		const response = await page.goto(app.origin + path);
 		expect(response?.status()).toBe(200);
-		await expect(page).toHaveURL(app.origin + path);
+		await expect(page).toHaveURL(workspacePath(app.origin, path));
 		await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 		expect(response?.headers()['cache-control']).toBe('private, no-store');
 		await page.reload();
-		await expect(page).toHaveURL(app.origin + path);
+		await expect(page).toHaveURL(workspacePath(app.origin, path));
 		await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
 		await expect(page.getByText('La vérification de votre session a échoué.', { exact: false })).toHaveCount(0);
 	}
-	expect(navigationStatuses).toEqual([200, 200, 200, 200, 200, 200]);
+	expect(navigationStatuses).toEqual([307, 200, 200, 200, 200, 200]);
 	const link = page.getByRole('link', { name: 'Notation', exact: true });
 	if (!(await link.isVisible())) {
 		await page.getByRole('button', { name: 'Ouvrir la navigation', exact: true }).click();
 	}
 	await link.click();
-	await expect(page).toHaveURL(app.origin + '/enseignant/notation');
+	await expect(page).toHaveURL(workspacePath(app.origin, '/enseignant/notation'));
 	await expect(page.getByRole('heading', { name: 'Notation', exact: true })).toBeVisible();
 	await app.call('revoke-session');
 	await page.goto(app.origin + '/enseignant/compte');

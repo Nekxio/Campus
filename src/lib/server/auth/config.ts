@@ -3,11 +3,12 @@ export interface AuthSettings {
 	BETTER_AUTH_SECRET: string;
 }
 
+export const isLoopbackHostname = (hostname: string) => ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+
 export function authOrigin(settings: AuthSettings) {
 	const url = new URL(settings.ORIGIN);
-	const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
 	if (
-		(url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) ||
+		(url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopbackHostname(url.hostname))) ||
 		url.username ||
 		url.password ||
 		url.search ||

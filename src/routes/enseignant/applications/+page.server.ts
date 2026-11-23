@@ -1,6 +1,7 @@
 import { requireTeacherPage } from '#lib/server/auth/page-access.js';
 import { withAuth } from '#lib/server/auth/runtime.js';
 import { listApplications, revokeApplication } from '#lib/server/mcp/consent.js';
+import { mcpConnection } from '#lib/server/mcp/oauth.js';
 import type { Actions, PageServerLoad } from './$types';
 import { withTeacherDatabase } from '#lib/server/teaching/database.js';
 import { calendarCommand, getCalendarSettings } from '#lib/server/calendar/service.js';
@@ -11,11 +12,14 @@ import { calendarCommandSchema } from '#lib/domain/calendar-subscription.js';
 import { z } from 'zod';
 export const load: PageServerLoad = async ({ locals }) => {
 	const teacher = requireTeacherPage(locals);
-	const [applications, calendar] = await Promise.all([
-		withAuth((_auth, client) => listApplications(client, teacher.id)),
+	const [agents, calendar] = await Promise.all([
+		withAuth(async (_auth, client, origin) => ({
+			applications: await listApplications(client, teacher.id),
+			connection: mcpConnection(origin)
+		})),
 		withTeacherDatabase(locals, (db) => getCalendarSettings(db, teacher.id))
 	]);
-	return { applications, calendar };
+	return { ...agents, calendar };
 };
 
 const manualCalendarCommandSchema = z.discriminatedUnion('action', [

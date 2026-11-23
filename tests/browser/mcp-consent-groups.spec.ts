@@ -11,6 +11,7 @@ test('requested permissions are preselected in compact, adjustable groups', asyn
 }, info) => {
 	page.setDefaultTimeout(15000);
 	await activate(page, app);
+	await app.call('legacy-jwt-signing-key');
 	const callback = 'http://127.0.0.1:47913/callback';
 	const verifier = 'fictional-grouped-consent-verifier-'.repeat(3);
 	const registration = await request.post(app.origin + '/api/auth/oauth2/register', {

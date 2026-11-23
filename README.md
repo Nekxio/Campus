@@ -300,8 +300,28 @@ publication rules. Closure remains manual, without a retention-date prerequisite
 
 ### Remote teaching MCP
 
-The OAuth endpoint `/mcp` (`campus-app`) exposes 38 teaching tools. See
-[the complete operation inventory and MCP comparison](MCP-COVERAGE.md) for HTTP methods, page
+The OAuth endpoint `/mcp` exposes 38 teaching tools. Open **Applications connectées** on the
+selected Campus instance to copy its Codex or Claude connection command. The commands use the
+configured OAuth origin and the server name for that environment.
+
+| Environment    | MCP server name  |
+| -------------- | ---------------- |
+| Localhost      | `campus-local`   |
+| Shared preview | `campus-preview` |
+| Production     | `campus-mds`     |
+
+With the default local origin, connect Codex with:
+
+```shell
+codex mcp add campus-local --url 'http://localhost:5173/mcp'
+```
+
+Local development and the shared preview default to the same development database. Each OAuth
+issuer uses its own origin, passkeys, signing keys and token audience. Loopback keys are stored
+encrypted under a separate identifier in the existing authentication database and survive
+local restarts. Use a separate teacher passkey for the local origin.
+
+See [the complete operation inventory and MCP comparison](MCP-COVERAGE.md) for HTTP methods, page
 reads, form actions, permissions and verification limits. Account management is excluded.
 The grading, publication, annual lifecycle, calendar, roster update/deletion and quiz review
 permissions require explicit consent; existing connections retain their original rights.
