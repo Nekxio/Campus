@@ -107,7 +107,7 @@
 	{#if dossiers.length}
 		<section class="flex flex-col gap-3">
 			<h3 class="panel-title">Dossiers à remettre</h3>
-			<ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+			<ul class="grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
 				{#each dossiers as dossier (dossier.assessmentId)}
 					<li class="min-w-0">
 						<ContentCard
@@ -116,6 +116,7 @@
 							title={dossier.rubric.title}
 							heading="h4"
 							icon={FolderIcon}
+							metadataAtBottom
 							onclick={() => selectDossier(dossier.assessmentId)}
 						>
 							{#snippet metadata()}

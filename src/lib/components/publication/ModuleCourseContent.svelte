@@ -505,6 +505,7 @@
 								title={note.label}
 								tone="practice"
 								heading={compact ? 'h4' : 'h3'}
+								metadataAtBottom
 								onclick={() => openLesson({ kind: 'lesson', id: note.id })}
 							>
 								{#snippet metadata()}
@@ -644,12 +645,19 @@
 	.lesson-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+		grid-auto-rows: 1fr;
 		gap: 1rem;
 	}
 	.lesson-metadata {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem 0.75rem;
+		flex-direction: column;
+		gap: 0 0.75rem;
+	}
+	@container card-header (min-width: 14rem) {
+		.lesson-metadata {
+			flex-direction: row;
+			flex-wrap: wrap;
+		}
 	}
 	.lesson-detail-title:focus-visible {
 		outline: 2px solid var(--ring);
